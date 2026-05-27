@@ -1,0 +1,31 @@
+name: promohunter
+description: PromoHunter Flutter app scaffold for promo discovery and price comparison.
+publish_to: "none"
+
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.2
+  supabase_flutter: ^2.8.0
+  dio: ^5.8.0+1
+  cached_network_image: ^3.4.1
+  flutter_local_notifications: ^17.2.2
+  url_launcher: ^6.3.1
+  intl: ^0.19.0
+  image_picker: ^1.1.2
+  share_plus: ^10.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
