@@ -44,7 +44,7 @@ class _PriceCalculatorScreenState extends State<PriceCalculatorScreen> {
             _buildTextField(_controllers[2], 'Ukuran A', numeric: true),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _unitA,
+              initialValue: _unitA,
               items: _units.map((unit) => DropdownMenuItem(value: unit, child: Text(unit))).toList(),
               onChanged: (value) => setState(() => _unitA = value!),
               decoration: const InputDecoration(labelText: 'Satuan A'),
@@ -58,7 +58,7 @@ class _PriceCalculatorScreenState extends State<PriceCalculatorScreen> {
             _buildTextField(_controllers[5], 'Ukuran B', numeric: true),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _unitB,
+              initialValue: _unitB,
               items: _units.map((unit) => DropdownMenuItem(value: unit, child: Text(unit))).toList(),
               onChanged: (value) => setState(() => _unitB = value!),
               decoration: const InputDecoration(labelText: 'Satuan B'),
@@ -137,4 +137,3 @@ class _PriceCalculatorScreenState extends State<PriceCalculatorScreen> {
     );
   }
 }
-

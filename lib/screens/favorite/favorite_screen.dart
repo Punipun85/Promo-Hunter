@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/favorite_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/promo_card.dart';
@@ -24,7 +25,15 @@ class FavoriteScreen extends StatelessWidget {
         ),
       );
     }
-    final favorites = context.watch<PromoProvider>().favoritePromos;
+
+    final favoriteProvider = context.watch<FavoriteProvider>();
+    final promoProvider = context.watch<PromoProvider>();
+    final favorites = promoProvider.promos
+        .where((promo) => favoriteProvider.isFavorite(promo.id))
+        .map((promo) => promo.copyWith(isFavorite: true))
+        .toList()
+      ..sort((a, b) => a.endDate.compareTo(b.endDate));
+
     return Scaffold(
       appBar: AppBar(title: const Text('Promo Favorit')),
       body: favorites.isEmpty
@@ -45,8 +54,9 @@ class FavoriteScreen extends StatelessWidget {
                     AppRoutes.promoDetail,
                     arguments: promo,
                   ),
-                  onFavoriteTap: () =>
-                      context.read<PromoProvider>().toggleFavorite(promo.id),
+                  onFavoriteTap: () => context
+                      .read<FavoriteProvider>()
+                      .toggleFavorite(auth.currentUser!.id, promo),
                 );
               },
             ),

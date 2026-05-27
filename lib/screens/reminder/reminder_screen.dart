@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/promo_provider.dart';
+import '../../config/app_routes.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/reminder_provider.dart';
 import '../../utils/date_formatter.dart';
 import '../../widgets/empty_state.dart';
 
@@ -10,7 +12,20 @@ class ReminderScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<PromoProvider>();
+    final auth = context.watch<AuthProvider>();
+    if (!auth.isLoggedIn) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Reminder Promo')),
+        body: Center(
+          child: FilledButton(
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
+            child: const Text('Login untuk melihat reminder'),
+          ),
+        ),
+      );
+    }
+
+    final provider = context.watch<ReminderProvider>();
     return Scaffold(
       appBar: AppBar(title: const Text('Reminder Promo')),
       body: provider.reminders.isEmpty
@@ -33,7 +48,10 @@ class ReminderScreen extends StatelessWidget {
                     isThreeLine: true,
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => provider.removeReminder(reminder.promoId),
+                      onPressed: () => provider.removeReminder(
+                        auth.currentUser!.id,
+                        reminder.promoId,
+                      ),
                     ),
                   ),
                 );
@@ -42,4 +60,3 @@ class ReminderScreen extends StatelessWidget {
     );
   }
 }
-

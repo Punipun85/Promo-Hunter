@@ -1,34 +1,45 @@
 # PromoHunter
 
-Scaffold project Flutter untuk aplikasi agregator promo supermarket/minimarket berdasarkan PRD, SRS, dan SDD yang sudah ditentukan.
+Project Flutter untuk aplikasi agregator promo supermarket/minimarket berdasarkan PRD, SRS, dan SDD yang sudah ditentukan.
 
 ## Status
 
-Project ini berisi fondasi arsitektur aplikasi:
+Project ini sudah memiliki fondasi MVP yang bisa dijalankan:
 
 - struktur folder modular
 - theme dan routing dasar
 - model, provider, dan service layer
-- sample data lokal untuk demo awal
-- halaman utama, daftar promo, detail, favorit, reminder, kalkulator, toko, admin, dan profil
+- Supabase auth dan inisialisasi app
+- fallback data lokal untuk mode demo
+- halaman home, promo list/detail, favorit, reminder, shopping list, kalkulator, toko, admin, dan profil
 - schema SQL Supabase untuk setup backend
 
 ## Catatan penting
 
-- Workspace ini belum memiliki tool `flutter`, jadi scaffold dibuat manual dan belum bisa dijalankan/diverifikasi dari CLI saat ini.
-- `Supabase.initialize(...)` belum diaktifkan agar project tetap bisa dibuka tanpa kredensial.
-- Service masih menggunakan mock/in-memory data untuk mempercepat development MVP.
+- `Supabase.initialize(...)` sudah aktif di `lib/main.dart`.
+- Service memakai Supabase jika tersedia, lalu fallback ke cache/data lokal bila backend belum siap.
+- `favorites`, `reminders`, dan `shopping_lists` sudah disiapkan untuk sinkron per-user.
+- Local notification masih berupa stub service dan perlu dituntaskan untuk notifikasi perangkat sungguhan.
 
-## Setup berikutnya
+## Setup Supabase
 
-1. Install Flutter SDK dan tambahkan ke PATH.
-2. Jalankan `flutter pub get`.
-3. Lengkapi URL dan anon key di `lib/config/supabase_config.dart`.
-4. Aktifkan inisialisasi Supabase di `lib/main.dart`.
-5. Jalankan schema SQL di Supabase.
-6. Ganti mock service dengan query Supabase bertahap.
+1. Jalankan schema awal di [sql/001_initial_schema.sql](/C:/Users/Lenovo/.vscode/coding/project/Promo%20Hunter/sql/001_initial_schema.sql).
+2. Jalankan policy dasar di [sql/002_rls_policies.sql](/C:/Users/Lenovo/.vscode/coding/project/Promo%20Hunter/sql/002_rls_policies.sql).
+3. Pastikan `lib/config/supabase_config.dart` berisi project URL API dan anon key yang benar.
+4. Buat minimal data awal:
+   - `stores`
+   - `categories`
+   - `promos`
+5. Register user baru dari aplikasi agar row `profiles` ikut terbentuk.
 
-## Struktur
+## Verifikasi terakhir
 
-Lihat folder `lib/` dan file [sql/001_initial_schema.sql](/C:/Users/Lenovo/.vscode/coding/project/Promo%20Hunter/sql/001_initial_schema.sql).
+- `flutter analyze` lolos
+- `flutter test` lolos
+- `flutter build web` berhasil
 
+## Langkah berikutnya
+
+1. Tuntaskan `NotificationService` dengan `flutter_local_notifications`.
+2. Hubungkan CRUD admin promo/store/category langsung ke data Supabase penuh.
+3. Tambahkan seed data demo untuk presentasi UAS.

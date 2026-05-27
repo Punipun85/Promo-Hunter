@@ -16,5 +16,16 @@ class StoreModel {
   final String googleMapsUrl;
   final String openingHours;
   final int activePromoCount;
-}
 
+  factory StoreModel.fromMap(Map<String, dynamic> map) {
+    return StoreModel(
+      id: (map['id'] as num).toInt(),
+      name: map['name'] as String? ?? '',
+      address: map['address'] as String? ?? '',
+      city: map['city'] as String? ?? '',
+      googleMapsUrl: map['google_maps_url'] as String? ?? '',
+      openingHours: map['opening_hours'] as String? ?? '',
+      activePromoCount: ((map['active_promo_count'] ?? 0) as num).toInt(),
+    );
+  }
+}

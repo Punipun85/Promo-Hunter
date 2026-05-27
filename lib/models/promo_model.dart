@@ -44,25 +44,90 @@ class PromoModel {
 
   double get unitPrice => promoPrice / unitSize;
 
-  PromoModel copyWith({bool? isFavorite}) {
+  factory PromoModel.fromMap(Map<String, dynamic> map) {
     return PromoModel(
-      id: id,
-      productName: productName,
-      brand: brand,
-      imageUrl: imageUrl,
-      normalPrice: normalPrice,
-      promoPrice: promoPrice,
-      unitSize: unitSize,
-      unitType: unitType,
-      storeName: storeName,
-      storeAddress: storeAddress,
-      categoryName: categoryName,
-      startDate: startDate,
-      endDate: endDate,
-      terms: terms,
+      id: (map['id'] as num).toInt(),
+      productName: map['product_name'] as String? ?? '',
+      brand: map['brand'] as String? ?? '',
+      imageUrl: map['image_url'] as String? ?? '',
+      normalPrice: ((map['normal_price'] ?? 0) as num).toDouble(),
+      promoPrice: ((map['promo_price'] ?? 0) as num).toDouble(),
+      unitSize: ((map['unit_size'] ?? 1) as num).toDouble(),
+      unitType: map['unit_type'] as String? ?? 'pcs',
+      storeName:
+          map['stores']?['name'] as String? ?? map['store_name'] as String? ?? '',
+      storeAddress: map['stores']?['address'] as String? ??
+          map['store_address'] as String? ??
+          '',
+      categoryName: map['categories']?['name'] as String? ??
+          map['category_name'] as String? ??
+          '',
+      startDate:
+          DateTime.tryParse(map['start_date']?.toString() ?? '') ?? DateTime.now(),
+      endDate:
+          DateTime.tryParse(map['end_date']?.toString() ?? '') ?? DateTime.now(),
+      terms: map['terms'] as String? ?? '',
+      isActive: map['is_active'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toInsertMap({
+    int? storeId,
+    int? categoryId,
+  }) {
+    return {
+      'store_id': storeId,
+      'category_id': categoryId,
+      'product_name': productName,
+      'brand': brand,
+      'image_url': imageUrl,
+      'normal_price': normalPrice,
+      'promo_price': promoPrice,
+      'unit_size': unitSize,
+      'unit_type': unitType,
+      'discount_percent': discountPercent,
+      'start_date': startDate.toIso8601String(),
+      'end_date': endDate.toIso8601String(),
+      'terms': terms,
+      'is_active': isActive,
+    };
+  }
+
+  PromoModel copyWith({
+    int? id,
+    String? productName,
+    String? brand,
+    String? imageUrl,
+    double? normalPrice,
+    double? promoPrice,
+    double? unitSize,
+    String? unitType,
+    String? storeName,
+    String? storeAddress,
+    String? categoryName,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? terms,
+    bool? isFavorite,
+    bool? isActive,
+  }) {
+    return PromoModel(
+      id: id ?? this.id,
+      productName: productName ?? this.productName,
+      brand: brand ?? this.brand,
+      imageUrl: imageUrl ?? this.imageUrl,
+      normalPrice: normalPrice ?? this.normalPrice,
+      promoPrice: promoPrice ?? this.promoPrice,
+      unitSize: unitSize ?? this.unitSize,
+      unitType: unitType ?? this.unitType,
+      storeName: storeName ?? this.storeName,
+      storeAddress: storeAddress ?? this.storeAddress,
+      categoryName: categoryName ?? this.categoryName,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      terms: terms ?? this.terms,
       isFavorite: isFavorite ?? this.isFavorite,
-      isActive: isActive,
+      isActive: isActive ?? this.isActive,
     );
   }
 }
-

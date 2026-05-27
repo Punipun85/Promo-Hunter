@@ -25,11 +25,11 @@ class PromoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(20),
                 child: CachedNetworkImage(
                   imageUrl: promo.imageUrl,
                   width: 96,
@@ -56,15 +56,15 @@ class PromoCard extends StatelessWidget {
                           onPressed: onFavoriteTap,
                           icon: Icon(
                             promo.isFavorite
-                                ? Icons.favorite
-                                : Icons.favorite_border,
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
                             color: promo.isFavorite ? Colors.red : null,
                           ),
                         ),
                       ],
                     ),
                     Text(
-                      '${promo.brand} • ${promo.storeName}',
+                      '${promo.brand} - ${promo.storeName}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
@@ -79,12 +79,14 @@ class PromoCard extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.orange.shade100,
+                            color: const Color(0xFFFFF0A8),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             '-${promo.discountPercent.toStringAsFixed(0)}%',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: const Color(0xFF7C5A00),
+                                ),
                           ),
                         ),
                         Text(
@@ -103,9 +105,19 @@ class PromoCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'Berlaku sampai ${DateFormatter.short(promo.endDate)}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF4FF),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Berlaku sampai ${DateFormatter.short(promo.endDate)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ),
                   ],
                 ),
@@ -117,4 +129,3 @@ class PromoCard extends StatelessWidget {
     );
   }
 }
-

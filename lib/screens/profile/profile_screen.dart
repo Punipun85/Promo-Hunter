@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/empty_state.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});

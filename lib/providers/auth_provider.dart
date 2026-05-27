@@ -10,17 +10,25 @@ class AuthProvider extends ChangeNotifier {
 
   ProfileModel? currentUser;
   bool isLoading = false;
+  String? errorMessage;
 
   bool get isLoggedIn => currentUser != null;
   bool get isAdmin => currentUser?.isAdmin ?? false;
 
+  Future<void> bootstrap() async {
+    currentUser = await _authService.restoreSession();
+    notifyListeners();
+  }
+
   Future<bool> login(String email, String password) async {
     isLoading = true;
+    errorMessage = null;
     notifyListeners();
     try {
       currentUser = await _authService.login(email: email, password: password);
       return true;
-    } catch (_) {
+    } catch (error) {
+      errorMessage = error.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
       isLoading = false;
@@ -30,6 +38,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> register(String name, String email, String password) async {
     isLoading = true;
+    errorMessage = null;
     notifyListeners();
     try {
       currentUser = await _authService.register(
@@ -38,7 +47,8 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       return true;
-    } catch (_) {
+    } catch (error) {
+      errorMessage = error.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
       isLoading = false;
@@ -49,7 +59,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     await _authService.logout();
     currentUser = null;
+    errorMessage = null;
     notifyListeners();
   }
 }
-

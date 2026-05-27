@@ -6,7 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_routes.dart';
 import '../../models/promo_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/favorite_provider.dart';
 import '../../providers/promo_provider.dart';
+import '../../providers/reminder_provider.dart';
+import '../../providers/shopping_list_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_formatter.dart';
 
@@ -19,7 +22,15 @@ class PromoDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<PromoProvider>();
     final auth = context.watch<AuthProvider>();
-    final activePromo = provider.promos.firstWhere((item) => item.id == promo.id);
+    final favoriteProvider = context.watch<FavoriteProvider>();
+    final reminderProvider = context.watch<ReminderProvider>();
+    final shoppingList = context.read<ShoppingListProvider>();
+    final promoIndex = provider.promos.indexWhere((item) => item.id == promo.id);
+    final activePromo = promoIndex >= 0 ? provider.promos[promoIndex] : promo;
+    final decoratedPromo = activePromo.copyWith(
+      isFavorite: favoriteProvider.isFavorite(activePromo.id),
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Promo'),
@@ -30,11 +41,11 @@ class PromoDetailScreen extends StatelessWidget {
                 Navigator.pushNamed(context, AppRoutes.login);
                 return;
               }
-              provider.toggleFavorite(activePromo.id);
+              favoriteProvider.toggleFavorite(auth.currentUser!.id, activePromo);
             },
             icon: Icon(
-              activePromo.isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: activePromo.isFavorite ? Colors.red : null,
+              decoratedPromo.isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: decoratedPromo.isFavorite ? Colors.red : null,
             ),
           ),
         ],
@@ -45,25 +56,25 @@ class PromoDetailScreen extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(28),
             child: CachedNetworkImage(
-              imageUrl: activePromo.imageUrl,
+              imageUrl: decoratedPromo.imageUrl,
               height: 260,
               fit: BoxFit.cover,
             ),
           ),
           const SizedBox(height: 20),
           Text(
-            activePromo.productName,
+            decoratedPromo.productName,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
           ),
           const SizedBox(height: 8),
-          Text('${activePromo.brand} • ${activePromo.categoryName}'),
+          Text('${decoratedPromo.brand} - ${decoratedPromo.categoryName}'),
           const SizedBox(height: 16),
           Row(
             children: [
               Text(
-                CurrencyFormatter.format(activePromo.promoPrice),
+                CurrencyFormatter.format(decoratedPromo.promoPrice),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w800,
@@ -71,14 +82,16 @@ class PromoDetailScreen extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                CurrencyFormatter.format(activePromo.normalPrice),
-                style: const TextStyle(decoration: TextDecoration.lineThrough),
+                CurrencyFormatter.format(decoratedPromo.normalPrice),
+                style: const TextStyle(
+                  decoration: TextDecoration.lineThrough,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            'Diskon ${activePromo.discountPercent.toStringAsFixed(0)}% • ${CurrencyFormatter.format(activePromo.unitPrice)}/${activePromo.unitType}',
+            'Diskon ${decoratedPromo.discountPercent.toStringAsFixed(0)}% - ${CurrencyFormatter.format(decoratedPromo.unitPrice)}/${decoratedPromo.unitType}',
           ),
           const SizedBox(height: 16),
           Card(
@@ -89,40 +102,68 @@ class PromoDetailScreen extends StatelessWidget {
                 children: [
                   Text('Toko', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 6),
-                  Text(activePromo.storeName),
-                  Text(activePromo.storeAddress),
+                  Text(decoratedPromo.storeName),
+                  Text(decoratedPromo.storeAddress),
                   const SizedBox(height: 12),
-                  Text('Masa berlaku', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Masa berlaku',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 6),
                   Text(
-                    '${DateFormatter.short(activePromo.startDate)} - ${DateFormatter.short(activePromo.endDate)}',
+                    '${DateFormatter.short(decoratedPromo.startDate)} - ${DateFormatter.short(decoratedPromo.endDate)}',
                   ),
                   const SizedBox(height: 12),
-                  Text('Syarat & ketentuan', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Syarat & ketentuan',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 6),
-                  Text(activePromo.terms),
+                  Text(decoratedPromo.terms),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 16),
+          FilledButton.tonalIcon(
+            onPressed: () async {
+              if (!auth.isLoggedIn) {
+                Navigator.pushNamed(context, AppRoutes.login);
+                return;
+              }
+              await shoppingList.bootstrap(auth.currentUser!.id);
+              await shoppingList.addPromo(decoratedPromo);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Promo ditambahkan ke daftar belanja.'),
+                ),
+              );
+            },
+            icon: const Icon(Icons.shopping_cart_outlined),
+            label: const Text('Tambah ke Daftar Belanja'),
+          ),
+          const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: activePromo.isExpired
+            onPressed: decoratedPromo.isExpired
                 ? null
                 : () async {
                     if (!auth.isLoggedIn) {
                       Navigator.pushNamed(context, AppRoutes.login);
                       return;
                     }
-                    final message = await provider.addReminder(
-                      activePromo,
+                    await reminderProvider.bootstrapForUser(auth.currentUser!.id);
+                    final message = await reminderProvider.addReminder(
+                      auth.currentUser!.id,
+                      decoratedPromo,
                       const Duration(hours: 3),
                     );
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          message ?? 'Reminder 3 jam sebelum promo berakhir berhasil dibuat.',
+                          message ??
+                              'Reminder 3 jam sebelum promo berakhir berhasil dibuat.',
                         ),
                       ),
                     );
@@ -133,7 +174,9 @@ class PromoDetailScreen extends StatelessWidget {
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () async {
-              final uri = Uri.parse('https://maps.google.com/?q=${Uri.encodeComponent(activePromo.storeAddress)}');
+              final uri = Uri.parse(
+                'https://maps.google.com/?q=${Uri.encodeComponent(decoratedPromo.storeAddress)}',
+              );
               await launchUrl(uri, mode: LaunchMode.externalApplication);
             },
             icon: const Icon(Icons.map_outlined),

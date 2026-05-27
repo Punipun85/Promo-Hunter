@@ -19,9 +19,9 @@ class CategoryChip extends StatelessWidget {
       child: ChoiceChip(
         selected: selected,
         label: Text(label),
+        showCheckmark: false,
         onSelected: (_) => onTap(),
       ),
     );
   }
 }
-

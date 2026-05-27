@@ -30,6 +30,7 @@ class PromoProvider extends ChangeNotifier {
   String searchKeyword = '';
   String selectedCategory = 'Semua';
   String selectedStore = 'Semua';
+  String selectedSort = 'Terbaru';
 
   Future<void> bootstrap() async {
     isLoading = true;
@@ -52,37 +53,80 @@ class PromoProvider extends ChangeNotifier {
   }
 
   List<PromoModel> get filteredPromos {
-    return promos.where((promo) {
+    final filtered = promos.where((promo) {
+      final keyword = searchKeyword.toLowerCase();
       final searchMatches = searchKeyword.isEmpty ||
-          promo.productName.toLowerCase().contains(searchKeyword.toLowerCase()) ||
-          promo.brand.toLowerCase().contains(searchKeyword.toLowerCase());
+          promo.productName.toLowerCase().contains(keyword) ||
+          promo.brand.toLowerCase().contains(keyword) ||
+          promo.storeName.toLowerCase().contains(keyword);
       final categoryMatches =
           selectedCategory == 'Semua' || promo.categoryName == selectedCategory;
       final storeMatches =
           selectedStore == 'Semua' || promo.storeName == selectedStore;
       return searchMatches && categoryMatches && storeMatches;
     }).toList();
+
+    switch (selectedSort) {
+      case 'Diskon terbesar':
+        filtered.sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
+        break;
+      case 'Harga termurah':
+        filtered.sort((a, b) => a.promoPrice.compareTo(b.promoPrice));
+        break;
+      case 'Hampir berakhir':
+        filtered.sort((a, b) => a.endDate.compareTo(b.endDate));
+        break;
+      default:
+        filtered.sort((a, b) => b.startDate.compareTo(a.startDate));
+        break;
+    }
+    return filtered;
   }
 
   List<PromoModel> get favoritePromos =>
-      promos.where((promo) => promo.isFavorite).toList();
+      promos.where((promo) => promo.isFavorite).toList()
+        ..sort((a, b) => a.endDate.compareTo(b.endDate));
 
   List<PromoModel> get endingSoonPromos => promos
-      .where((promo) => !promo.isExpired && promo.endDate.difference(DateTime.now()).inHours <= 48)
-      .toList();
+      .where(
+        (promo) =>
+            !promo.isExpired &&
+            promo.endDate.difference(DateTime.now()).inHours <= 48,
+      )
+      .toList()
+    ..sort((a, b) => a.endDate.compareTo(b.endDate));
+
+  List<PromoModel> get popularPromos {
+    final list = [...promos];
+    list.sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
+    return list.take(5).toList();
+  }
 
   void updateSearch(String keyword) {
     searchKeyword = keyword;
     notifyListeners();
   }
 
-  void updateCategory(String category) {
+  void updateSelectedCategory(String category) {
     selectedCategory = category;
     notifyListeners();
   }
 
-  void updateStore(String store) {
+  void updateSelectedStore(String store) {
     selectedStore = store;
+    notifyListeners();
+  }
+
+  void updateSort(String sort) {
+    selectedSort = sort;
+    notifyListeners();
+  }
+
+  void resetFilters() {
+    searchKeyword = '';
+    selectedCategory = 'Semua';
+    selectedStore = 'Semua';
+    selectedSort = 'Terbaru';
     notifyListeners();
   }
 
@@ -125,5 +169,101 @@ class PromoProvider extends ChangeNotifier {
     reminders = reminders.where((item) => item.promoId != promoId).toList();
     notifyListeners();
   }
-}
 
+  Future<void> createPromo(PromoModel promo) async {
+    final maxId = promos.fold<int>(
+      0,
+      (previous, item) => item.id > previous ? item.id : previous,
+    );
+    final localPromo = promo.copyWith(id: promo.id <= 0 ? maxId + 1 : promo.id);
+    await _promoService.createPromo(localPromo);
+    promos = [...promos, localPromo];
+    notifyListeners();
+  }
+
+  Future<void> updateExistingPromo(PromoModel promo) async {
+    await _promoService.updatePromo(promo);
+    promos = promos.map((item) => item.id == promo.id ? promo : item).toList();
+    notifyListeners();
+  }
+
+  Future<void> deletePromo(int promoId) async {
+    await _promoService.deletePromo(promoId);
+    promos = promos.where((item) => item.id != promoId).toList();
+    reminders = reminders.where((item) => item.promoId != promoId).toList();
+    notifyListeners();
+  }
+
+  List<PromoModel> promosByStore(String storeName) {
+    final items = promos.where((promo) => promo.storeName == storeName).toList();
+    items.sort((a, b) => a.endDate.compareTo(b.endDate));
+    return items;
+  }
+
+  Future<void> createStore(StoreModel store) async {
+    final maxId = stores.fold<int>(
+      0,
+      (previous, item) => item.id > previous ? item.id : previous,
+    );
+    final localStore = StoreModel(
+      id: store.id <= 0 ? maxId + 1 : store.id,
+      name: store.name,
+      address: store.address,
+      city: store.city,
+      googleMapsUrl: store.googleMapsUrl,
+      openingHours: store.openingHours,
+      activePromoCount: store.activePromoCount,
+    );
+    await _storeService.createStore(localStore);
+    stores = [...stores, localStore];
+    notifyListeners();
+  }
+
+  Future<void> updateStore(StoreModel store) async {
+    await _storeService.updateStore(store);
+    stores = stores.map((item) => item.id == store.id ? store : item).toList();
+    notifyListeners();
+  }
+
+  Future<void> deleteStore(int storeId) async {
+    await _storeService.deleteStore(storeId);
+    final target = stores.firstWhere((item) => item.id == storeId);
+    stores = stores.where((item) => item.id != storeId).toList();
+    promos = promos.where((item) => item.storeName != target.name).toList();
+    notifyListeners();
+  }
+
+  Future<void> createCategory(CategoryModel category) async {
+    final existingMax = categories.fold<int>(
+      0,
+      (previous, item) => item.id > previous ? item.id : previous,
+    );
+    final localCategory = CategoryModel(
+      id: category.id <= 0 ? existingMax + 1 : category.id,
+      name: category.name,
+      icon: category.icon,
+    );
+    await _categoryService.createCategory(localCategory);
+    categories = [...categories, localCategory];
+    notifyListeners();
+  }
+
+  Future<void> updateCategory(CategoryModel category) async {
+    await _categoryService.updateCategory(category);
+    categories =
+        categories.map((item) => item.id == category.id ? category : item).toList();
+    notifyListeners();
+  }
+
+  Future<void> deleteCategory(int categoryId) async {
+    await _categoryService.deleteCategory(categoryId);
+    final target = categories.firstWhere((item) => item.id == categoryId);
+    categories = categories.where((item) => item.id != categoryId).toList();
+    promos = promos
+        .map((item) => item.categoryName == target.name
+            ? item.copyWith(categoryName: 'Lainnya')
+            : item)
+        .toList();
+    notifyListeners();
+  }
+}
