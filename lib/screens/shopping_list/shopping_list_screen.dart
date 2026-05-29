@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/shopping_list_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/loading_widget.dart';
 
 class ShoppingListScreen extends StatelessWidget {
   const ShoppingListScreen({super.key});
@@ -26,6 +27,12 @@ class ShoppingListScreen extends StatelessWidget {
     }
 
     final provider = context.watch<ShoppingListProvider>();
+    if (provider.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Daftar Belanja')),
+        body: const LoadingWidget(message: 'Sedang memuat daftar belanja...'),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Daftar Belanja')),
       body: provider.items.isEmpty
@@ -130,4 +137,3 @@ class ShoppingListScreen extends StatelessWidget {
     );
   }
 }
-

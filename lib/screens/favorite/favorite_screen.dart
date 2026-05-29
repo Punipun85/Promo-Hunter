@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/loading_widget.dart';
 import '../../widgets/promo_card.dart';
 
 class FavoriteScreen extends StatelessWidget {
@@ -28,6 +29,12 @@ class FavoriteScreen extends StatelessWidget {
 
     final favoriteProvider = context.watch<FavoriteProvider>();
     final promoProvider = context.watch<PromoProvider>();
+    if (favoriteProvider.isLoading || promoProvider.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Promo Favorit')),
+        body: const LoadingWidget(message: 'Sedang memuat promo favorit...'),
+      );
+    }
     final favorites = promoProvider.promos
         .where((promo) => favoriteProvider.isFavorite(promo.id))
         .map((promo) => promo.copyWith(isFavorite: true))

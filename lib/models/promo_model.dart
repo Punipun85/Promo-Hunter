@@ -38,11 +38,42 @@ class PromoModel {
   double get discountPercent =>
       ((normalPrice - promoPrice) / normalPrice * 100).clamp(0, 100);
 
-  bool get isExpired => endDate.isBefore(DateTime.now());
+  double get savingsAmount => (normalPrice - promoPrice).clamp(0, normalPrice);
 
-  int get remainingDays => endDate.difference(DateTime.now()).inDays;
+  DateTime get _today =>
+      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+
+  bool get isExpired => endDate.isBefore(_today);
+
+  bool get isEndingToday => !isExpired && _sameDay(endDate, _today);
+
+  bool get isEndingTomorrow =>
+      !isExpired &&
+      _sameDay(
+        endDate,
+        _today.add(const Duration(days: 1)),
+      );
+
+  bool get isEndingSoon =>
+      !isExpired && endDate.difference(_today).inDays <= 2;
+
+  int get remainingDays => endDate.difference(_today).inDays;
 
   double get unitPrice => promoPrice / unitSize;
+
+  String get statusLabel {
+    if (isExpired) return 'Expired';
+    if (isEndingToday) return 'Berakhir Hari Ini';
+    if (isEndingTomorrow) return 'Berakhir Besok';
+    if (isEndingSoon) return 'Hampir Berakhir';
+    return 'Aktif';
+  }
+
+  bool get showStatusBadge => isExpired || isEndingSoon || isActive;
+
+  static bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
 
   factory PromoModel.fromMap(Map<String, dynamic> map) {
     return PromoModel(

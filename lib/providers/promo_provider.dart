@@ -23,10 +23,12 @@ class PromoProvider extends ChangeNotifier {
   final StoreService _storeService;
 
   bool isLoading = false;
+  String? errorMessage;
   List<PromoModel> promos = [];
   List<CategoryModel> categories = [];
   List<StoreModel> stores = [];
   List<ReminderModel> reminders = [];
+  List<int> recentlyViewedPromoIds = [];
   String searchKeyword = '';
   String selectedCategory = 'Semua';
   String selectedStore = 'Semua';
@@ -34,22 +36,28 @@ class PromoProvider extends ChangeNotifier {
 
   Future<void> bootstrap() async {
     isLoading = true;
+    errorMessage = null;
     notifyListeners();
-    promos = await _promoService.getPromos();
-    categories = await _categoryService.getCategories();
-    stores = [
-      const StoreModel(
-        id: 0,
-        name: 'Semua',
-        address: '',
-        city: '',
-        googleMapsUrl: '',
-        openingHours: '',
-      ),
-      ...await _storeService.getStores(),
-    ];
-    isLoading = false;
-    notifyListeners();
+    try {
+      promos = await _promoService.getPromos();
+      categories = await _categoryService.getCategories();
+      stores = [
+        const StoreModel(
+          id: 0,
+          name: 'Semua',
+          address: '',
+          city: '',
+          googleMapsUrl: '',
+          openingHours: '',
+        ),
+        ...await _storeService.getStores(),
+      ];
+    } catch (_) {
+      errorMessage = 'Gagal memuat katalog promo. Periksa koneksi lalu coba lagi.';
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   List<PromoModel> get filteredPromos {
@@ -63,7 +71,10 @@ class PromoProvider extends ChangeNotifier {
           selectedCategory == 'Semua' || promo.categoryName == selectedCategory;
       final storeMatches =
           selectedStore == 'Semua' || promo.storeName == selectedStore;
-      return searchMatches && categoryMatches && storeMatches;
+      return !promo.isExpired &&
+          searchMatches &&
+          categoryMatches &&
+          storeMatches;
     }).toList();
 
     switch (selectedSort) {
@@ -76,6 +87,9 @@ class PromoProvider extends ChangeNotifier {
       case 'Hampir berakhir':
         filtered.sort((a, b) => a.endDate.compareTo(b.endDate));
         break;
+      case 'Toko A-Z':
+        filtered.sort((a, b) => a.storeName.compareTo(b.storeName));
+        break;
       default:
         filtered.sort((a, b) => b.startDate.compareTo(a.startDate));
         break;
@@ -84,22 +98,30 @@ class PromoProvider extends ChangeNotifier {
   }
 
   List<PromoModel> get favoritePromos =>
-      promos.where((promo) => promo.isFavorite).toList()
+      promos.where((promo) => promo.isFavorite && !promo.isExpired).toList()
         ..sort((a, b) => a.endDate.compareTo(b.endDate));
 
   List<PromoModel> get endingSoonPromos => promos
       .where(
-        (promo) =>
-            !promo.isExpired &&
-            promo.endDate.difference(DateTime.now()).inHours <= 48,
+        (promo) => promo.isEndingSoon,
       )
       .toList()
     ..sort((a, b) => a.endDate.compareTo(b.endDate));
 
   List<PromoModel> get popularPromos {
-    final list = [...promos];
+    final list = promos.where((promo) => !promo.isExpired).toList();
     list.sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
     return list.take(5).toList();
+  }
+
+  List<PromoModel> get recentlyViewedPromos {
+    final availablePromos = {
+      for (final promo in promos) promo.id: promo,
+    };
+    return recentlyViewedPromoIds
+        .map((id) => availablePromos[id])
+        .whereType<PromoModel>()
+        .toList();
   }
 
   void updateSearch(String keyword) {
@@ -127,6 +149,14 @@ class PromoProvider extends ChangeNotifier {
     selectedCategory = 'Semua';
     selectedStore = 'Semua';
     selectedSort = 'Terbaru';
+    notifyListeners();
+  }
+
+  void markAsViewed(PromoModel promo) {
+    recentlyViewedPromoIds = [
+      promo.id,
+      ...recentlyViewedPromoIds.where((id) => id != promo.id),
+    ].take(6).toList();
     notifyListeners();
   }
 
@@ -195,7 +225,9 @@ class PromoProvider extends ChangeNotifier {
   }
 
   List<PromoModel> promosByStore(String storeName) {
-    final items = promos.where((promo) => promo.storeName == storeName).toList();
+    final items = promos
+        .where((promo) => promo.storeName == storeName && !promo.isExpired)
+        .toList();
     items.sort((a, b) => a.endDate.compareTo(b.endDate));
     return items;
   }

@@ -10,6 +10,7 @@ class UnitConverter {
   static const Map<String, double> _count = {
     'pcs': 1,
     'pack': 1,
+    'sachet': 1,
   };
 
   static double? calculateUnitPrice(double price, double size, String unit) {
@@ -26,5 +27,25 @@ class UnitConverter {
     if (_count.containsKey(key)) return size * _count[key]!;
     return null;
   }
-}
 
+  static String? unitFamily(String unit) {
+    final key = unit.toLowerCase();
+    if (_mass.containsKey(key)) return 'mass';
+    if (_volume.containsKey(key)) return 'volume';
+    if (_count.containsKey(key)) return 'count';
+    return null;
+  }
+
+  static String baseUnitLabel(String unit) {
+    switch (unitFamily(unit)) {
+      case 'mass':
+        return 'gram';
+      case 'volume':
+        return 'ml';
+      case 'count':
+        return 'pcs';
+      default:
+        return 'unit';
+    }
+  }
+}

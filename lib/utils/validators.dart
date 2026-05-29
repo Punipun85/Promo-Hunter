@@ -24,5 +24,20 @@ class Validators {
     }
     return null;
   }
-}
 
+  static String? positiveNumber(
+    String? value, {
+    String label = 'Field',
+  }) {
+    final required = requiredField(value, label: label);
+    if (required != null) return required;
+    final parsed = double.tryParse(value!.trim());
+    if (parsed == null) {
+      return '$label harus angka';
+    }
+    if (parsed <= 0) {
+      return '$label harus lebih dari 0';
+    }
+    return null;
+  }
+}

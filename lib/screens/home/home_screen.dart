@@ -6,6 +6,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../widgets/category_chip.dart';
+import '../../widgets/error_state.dart';
+import '../../widgets/loading_widget.dart';
 import '../../widgets/promo_card.dart';
 import '../../widgets/store_card.dart';
 
@@ -42,7 +44,13 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: promoProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingWidget(message: 'Sedang memuat promo pilihan...')
+          : promoProvider.errorMessage != null
+              ? ErrorState(
+                  title: 'Gagal memuat beranda',
+                  message: promoProvider.errorMessage!,
+                  onRetry: () => context.read<PromoProvider>().bootstrap(),
+                )
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -234,6 +242,37 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
                 ),
+                if (promoProvider.recentlyViewedPromos.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _SectionHeader(
+                    title: 'Terakhir Dilihat',
+                    actionLabel: 'Lihat promo',
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.promoList),
+                  ),
+                  const SizedBox(height: 12),
+                  ...promoProvider.recentlyViewedPromos.take(3).map(
+                    (promo) => PromoCard(
+                      promo: promo.copyWith(
+                        isFavorite: favoriteProvider.isFavorite(promo.id),
+                      ),
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.promoDetail,
+                        arguments: promo,
+                      ),
+                      onFavoriteTap: () {
+                        if (!auth.isLoggedIn) {
+                          Navigator.pushNamed(context, AppRoutes.login);
+                          return;
+                        }
+                        favoriteProvider.toggleFavorite(
+                          auth.currentUser!.id,
+                          promo,
+                        );
+                      },
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 _SectionHeader(
                   title: 'Toko Terdekat',

@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/reminder_provider.dart';
 import '../../utils/date_formatter.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/loading_widget.dart';
 
 class ReminderScreen extends StatelessWidget {
   const ReminderScreen({super.key});
@@ -26,6 +27,12 @@ class ReminderScreen extends StatelessWidget {
     }
 
     final provider = context.watch<ReminderProvider>();
+    if (provider.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Reminder Promo')),
+        body: const LoadingWidget(message: 'Sedang memuat reminder promo...'),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Reminder Promo')),
       body: provider.reminders.isEmpty

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_routes.dart';
@@ -13,10 +14,25 @@ import '../../providers/shopping_list_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_formatter.dart';
 
-class PromoDetailScreen extends StatelessWidget {
+class PromoDetailScreen extends StatefulWidget {
   const PromoDetailScreen({super.key, required this.promo});
 
   final PromoModel promo;
+
+  @override
+  State<PromoDetailScreen> createState() => _PromoDetailScreenState();
+}
+
+class _PromoDetailScreenState extends State<PromoDetailScreen> {
+  bool _hasMarkedAsViewed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_hasMarkedAsViewed) return;
+    context.read<PromoProvider>().markAsViewed(widget.promo);
+    _hasMarkedAsViewed = true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +41,9 @@ class PromoDetailScreen extends StatelessWidget {
     final favoriteProvider = context.watch<FavoriteProvider>();
     final reminderProvider = context.watch<ReminderProvider>();
     final shoppingList = context.read<ShoppingListProvider>();
-    final promoIndex = provider.promos.indexWhere((item) => item.id == promo.id);
-    final activePromo = promoIndex >= 0 ? provider.promos[promoIndex] : promo;
+    final promoIndex =
+        provider.promos.indexWhere((item) => item.id == widget.promo.id);
+    final activePromo = promoIndex >= 0 ? provider.promos[promoIndex] : widget.promo;
     final decoratedPromo = activePromo.copyWith(
       isFavorite: favoriteProvider.isFavorite(activePromo.id),
     );
@@ -36,6 +53,10 @@ class PromoDetailScreen extends StatelessWidget {
         title: const Text('Detail Promo'),
         actions: [
           IconButton(
+            onPressed: () => Share.share(_buildShareText(decoratedPromo)),
+            icon: const Icon(Icons.share_outlined),
+          ),
+          IconButton(
             onPressed: () {
               if (!auth.isLoggedIn) {
                 Navigator.pushNamed(context, AppRoutes.login);
@@ -44,7 +65,9 @@ class PromoDetailScreen extends StatelessWidget {
               favoriteProvider.toggleFavorite(auth.currentUser!.id, activePromo);
             },
             icon: Icon(
-              decoratedPromo.isFavorite ? Icons.favorite : Icons.favorite_border,
+              decoratedPromo.isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
               color: decoratedPromo.isFavorite ? Colors.red : null,
             ),
           ),
@@ -62,20 +85,42 @@ class PromoDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _StatusBadge(
+                label: decoratedPromo.statusLabel,
+                backgroundColor: _statusBackground(decoratedPromo),
+                textColor: _statusForeground(decoratedPromo),
+              ),
+              _StatusBadge(
+                label: 'Diskon ${decoratedPromo.discountPercent.toStringAsFixed(0)}%',
+                backgroundColor: const Color(0xFFFFF0A8),
+                textColor: const Color(0xFF7C5A00),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
           Text(
             decoratedPromo.productName,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
           ),
           const SizedBox(height: 8),
-          Text('${decoratedPromo.brand} - ${decoratedPromo.categoryName}'),
+          Text(
+            '${decoratedPromo.brand} - ${decoratedPromo.categoryName}',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: const Color(0xFF64748B),
+                ),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
               Text(
                 CurrencyFormatter.format(decoratedPromo.promoPrice),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w800,
                     ),
@@ -89,9 +134,18 @@ class PromoDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
-            'Diskon ${decoratedPromo.discountPercent.toStringAsFixed(0)}% - ${CurrencyFormatter.format(decoratedPromo.unitPrice)}/${decoratedPromo.unitType}',
+            'Kamu hemat ${CurrencyFormatter.format(decoratedPromo.savingsAmount)}',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${CurrencyFormatter.format(decoratedPromo.unitPrice)} / ${decoratedPromo.unitType}',
+            style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 16),
           Card(
@@ -113,6 +167,17 @@ class PromoDetailScreen extends StatelessWidget {
                   Text(
                     '${DateFormatter.short(decoratedPromo.startDate)} - ${DateFormatter.short(decoratedPromo.endDate)}',
                   ),
+                  const SizedBox(height: 6),
+                  Text(
+                    decoratedPromo.isExpired
+                        ? 'Promo ini sudah berakhir.'
+                        : decoratedPromo.isEndingToday
+                            ? 'Promo berakhir hari ini.'
+                            : decoratedPromo.isEndingTomorrow
+                                ? 'Promo berakhir besok.'
+                                : 'Promo masih aktif.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     'Syarat & ketentuan',
@@ -126,22 +191,28 @@ class PromoDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           FilledButton.tonalIcon(
-            onPressed: () async {
-              if (!auth.isLoggedIn) {
-                Navigator.pushNamed(context, AppRoutes.login);
-                return;
-              }
-              await shoppingList.bootstrap(auth.currentUser!.id);
-              await shoppingList.addPromo(decoratedPromo);
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Promo ditambahkan ke daftar belanja.'),
-                ),
-              );
-            },
+            onPressed: decoratedPromo.isExpired
+                ? null
+                : () async {
+                    if (!auth.isLoggedIn) {
+                      Navigator.pushNamed(context, AppRoutes.login);
+                      return;
+                    }
+                    await shoppingList.bootstrap(auth.currentUser!.id);
+                    await shoppingList.addPromo(decoratedPromo);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Promo ditambahkan ke daftar belanja.'),
+                      ),
+                    );
+                  },
             icon: const Icon(Icons.shopping_cart_outlined),
-            label: const Text('Tambah ke Daftar Belanja'),
+            label: Text(
+              decoratedPromo.isExpired
+                  ? 'Promo Sudah Expired'
+                  : 'Tambah ke Daftar Belanja',
+            ),
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
@@ -173,6 +244,12 @@ class PromoDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
+            onPressed: () => Share.share(_buildShareText(decoratedPromo)),
+            icon: const Icon(Icons.share_outlined),
+            label: const Text('Bagikan Promo'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
             onPressed: () async {
               final uri = Uri.parse(
                 'https://maps.google.com/?q=${Uri.encodeComponent(decoratedPromo.storeAddress)}',
@@ -183,6 +260,66 @@ class PromoDetailScreen extends StatelessWidget {
             label: const Text('Buka Lokasi Toko'),
           ),
         ],
+      ),
+    );
+  }
+
+  Color _statusBackground(PromoModel promo) {
+    if (promo.isExpired) return const Color(0xFFFEE2E2);
+    if (promo.isEndingToday || promo.isEndingTomorrow) {
+      return const Color(0xFFFFEDD5);
+    }
+    if (promo.isEndingSoon) return const Color(0xFFFEF3C7);
+    return const Color(0xFFE8F7EE);
+  }
+
+  Color _statusForeground(PromoModel promo) {
+    if (promo.isExpired) return const Color(0xFF991B1B);
+    if (promo.isEndingToday || promo.isEndingTomorrow) {
+      return const Color(0xFF9A3412);
+    }
+    if (promo.isEndingSoon) return const Color(0xFF854D0E);
+    return const Color(0xFF166534);
+  }
+
+  String _buildShareText(PromoModel promo) {
+    final expiryLabel = promo.isExpired
+        ? 'Promo ini sudah berakhir.'
+        : 'Berlaku sampai ${DateFormatter.short(promo.endDate)}.';
+    return '${promo.productName} sedang promo di ${promo.storeName}.\n'
+        'Harga promo: ${CurrencyFormatter.format(promo.promoPrice)}\n'
+        'Harga normal: ${CurrencyFormatter.format(promo.normalPrice)}\n'
+        'Hemat: ${CurrencyFormatter.format(promo.savingsAmount)}\n'
+        '$expiryLabel\n'
+        'Lokasi toko: ${promo.storeAddress}\n'
+        'Dibagikan dari PromoHunter.';
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.label,
+    required this.backgroundColor,
+    required this.textColor,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: textColor,
+            ),
       ),
     );
   }
