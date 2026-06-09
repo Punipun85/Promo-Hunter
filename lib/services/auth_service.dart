@@ -9,11 +9,13 @@ class AuthService {
 
   final SupabaseService _supabaseService;
   ProfileModel? _currentUser;
+  bool _registerNeedsVerification = false;
 
   Future<ProfileModel> login({
     required String email,
     required String password,
   }) async {
+    _registerNeedsVerification = false;
     final client = _supabaseService.clientOrNull;
     if (client != null) {
       try {
@@ -35,8 +37,8 @@ class AuthService {
         }
       } on AuthException catch (error) {
         throw Exception(error.message);
-      } catch (_) {
-        // Fall back to local demo mode below.
+      } catch (error) {
+        throw Exception('Login gagal: $error');
       }
     }
 
@@ -55,6 +57,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    _registerNeedsVerification = false;
     final client = _supabaseService.clientOrNull;
     if (client != null) {
       try {
@@ -64,26 +67,35 @@ class AuthService {
           data: {'name': name},
         );
         final user = response.user;
-        if (user != null) {
-          final profile = ProfileModel(
-            id: user.id,
-            name: name,
-            email: email,
-            role: 'user',
-          );
-          await client.from('profiles').upsert({
-            'id': user.id,
-            'name': name,
-            'email': email,
-            'role': 'user',
-          });
-          _currentUser = profile;
-          return profile;
+        if (user == null) {
+          throw Exception('Registrasi gagal. User tidak berhasil dibuat.');
         }
+
+        final profile = ProfileModel(
+          id: user.id,
+          name: name,
+          email: email,
+          role: 'user',
+        );
+
+        final hasSession =
+            response.session != null || client.auth.currentSession != null;
+        _registerNeedsVerification = !hasSession;
+        if (hasSession) {
+          await _upsertProfile(
+            client: client,
+            profile: profile,
+          );
+          await client.auth.signOut();
+        }
+
+        _currentUser = null;
+        return profile;
       } on AuthException catch (error) {
         throw Exception(error.message);
-      } catch (_) {
-        // Fall back to local demo mode below.
+      } catch (error) {
+        if (error is Exception) rethrow;
+        throw Exception('Registrasi gagal: $error');
       }
     }
 
@@ -127,6 +139,22 @@ class AuthService {
     return _currentUser;
   }
 
+  Future<ProfileModel?> refreshCurrentUserProfile() async {
+    final client = _supabaseService.clientOrNull;
+    if (client == null) return _currentUser;
+    final user = client.auth.currentUser;
+    if (user == null) return null;
+
+    _currentUser = await getUserProfile(user.id) ??
+        ProfileModel(
+          id: user.id,
+          name: user.userMetadata?['name'] as String? ?? 'User PromoHunter',
+          email: user.email ?? '',
+          role: 'user',
+        );
+    return _currentUser;
+  }
+
   Future<ProfileModel?> getUserProfile(String userId) async {
     final client = _supabaseService.clientOrNull;
     if (client != null) {
@@ -147,4 +175,17 @@ class AuthService {
   }
 
   ProfileModel? getCurrentUser() => _currentUser;
+  bool get registerNeedsVerification => _registerNeedsVerification;
+
+  Future<void> _upsertProfile({
+    required SupabaseClient client,
+    required ProfileModel profile,
+  }) async {
+    await client.from('profiles').upsert({
+      'id': profile.id,
+      'name': profile.name,
+      'email': profile.email,
+      'role': profile.role,
+    });
+  }
 }

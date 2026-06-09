@@ -6,6 +6,7 @@ import '../../providers/favorite_provider.dart';
 import '../../providers/reminder_provider.dart';
 import '../../providers/shopping_list_provider.dart';
 import '../calculator/price_calculator_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
 import '../favorite/favorite_screen.dart';
 import '../profile/profile_screen.dart';
 import '../promo/promo_list_screen.dart';
@@ -21,20 +22,20 @@ class HomeShellScreen extends StatefulWidget {
 class _HomeShellScreenState extends State<HomeShellScreen> {
   int _index = 0;
   String? _bootstrappedUserId;
-
-  late final List<Widget> _pages = const [
-    HomeScreen(),
-    PromoListScreen(),
-    FavoriteScreen(),
-    PriceCalculatorScreen(),
-    ProfileScreen(),
-  ];
+  String? _refreshedUserId;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final auth = context.watch<AuthProvider>();
     final userId = auth.currentUser?.id;
+    if (userId != null && _refreshedUserId != userId) {
+      _refreshedUserId = userId;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await context.read<AuthProvider>().refreshProfile();
+      });
+    }
     if (userId != null && _bootstrappedUserId != userId) {
       _bootstrappedUserId = userId;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -51,6 +52,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     }
     if (userId == null && _bootstrappedUserId != null) {
       _bootstrappedUserId = null;
+      _refreshedUserId = null;
       context.read<FavoriteProvider>().clear();
       context.read<ReminderProvider>().clear();
       context.read<ShoppingListProvider>().clear();
@@ -59,38 +61,60 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final isAdmin = auth.isAdmin;
+    final pages = <Widget>[
+      const HomeScreen(),
+      const PromoListScreen(),
+      const FavoriteScreen(),
+      const PriceCalculatorScreen(),
+      if (isAdmin) const AdminDashboardScreen(),
+      const ProfileScreen(),
+    ];
+    final destinations = <NavigationDestination>[
+      const NavigationDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home),
+        label: 'Home',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.local_offer_outlined),
+        selectedIcon: Icon(Icons.local_offer),
+        label: 'Promo',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.favorite_border),
+        selectedIcon: Icon(Icons.favorite),
+        label: 'Favorit',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.calculate_outlined),
+        selectedIcon: Icon(Icons.calculate),
+        label: 'Kalkulator',
+      ),
+      if (isAdmin)
+        const NavigationDestination(
+          icon: Icon(Icons.admin_panel_settings_outlined),
+          selectedIcon: Icon(Icons.admin_panel_settings),
+          label: 'Admin',
+        ),
+      const NavigationDestination(
+        icon: Icon(Icons.person_outline),
+        selectedIcon: Icon(Icons.person),
+        label: 'Profil',
+      ),
+    ];
+
+    if (_index >= pages.length) {
+      _index = pages.length - 1;
+    }
+
     return Scaffold(
-      body: IndexedStack(index: _index, children: _pages),
+      body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (index) => setState(() => _index = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.local_offer_outlined),
-            selectedIcon: Icon(Icons.local_offer),
-            label: 'Promo',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.favorite_border),
-            selectedIcon: Icon(Icons.favorite),
-            label: 'Favorit',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calculate_outlined),
-            selectedIcon: Icon(Icons.calculate),
-            label: 'Kalkulator',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
+        destinations: destinations,
       ),
     );
   }

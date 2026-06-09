@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+  import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +8,7 @@ import 'app.dart';
 import 'config/supabase_config.dart';
 import 'providers/auth_provider.dart';
 import 'providers/calculator_provider.dart';
+import 'providers/dashboard_experience_provider.dart';
 import 'providers/favorite_provider.dart';
 import 'providers/promo_provider.dart';
 import 'providers/reminder_provider.dart';
@@ -69,6 +70,9 @@ Future<void> main() async {
           create: (context) => ShoppingListProvider(
             context.read<ShoppingListService>(),
           )..bootstrap(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => DashboardExperienceProvider()..bootstrap(),
         ),
         ChangeNotifierProvider(create: (_) => CalculatorProvider()),
       ],

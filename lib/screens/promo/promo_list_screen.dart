@@ -71,18 +71,14 @@ class PromoListScreen extends StatelessWidget {
                             initialValue: provider.selectedCategory,
                             decoration:
                                 const InputDecoration(labelText: 'Kategori'),
-                            items: [
-                              const DropdownMenuItem(
-                                value: 'Semua',
-                                child: Text('Semua'),
-                              ),
-                              ...provider.categories.map(
-                                (item) => DropdownMenuItem(
-                                  value: item.name,
-                                  child: Text(item.name),
-                                ),
-                              ),
-                            ],
+                            items: provider.categories
+                                .map(
+                                  (item) => DropdownMenuItem(
+                                    value: item.name,
+                                    child: Text(item.name),
+                                  ),
+                                )
+                                .toList(),
                             onChanged: (value) => provider
                                 .updateSelectedCategory(value ?? 'Semua'),
                           ),

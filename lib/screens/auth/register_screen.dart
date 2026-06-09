@@ -3,9 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/favorite_provider.dart';
-import '../../providers/reminder_provider.dart';
-import '../../providers/shopping_list_provider.dart';
 import '../../utils/validators.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -146,23 +143,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   );
                                   if (!context.mounted) return;
                                   if (ok) {
-                                    final userId = auth.currentUser?.id;
-                                    if (userId != null) {
-                                      final favoriteProvider =
-                                          context.read<FavoriteProvider>();
-                                      final reminderProvider =
-                                          context.read<ReminderProvider>();
-                                      final shoppingListProvider =
-                                          context.read<ShoppingListProvider>();
-                                      await favoriteProvider.bootstrapForUser(userId);
-                                      await reminderProvider.bootstrapForUser(userId);
-                                      await shoppingListProvider.bootstrap(userId);
-                                      if (!context.mounted) return;
-                                    }
+                                    final message = auth.registerNeedsVerification
+                                        ? 'Akun berhasil dibuat. Cek email verifikasi dulu, lalu login.'
+                                        : 'Akun berhasil dibuat. Silakan login.';
                                     Navigator.pushNamedAndRemoveUntil(
                                       context,
-                                      AppRoutes.home,
+                                      AppRoutes.login,
                                       (_) => false,
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(message)),
                                     );
                                   } else {
                                     ScaffoldMessenger.of(context).showSnackBar(

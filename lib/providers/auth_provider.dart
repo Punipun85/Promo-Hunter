@@ -11,6 +11,7 @@ class AuthProvider extends ChangeNotifier {
   ProfileModel? currentUser;
   bool isLoading = false;
   String? errorMessage;
+  bool registerNeedsVerification = false;
 
   bool get isLoggedIn => currentUser != null;
   bool get isAdmin => currentUser?.isAdmin ?? false;
@@ -20,12 +21,19 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshProfile() async {
+    currentUser = await _authService.refreshCurrentUserProfile();
+    notifyListeners();
+  }
+
   Future<bool> login(String email, String password) async {
     isLoading = true;
     errorMessage = null;
+    registerNeedsVerification = false;
     notifyListeners();
     try {
       currentUser = await _authService.login(email: email, password: password);
+      currentUser = await _authService.refreshCurrentUserProfile();
       return true;
     } catch (error) {
       errorMessage = error.toString().replaceFirst('Exception: ', '');
@@ -39,13 +47,16 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> register(String name, String email, String password) async {
     isLoading = true;
     errorMessage = null;
+    registerNeedsVerification = false;
     notifyListeners();
     try {
-      currentUser = await _authService.register(
+      await _authService.register(
         name: name,
         email: email,
         password: password,
       );
+      currentUser = null;
+      registerNeedsVerification = _authService.registerNeedsVerification;
       return true;
     } catch (error) {
       errorMessage = error.toString().replaceFirst('Exception: ', '');
@@ -60,6 +71,7 @@ class AuthProvider extends ChangeNotifier {
     await _authService.logout();
     currentUser = null;
     errorMessage = null;
+    registerNeedsVerification = false;
     notifyListeners();
   }
 }
