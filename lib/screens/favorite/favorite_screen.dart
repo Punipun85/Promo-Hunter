@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/promo_provider.dart';
+import '../../utils/promo_access_dialog.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/loading_widget.dart';
 import '../../widgets/promo_card.dart';
@@ -29,6 +31,7 @@ class FavoriteScreen extends StatelessWidget {
 
     final favoriteProvider = context.watch<FavoriteProvider>();
     final promoProvider = context.watch<PromoProvider>();
+    final experience = context.watch<DashboardExperienceProvider>();
     if (favoriteProvider.isLoading || promoProvider.isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Promo Favorit')),
@@ -56,11 +59,9 @@ class FavoriteScreen extends StatelessWidget {
                 final promo = favorites[index];
                 return PromoCard(
                   promo: promo,
-                  onTap: () => Navigator.pushNamed(
-                    context,
-                    AppRoutes.promoDetail,
-                    arguments: promo,
-                  ),
+                  isLocked: experience.isPromoLocked(promo.id),
+                  lockLabel: experience.promoLockLabel(promo.id),
+                  onTap: () => openPromoWithAccessGuard(context, promo),
                   onFavoriteTap: () => context
                       .read<FavoriteProvider>()
                       .toggleFavorite(auth.currentUser!.id, promo),

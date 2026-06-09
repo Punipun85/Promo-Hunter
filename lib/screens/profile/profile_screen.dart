@@ -3,11 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../providers/reminder_provider.dart';
 import '../../providers/shopping_list_provider.dart';
-import '../../utils/currency_formatter.dart';
+import '../../utils/promo_access_dialog.dart';
 import '../../widgets/promo_card.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -33,6 +34,7 @@ class ProfileScreen extends StatelessWidget {
     final reminderProvider = context.watch<ReminderProvider>();
     final shoppingListProvider = context.watch<ShoppingListProvider>();
     final promoProvider = context.watch<PromoProvider>();
+    final experience = context.watch<DashboardExperienceProvider>();
     final recentlyViewed = promoProvider.recentlyViewedPromos.take(3).toList();
 
     return Scaffold(
@@ -142,13 +144,9 @@ class ProfileScreen extends StatelessWidget {
                 color: const Color(0xFF0F9D58),
               ),
               _StatCard(
-                title: 'Estimasi',
-                value: shoppingListProvider.items.isEmpty
-                    ? 'Rp0'
-                    : CurrencyFormatter.format(
-                        shoppingListProvider.totalEstimatedPrice,
-                      ),
-                icon: Icons.savings_outlined,
+                title: 'Coin',
+                value: '${experience.coinBalance}',
+                icon: Icons.monetization_on_outlined,
                 color: const Color(0xFF2563EB),
               ),
             ],
@@ -188,6 +186,11 @@ class ProfileScreen extends StatelessWidget {
                 label: 'Toko',
                 onTap: () => Navigator.pushNamed(context, AppRoutes.stores),
               ),
+              _QuickAction(
+                icon: Icons.account_balance_wallet_outlined,
+                label: 'Topup',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.wallet),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -226,11 +229,9 @@ class ProfileScreen extends StatelessWidget {
                 promo: promo.copyWith(
                   isFavorite: favoriteProvider.isFavorite(promo.id),
                 ),
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.promoDetail,
-                  arguments: promo,
-                ),
+                isLocked: experience.isPromoLocked(promo.id),
+                lockLabel: experience.promoLockLabel(promo.id),
+                onTap: () => openPromoWithAccessGuard(context, promo),
                 onFavoriteTap: () => favoriteProvider.toggleFavorite(
                   user.id,
                   promo,

@@ -21,6 +21,7 @@ import '../screens/shopping_list/shopping_list_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/store/store_list_screen.dart';
 import '../screens/store/store_detail_screen.dart';
+import '../screens/wallet/wallet_screen.dart';
 
 class AppRoutes {
   static const splash = '/';
@@ -42,6 +43,7 @@ class AppRoutes {
   static const manageCategories = '/admin/categories';
   static const promoForm = '/admin/promo-form';
   static const profile = '/profile';
+  static const wallet = '/wallet';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -94,6 +96,8 @@ class AppRoutes {
         );
       case profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
+      case wallet:
+        return MaterialPageRoute(builder: (_) => const WalletScreen());
       default:
         return MaterialPageRoute(builder: (_) => const HomeShellScreen());
     }

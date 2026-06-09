@@ -27,7 +27,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showEntryDialogsIfNeeded());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _registerVisiblePromos();
+      _showEntryDialogsIfNeeded();
+    });
+  }
+
+  Future<void> _registerVisiblePromos() async {
+    if (!mounted) return;
+    final promoProvider = context.read<PromoProvider>();
+    final experience = context.read<DashboardExperienceProvider>();
+    if (!experience.isReady || promoProvider.promos.isEmpty) return;
+    await experience.registerPromos(promoProvider.promos.map((promo) => promo.id));
   }
 
   Future<void> _showEntryDialogsIfNeeded() async {
@@ -53,24 +64,20 @@ class _HomeScreenState extends State<HomeScreen> {
       selectedPromo = featuredPromo;
     }
 
-    final premiumAccepted = await _showPremiumDialog();
-    if (!mounted) return;
-    if (premiumAccepted == true) {
-      await experience.enablePremium();
+    if (!experience.isPremium) {
+      final premiumAccepted = await _showPremiumDialog();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Member Premium aktif. Nikmati benefit promo eksklusif.'),
-        ),
-      );
+      if (premiumAccepted == true) {
+        Navigator.pushNamed(context, AppRoutes.wallet);
+      }
     }
 
     final claimedDay = await _showDailyRewardDialog();
     if (!mounted) return;
     if (claimedDay != null) {
-      final message = claimedDay == 7
-          ? 'Hari ke-7 berhasil diklaim. Reward mingguan kamu lengkap.'
-          : 'Daily reward hari ke-$claimedDay berhasil diklaim.';
+      final message = claimedDay.day == 7
+          ? 'Day 7 memberi ${claimedDay.coinsEarned} coin. Reward mingguan lengkap.'
+          : 'Day ${claimedDay.day} memberi ${claimedDay.coinsEarned} coin.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
@@ -164,23 +171,23 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Buka benefit tambahan untuk pengalaman berburu promo yang lebih maksimal.',
+                'Pilih paket premium atau topup coin sesuai kebutuhan berburu promo kamu.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 14),
               const _BenefitRow(
                 icon: Icons.bolt_outlined,
-                text: 'Akses promo unggulan lebih cepat',
+                text: 'Premium Mingguan: Rp9.000 untuk 7 hari',
               ),
               const SizedBox(height: 8),
               const _BenefitRow(
                 icon: Icons.workspace_premium_outlined,
-                text: 'Badge member premium di akun',
+                text: 'Premium Bulanan: Rp29.000 untuk 30 hari',
               ),
               const SizedBox(height: 8),
               const _BenefitRow(
                 icon: Icons.auto_awesome_outlined,
-                text: 'Prioritas insight promo dan reward harian',
+                text: 'Premium Semester: Rp99.000 untuk 6 bulan',
               ),
             ],
           ),
@@ -191,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Aktifkan'),
+              child: const Text('Lihat Paket'),
             ),
           ],
         );
@@ -199,9 +206,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<int?> _showDailyRewardDialog() {
+  Future<DailyClaimResult?> _showDailyRewardDialog() {
     final experience = context.read<DashboardExperienceProvider>();
-    return showDialog<int?>(
+    return showDialog<DailyClaimResult?>(
       context: context,
       barrierDismissible: true,
       builder: (context) {
@@ -264,11 +271,89 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: claimedToday
                   ? null
                   : () async {
-                      final day = await experience.claimDailyReward();
+                      final result = await experience.claimDailyReward();
                       if (!context.mounted) return;
-                      Navigator.pop(context, day);
+                      Navigator.pop(context, result);
                     },
               child: Text(claimedToday ? 'Sudah Diklaim' : 'Claim Hari Ini'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openPromo(PromoModel promo) async {
+    final experience = context.read<DashboardExperienceProvider>();
+    if (experience.isPromoLocked(promo.id)) {
+      final unlocked = await _showLockedPromoDialog(promo);
+      if (unlocked != true || !mounted) return;
+    }
+    Navigator.pushNamed(
+      context,
+      AppRoutes.promoDetail,
+      arguments: promo,
+    );
+  }
+
+  Future<bool?> _showLockedPromoDialog(PromoModel promo) {
+    final pageContext = context;
+    final experience = context.read<DashboardExperienceProvider>();
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          title: const Text('Promo Early Access'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                promo.productName,
+                style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'User gratis bisa membuka promo ini setelah ${experience.promoLockLabel(promo.id).toLowerCase()}.',
+              ),
+              const SizedBox(height: 14),
+              _BenefitRow(
+                icon: Icons.monetization_on_outlined,
+                text:
+                    'Saldo coin: ${experience.coinBalance}. Butuh ${DashboardExperienceProvider.unlockCost} coin.',
+              ),
+              const SizedBox(height: 8),
+              const _BenefitRow(
+                icon: Icons.workspace_premium_outlined,
+                text: 'Premium membuka semua info promo tanpa menunggu.',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Nanti'),
+            ),
+            TextButton(
+              onPressed: experience.canUnlockWithCoins
+                  ? () async {
+                      final ok = await experience.unlockPromoWithCoins(promo.id);
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext, ok);
+                    }
+                  : null,
+              child: const Text('Pakai Coin'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+                Navigator.pushNamed(pageContext, AppRoutes.wallet);
+              },
+              child: const Text('Langganan'),
             ),
           ],
         );
@@ -436,41 +521,60 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: _PremiumCard(
                             isPremium: experience.isPremium,
+                            coinBalance: experience.coinBalance,
                             onActivate: experience.isPremium
                                 ? null
-                                : () async {
-                                    await experience.enablePremium();
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Member Premium aktif untuk akun ini.',
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                : () async => Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.wallet,
+                                    ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _DailyCard(
                             currentDay: experience.nextDailyDay,
+                            coinBalance: experience.coinBalance,
                             claimedToday: experience.hasClaimedToday,
                             onClaim: experience.hasClaimedToday
                                 ? null
                                 : () async {
-                                    final day =
+                                    final result =
                                         await experience.claimDailyReward();
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          'Reward harian hari ke-$day berhasil diklaim.',
+                                          'Day ${result.day} memberi ${result.coinsEarned} coin.',
                                         ),
                                       ),
                                     );
                                   },
                           ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.wallet,
+                          ),
+                          icon: const Icon(Icons.account_balance_wallet_outlined),
+                          label: const Text('Topup Coin'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            await experience.resetEntryDialogs();
+                            if (!context.mounted) return;
+                            await _showEntryDialogsIfNeeded();
+                          },
+                          icon: const Icon(Icons.campaign_outlined),
+                          label: const Text('Tampilkan Popup Promo'),
                         ),
                       ],
                     ),
@@ -509,11 +613,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         promo: promo.copyWith(
                           isFavorite: favoriteProvider.isFavorite(promo.id),
                         ),
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          AppRoutes.promoDetail,
-                          arguments: promo,
-                        ),
+                        isLocked: experience.isPromoLocked(promo.id),
+                        lockLabel: experience.promoLockLabel(promo.id),
+                        onTap: () => _openPromo(promo),
                         onFavoriteTap: () {
                           if (!auth.isLoggedIn) {
                             Navigator.pushNamed(context, AppRoutes.login);
@@ -535,11 +637,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         promo: promo.copyWith(
                           isFavorite: favoriteProvider.isFavorite(promo.id),
                         ),
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          AppRoutes.promoDetail,
-                          arguments: promo,
-                        ),
+                        isLocked: experience.isPromoLocked(promo.id),
+                        lockLabel: experience.promoLockLabel(promo.id),
+                        onTap: () => _openPromo(promo),
                         onFavoriteTap: () {
                           if (!auth.isLoggedIn) {
                             Navigator.pushNamed(context, AppRoutes.login);
@@ -563,11 +663,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           promo: promo.copyWith(
                             isFavorite: favoriteProvider.isFavorite(promo.id),
                           ),
-                          onTap: () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.promoDetail,
-                            arguments: promo,
-                          ),
+                          isLocked: experience.isPromoLocked(promo.id),
+                          lockLabel: experience.promoLockLabel(promo.id),
+                          onTap: () => _openPromo(promo),
                           onFavoriteTap: () {
                             if (!auth.isLoggedIn) {
                               Navigator.pushNamed(context, AppRoutes.login);
@@ -711,10 +809,12 @@ class _BenefitRow extends StatelessWidget {
 class _PremiumCard extends StatelessWidget {
   const _PremiumCard({
     required this.isPremium,
+    required this.coinBalance,
     required this.onActivate,
   });
 
   final bool isPremium;
+  final int coinBalance;
   final Future<void> Function()? onActivate;
 
   @override
@@ -745,7 +845,7 @@ class _PremiumCard extends StatelessWidget {
           Text(
             isPremium
                 ? 'Akun kamu sudah menikmati benefit member.'
-                : 'Aktifkan untuk akses promo unggulan dan reward prioritas.',
+                : 'Akses promo baru tanpa menunggu. Coin kamu: $coinBalance.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
@@ -755,7 +855,7 @@ class _PremiumCard extends StatelessWidget {
                 : () async {
                     await onActivate!();
                   },
-            child: Text(isPremium ? 'Sudah Aktif' : 'Aktifkan'),
+            child: Text(isPremium ? 'Sudah Aktif' : 'Lihat Harga'),
           ),
         ],
       ),
@@ -766,11 +866,13 @@ class _PremiumCard extends StatelessWidget {
 class _DailyCard extends StatelessWidget {
   const _DailyCard({
     required this.currentDay,
+    required this.coinBalance,
     required this.claimedToday,
     required this.onClaim,
   });
 
   final int currentDay;
+  final int coinBalance;
   final bool claimedToday;
   final Future<void> Function()? onClaim;
 
@@ -799,8 +901,8 @@ class _DailyCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             claimedToday
-                ? 'Reward hari ini sudah diklaim.'
-                : 'Hari berikutnya yang bisa kamu klaim: Day $currentDay.',
+                ? 'Reward hari ini sudah diklaim. Saldo: $coinBalance coin.'
+                : 'Claim Day $currentDay untuk menambah coin unlock promo.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),

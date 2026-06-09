@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_routes.dart';
 import '../../models/promo_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../providers/reminder_provider.dart';
@@ -38,6 +39,7 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<PromoProvider>();
     final auth = context.watch<AuthProvider>();
+    final experience = context.watch<DashboardExperienceProvider>();
     final favoriteProvider = context.watch<FavoriteProvider>();
     final reminderProvider = context.watch<ReminderProvider>();
     final shoppingList = context.read<ShoppingListProvider>();
@@ -47,6 +49,7 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
     final decoratedPromo = activePromo.copyWith(
       isFavorite: favoriteProvider.isFavorite(activePromo.id),
     );
+    final isLocked = experience.isPromoLocked(decoratedPromo.id);
 
     return Scaffold(
       appBar: AppBar(
@@ -73,7 +76,31 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: isLocked
+          ? _LockedPromoDetail(
+              promo: decoratedPromo,
+              waitLabel: experience.promoLockLabel(decoratedPromo.id),
+              coinBalance: experience.coinBalance,
+              canUnlockWithCoins: experience.canUnlockWithCoins,
+              onUnlockWithCoins: () async {
+                final ok =
+                    await experience.unlockPromoWithCoins(decoratedPromo.id);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      ok
+                          ? 'Promo berhasil dibuka memakai coin.'
+                          : 'Coin belum cukup untuk membuka promo ini.',
+                    ),
+                  ),
+                );
+              },
+              onSubscribe: () async {
+                Navigator.pushNamed(context, AppRoutes.wallet);
+              },
+            )
+          : ListView(
         padding: const EdgeInsets.all(20),
         children: [
           ClipRRect(
@@ -321,6 +348,126 @@ class _StatusBadge extends StatelessWidget {
               color: textColor,
             ),
       ),
+    );
+  }
+}
+
+class _LockedPromoDetail extends StatelessWidget {
+  const _LockedPromoDetail({
+    required this.promo,
+    required this.waitLabel,
+    required this.coinBalance,
+    required this.canUnlockWithCoins,
+    required this.onUnlockWithCoins,
+    required this.onSubscribe,
+  });
+
+  final PromoModel promo;
+  final String waitLabel;
+  final int coinBalance;
+  final bool canUnlockWithCoins;
+  final Future<void> Function() onUnlockWithCoins;
+  final Future<void> Function() onSubscribe;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8E1),
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(Icons.lock_clock_outlined),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Promo Early Access',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                promo.productName,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'User gratis perlu $waitLabel untuk melihat harga dan detail promo ini.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 16),
+              _LockedInfoRow(
+                icon: Icons.monetization_on_outlined,
+                label: 'Saldo coin',
+                value: '$coinBalance coin',
+              ),
+              const SizedBox(height: 10),
+              _LockedInfoRow(
+                icon: Icons.storefront_outlined,
+                label: 'Toko',
+                value: promo.storeName,
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: canUnlockWithCoins ? onUnlockWithCoins : null,
+                icon: const Icon(Icons.lock_open_outlined),
+                label: const Text('Buka dengan 30 Coin'),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.tonalIcon(
+                onPressed: onSubscribe,
+                icon: const Icon(Icons.workspace_premium_outlined),
+                label: const Text('Langganan Premium'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LockedInfoRow extends StatelessWidget {
+  const _LockedInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Theme.of(context).colorScheme.secondary),
+        const SizedBox(width: 8),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ),
+      ],
     );
   }
 }

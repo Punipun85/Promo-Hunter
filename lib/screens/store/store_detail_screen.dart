@@ -4,10 +4,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_routes.dart';
 import '../../models/store_model.dart';
+import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/promo_access_dialog.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/promo_card.dart';
 
@@ -20,6 +22,7 @@ class StoreDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final promoProvider = context.watch<PromoProvider>();
     final auth = context.watch<AuthProvider>();
+    final experience = context.watch<DashboardExperienceProvider>();
     final favoriteProvider = context.watch<FavoriteProvider>();
     final promos = promoProvider.promosByStore(store.name);
     final bestDiscount =
@@ -192,11 +195,9 @@ class StoreDetailScreen extends StatelessWidget {
                 promo: promo.copyWith(
                   isFavorite: favoriteProvider.isFavorite(promo.id),
                 ),
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.promoDetail,
-                  arguments: promo,
-                ),
+                isLocked: experience.isPromoLocked(promo.id),
+                lockLabel: experience.promoLockLabel(promo.id),
+                onTap: () => openPromoWithAccessGuard(context, promo),
                 onFavoriteTap: () {
                   if (!auth.isLoggedIn) {
                     Navigator.pushNamed(context, AppRoutes.login);

@@ -11,11 +11,15 @@ class PromoCard extends StatelessWidget {
     required this.promo,
     required this.onTap,
     required this.onFavoriteTap,
+    this.isLocked = false,
+    this.lockLabel,
   });
 
   final PromoModel promo;
   final VoidCallback onTap;
   final VoidCallback onFavoriteTap;
+  final bool isLocked;
+  final String? lockLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +80,12 @@ class PromoCard extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
+                          if (isLocked)
+                            const _InfoBadge(
+                              label: 'Terkunci',
+                              backgroundColor: Color(0xFFFEE2E2),
+                              textColor: Color(0xFF991B1B),
+                            ),
                           _InfoBadge(
                             label:
                                 '-${promo.discountPercent.toStringAsFixed(0)}%',
@@ -96,23 +106,28 @@ class PromoCard extends StatelessWidget {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
-                            CurrencyFormatter.format(promo.promoPrice),
+                            isLocked
+                                ? 'Harga terkunci'
+                                : CurrencyFormatter.format(promo.promoPrice),
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Theme.of(context).colorScheme.primary,
                                   fontWeight: FontWeight.w800,
                                 ),
                           ),
-                          Text(
-                            CurrencyFormatter.format(promo.normalPrice),
-                            style: const TextStyle(
-                              decoration: TextDecoration.lineThrough,
+                          if (!isLocked)
+                            Text(
+                              CurrencyFormatter.format(promo.normalPrice),
+                              style: const TextStyle(
+                                decoration: TextDecoration.lineThrough,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Hemat ${CurrencyFormatter.format(promo.savingsAmount)}',
+                        isLocked
+                            ? lockLabel ?? 'Buka dengan coin atau premium'
+                            : 'Hemat ${CurrencyFormatter.format(promo.savingsAmount)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context).colorScheme.primary,
                               fontWeight: FontWeight.w700,
