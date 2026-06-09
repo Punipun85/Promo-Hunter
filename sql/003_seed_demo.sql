@@ -19,7 +19,9 @@ from (
     ('Susu', 'milk'),
     ('Deterjen', 'soap'),
     ('Snack', 'snack'),
-    ('Minuman', 'drink')
+    ('Minuman', 'drink'),
+    ('Bumbu', 'sauce'),
+    ('Frozen Food', 'frozen')
 ) as seed(name, icon)
 where not exists (
   select 1 from categories c where c.name = seed.name
@@ -69,7 +71,10 @@ from (
     ('Indomaret Sudirman', 'Susu', 'Susu Bubuk Anak 800g', 'NutriKids', 'https://images.unsplash.com/photo-1517448931760-9bf4414148c5?w=1200', 98000::numeric, 84500::numeric, 800::numeric, 'gram', 2, 7, 'Berlaku untuk semua pelanggan.', 'https://example.com/promos/susu-bubuk-anak-800g'),
     ('Super Indo Melati', 'Minyak', 'Minyak Goreng 1L', 'Golden Drop', 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=1200', 18000::numeric, 15900::numeric, 1::numeric, 'liter', 1, 3, 'Harga khusus akhir pekan.', 'https://example.com/promos/minyak-goreng-1l'),
     ('Alfamart Merdeka', 'Beras', 'Beras Ramos 2.5kg', 'Sawah Indah', 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=1200', 43000::numeric, 38900::numeric, 2.5::numeric, 'kg', 1, 5, 'Stok terbatas setiap hari.', 'https://example.com/promos/beras-ramos-25kg'),
-    ('Indomaret Sudirman', 'Minuman', 'Air Mineral 600ml', 'AquaFresh', 'https://images.unsplash.com/photo-1564419320461-6870880221ad?w=1200', 4500::numeric, 3500::numeric, 600::numeric, 'ml', 1, 2, 'Maksimal 6 botol per transaksi.', 'https://example.com/promos/air-mineral-600ml')
+    ('Indomaret Sudirman', 'Minuman', 'Air Mineral 600ml', 'AquaFresh', 'https://images.unsplash.com/photo-1564419320461-6870880221ad?w=1200', 4500::numeric, 3500::numeric, 600::numeric, 'ml', 1, 2, 'Maksimal 6 botol per transaksi.', 'https://example.com/promos/air-mineral-600ml'),
+    ('Super Indo Melati', 'Bumbu', 'Saus Cabe Botol 535ml', 'Dua Belibis', 'https://images.unsplash.com/photo-1604908554027-783cb79a89ec?w=1200', 42990::numeric, 28900::numeric, 535::numeric, 'ml', 1, 2, 'Diskon 30%. Maksimal 4 botol per transaksi.', 'https://www.superindo.co.id/'),
+    ('Super Indo Melati', 'Frozen Food', 'French Fries 1kg', '365', 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=1200', 42900::numeric, 32900::numeric, 1::numeric, 'kg', 1, 2, 'Diskon 20%. Maksimal 4 pack per transaksi.', 'https://www.superindo.co.id/'),
+    ('Super Indo Melati', 'Snack', 'Chiki Balls 200gr', 'Chiki', 'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=1200', 23190::numeric, 16900::numeric, 200::numeric, 'gram', 1, 2, 'Diskon 25%. Maksimal 4 pack per transaksi.', 'https://www.superindo.co.id/')
 ) as seed(
   store_name,
   category_name,

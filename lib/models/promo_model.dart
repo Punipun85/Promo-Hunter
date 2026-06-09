@@ -14,6 +14,7 @@ class PromoModel {
     required this.startDate,
     required this.endDate,
     required this.terms,
+    this.sourceUrl = '',
     this.isFavorite = false,
     this.isActive = true,
   });
@@ -32,6 +33,7 @@ class PromoModel {
   final DateTime startDate;
   final DateTime endDate;
   final String terms;
+  final String sourceUrl;
   final bool isFavorite;
   final bool isActive;
 
@@ -98,6 +100,7 @@ class PromoModel {
       endDate:
           DateTime.tryParse(map['end_date']?.toString() ?? '') ?? DateTime.now(),
       terms: map['terms'] as String? ?? '',
+      sourceUrl: map['source_url'] as String? ?? '',
       isActive: map['is_active'] as bool? ?? true,
     );
   }
@@ -120,6 +123,7 @@ class PromoModel {
       'start_date': startDate.toIso8601String(),
       'end_date': endDate.toIso8601String(),
       'terms': terms,
+      'source_url': sourceUrl,
       'is_active': isActive,
     };
   }
@@ -139,6 +143,7 @@ class PromoModel {
     DateTime? startDate,
     DateTime? endDate,
     String? terms,
+    String? sourceUrl,
     bool? isFavorite,
     bool? isActive,
   }) {
@@ -157,6 +162,7 @@ class PromoModel {
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       terms: terms ?? this.terms,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
       isFavorite: isFavorite ?? this.isFavorite,
       isActive: isActive ?? this.isActive,
     );
