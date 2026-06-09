@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/promo_model.dart';
 import '../utils/currency_formatter.dart';
@@ -148,6 +149,19 @@ class PromoCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
+                      if (promo.sourceUrl.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: isLocked
+                                ? null
+                                : () => _openClaimUrl(promo.sourceUrl),
+                            icon: const Icon(Icons.open_in_new_rounded),
+                            label: const Text('Claim Promo'),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -175,6 +189,12 @@ class PromoCard extends StatelessWidget {
     }
     if (promo.isEndingSoon) return const Color(0xFF854D0E);
     return const Color(0xFF166534);
+  }
+
+  Future<void> _openClaimUrl(String sourceUrl) async {
+    final uri = Uri.tryParse(sourceUrl);
+    if (uri == null || !uri.hasScheme) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 

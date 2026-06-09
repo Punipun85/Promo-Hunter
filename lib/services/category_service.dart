@@ -29,6 +29,8 @@ class CategoryService {
       CategoryModel(id: 4, name: 'Susu', icon: 'milk'),
       CategoryModel(id: 5, name: 'Deterjen', icon: 'soap'),
       CategoryModel(id: 6, name: 'Snack', icon: 'snack'),
+      CategoryModel(id: 7, name: 'Bumbu', icon: 'sauce'),
+      CategoryModel(id: 8, name: 'Frozen Food', icon: 'frozen'),
     ];
   }
 

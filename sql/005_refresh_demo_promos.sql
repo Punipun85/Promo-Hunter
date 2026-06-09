@@ -11,6 +11,9 @@ set
     when product_name = 'Minyak Goreng 1L' and brand = 'Golden Drop' then current_date - 1
     when product_name = 'Beras Ramos 2.5kg' and brand = 'Sawah Indah' then current_date - 1
     when product_name = 'Air Mineral 600ml' and brand = 'AquaFresh' then current_date - 1
+    when product_name = 'Saus Cabe Botol 535ml' and brand = 'Dua Belibis' then current_date - 1
+    when product_name = 'French Fries 1kg' and brand = '365' then current_date - 1
+    when product_name = 'Chiki Balls 200gr' and brand = 'Chiki' then current_date - 1
     else start_date
   end,
   end_date = case
@@ -24,6 +27,9 @@ set
     when product_name = 'Minyak Goreng 1L' and brand = 'Golden Drop' then current_date + 3
     when product_name = 'Beras Ramos 2.5kg' and brand = 'Sawah Indah' then current_date + 5
     when product_name = 'Air Mineral 600ml' and brand = 'AquaFresh' then current_date + 2
+    when product_name = 'Saus Cabe Botol 535ml' and brand = 'Dua Belibis' then current_date + 2
+    when product_name = 'French Fries 1kg' and brand = '365' then current_date + 2
+    when product_name = 'Chiki Balls 200gr' and brand = 'Chiki' then current_date + 2
     else end_date
   end,
   is_active = true
@@ -37,5 +43,8 @@ where (product_name, brand) in (
   ('Susu Bubuk Anak 800g', 'NutriKids'),
   ('Minyak Goreng 1L', 'Golden Drop'),
   ('Beras Ramos 2.5kg', 'Sawah Indah'),
-  ('Air Mineral 600ml', 'AquaFresh')
+  ('Air Mineral 600ml', 'AquaFresh'),
+  ('Saus Cabe Botol 535ml', 'Dua Belibis'),
+  ('French Fries 1kg', '365'),
+  ('Chiki Balls 200gr', 'Chiki')
 );
