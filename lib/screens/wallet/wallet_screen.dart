@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../config/app_routes.dart';
 import '../../providers/dashboard_experience_provider.dart';
+import '../../utils/date_formatter.dart';
 import '../../utils/currency_formatter.dart';
 
 class WalletScreen extends StatelessWidget {
@@ -19,7 +21,9 @@ class WalletScreen extends StatelessWidget {
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.monetization_on_outlined), text: 'Coin'),
-              Tab(icon: Icon(Icons.workspace_premium_outlined), text: 'Premium'),
+              Tab(
+                  icon: Icon(Icons.workspace_premium_outlined),
+                  text: 'Premium'),
             ],
           ),
         ),
@@ -47,10 +51,16 @@ class _CoinTab extends StatelessWidget {
         _BalanceHeader(
           title: '${experience.coinBalance} Coin',
           subtitle:
-              'Gunakan coin untuk membuka promo early access. Setiap unlock butuh ${DashboardExperienceProvider.unlockCost} coin.',
+              'Gunakan coin untuk membuka promo early access, main mini game, atau tukar voucher.',
           icon: Icons.monetization_on_outlined,
         ),
         const SizedBox(height: 18),
+        FilledButton.icon(
+          onPressed: () => Navigator.pushNamed(context, AppRoutes.miniGame),
+          icon: const Icon(Icons.sports_esports_outlined),
+          label: const Text('Main Mini Game'),
+        ),
+        const SizedBox(height: 16),
         ...DashboardExperienceProvider.coinPackages.map(
           (package) => _PackageCard(
             title: package.name,
@@ -73,6 +83,52 @@ class _CoinTab extends StatelessWidget {
             },
           ),
         ),
+        const SizedBox(height: 10),
+        const _SectionTitle(
+          title: 'Tukar Voucher',
+          subtitle:
+              'Ubah coin hasil top up atau mini game menjadi voucher yang bisa dipakai lagi.',
+        ),
+        const SizedBox(height: 12),
+        ...DashboardExperienceProvider.voucherCatalog.map(
+          (voucher) {
+            final canRedeem = experience.coinBalance >= voucher.coinCost;
+            return _PackageCard(
+              title: voucher.title,
+              badge: 'Voucher',
+              value: '${voucher.coinCost} coin',
+              price: voucher.benefitLabel,
+              description: voucher.description,
+              icon: voucher.icon,
+              actionLabel: 'Tukar',
+              onTap: canRedeem
+                  ? () async {
+                      final redemption =
+                          await experience.redeemVoucher(voucher.id);
+                      if (!context.mounted || redemption == null) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Voucher ${redemption.title} didapatkan. Kode: ${redemption.code}',
+                          ),
+                        ),
+                      );
+                    }
+                  : null,
+            );
+          },
+        ),
+        if (experience.redeemedVouchers.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          const _SectionTitle(
+            title: 'Voucher Kamu',
+            subtitle: 'Voucher yang sudah ditukar akan tersimpan di sini.',
+          ),
+          const SizedBox(height: 12),
+          ...experience.redeemedVouchers.map(
+            (voucher) => _RedeemedVoucherCard(voucher: voucher),
+          ),
+        ],
       ],
     );
   }
@@ -248,10 +304,12 @@ class _PackageCard extends StatelessWidget {
                           ),
                           child: Text(
                             badge!,
-                            style:
-                                Theme.of(context).textTheme.labelSmall?.copyWith(
-                                      color: const Color(0xFF7C5A00),
-                                    ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color: const Color(0xFF7C5A00),
+                                ),
                           ),
                         ),
                     ],
@@ -279,8 +337,8 @@ class _PackageCard extends StatelessWidget {
                     onPressed: onTap == null
                         ? null
                         : () async {
-                    await onTap!();
-                  },
+                            await onTap!();
+                          },
                     icon: Icon(onTap == null
                         ? Icons.check_circle_outline
                         : Icons.shopping_bag_outlined),
@@ -291,6 +349,60 @@ class _PackageCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 4),
+        Text(subtitle),
+      ],
+    );
+  }
+}
+
+class _RedeemedVoucherCard extends StatelessWidget {
+  const _RedeemedVoucherCard({required this.voucher});
+
+  final RedeemedVoucher voucher;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: ListTile(
+        leading: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF4FF),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.confirmation_num_outlined,
+            color: Theme.of(context).colorScheme.secondary,
+          ),
+        ),
+        title: Text(voucher.title),
+        subtitle: Text(
+          '${voucher.benefitLabel}\nKode ${voucher.code}\nDitukar ${DateFormatter.dateTime(voucher.redeemedAt)}',
+        ),
+        isThreeLine: true,
       ),
     );
   }
