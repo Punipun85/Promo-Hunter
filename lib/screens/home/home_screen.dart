@@ -38,7 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final promoProvider = context.read<PromoProvider>();
     final experience = context.read<DashboardExperienceProvider>();
     if (!experience.isReady || promoProvider.promos.isEmpty) return;
-    await experience.registerPromos(promoProvider.promos.map((promo) => promo.id));
+    await experience
+        .registerPromos(promoProvider.promos.map((promo) => promo.id));
   }
 
   Future<void> _showEntryDialogsIfNeeded() async {
@@ -118,7 +119,8 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF0A8),
                   borderRadius: BorderRadius.circular(999),
@@ -476,7 +478,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             child: Text(
                               'Diskon pilihan hari ini',
-                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
                                     color: const Color(0xFF7C5A00),
                                   ),
                             ),
@@ -489,9 +494,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'Pantau diskon, bandingkan harga, dan belanja lebih hemat dari satu dashboard yang rapi.',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: const Color(0xFF64748B),
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: const Color(0xFF64748B),
+                                    ),
                           ),
                           const SizedBox(height: 18),
                           Row(
@@ -504,7 +510,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '${promoProvider.popularPromos.length}',
@@ -520,7 +527,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       const SizedBox(height: 4),
                                       Text(
                                         'promo aktif',
-                                        style: Theme.of(context).textTheme.bodySmall,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
                                       ),
                                     ],
                                   ),
@@ -535,7 +544,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '${nearbyStores.length}',
@@ -551,7 +561,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       const SizedBox(height: 4),
                                       Text(
                                         'toko siap dikunjungi',
-                                        style: Theme.of(context).textTheme.bodySmall,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
                                       ),
                                     ],
                                   ),
@@ -624,8 +636,17 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             AppRoutes.wallet,
                           ),
-                          icon: const Icon(Icons.account_balance_wallet_outlined),
+                          icon:
+                              const Icon(Icons.account_balance_wallet_outlined),
                           label: const Text('Topup Coin'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.miniGame,
+                          ),
+                          icon: const Icon(Icons.sports_esports_outlined),
+                          label: const Text('Mini Game'),
                         ),
                         OutlinedButton.icon(
                           onPressed: () async {
@@ -654,9 +675,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: promoProvider.categories.map((category) {
                           return CategoryChip(
                             label: category.name,
-                            selected: promoProvider.selectedCategory == category.name,
-                            onTap: () =>
-                                promoProvider.updateSelectedCategory(category.name),
+                            selected:
+                                promoProvider.selectedCategory == category.name,
+                            onTap: () => promoProvider
+                                .updateSelectedCategory(category.name),
                           );
                         }).toList(),
                       ),
@@ -665,50 +687,54 @@ class _HomeScreenState extends State<HomeScreen> {
                     _SectionHeader(
                       title: 'Promo Populer',
                       actionLabel: 'Jelajahi',
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.promoList),
+                      onTap: () =>
+                          Navigator.pushNamed(context, AppRoutes.promoList),
                     ),
                     const SizedBox(height: 12),
                     ...promoProvider.popularPromos.take(3).map(
-                      (promo) => PromoCard(
-                        promo: promo.copyWith(
-                          isFavorite: favoriteProvider.isFavorite(promo.id),
+                          (promo) => PromoCard(
+                            promo: promo.copyWith(
+                              isFavorite: favoriteProvider.isFavorite(promo.id),
+                            ),
+                            isLocked: experience.isPromoLocked(promo.id),
+                            lockLabel: experience.promoLockLabel(promo.id),
+                            onTap: () => _openPromo(promo),
+                            onFavoriteTap: () {
+                              if (!auth.isLoggedIn) {
+                                Navigator.pushNamed(context, AppRoutes.login);
+                                return;
+                              }
+                              favoriteProvider.toggleFavorite(
+                                  auth.currentUser!.id, promo);
+                            },
+                          ),
                         ),
-                        isLocked: experience.isPromoLocked(promo.id),
-                        lockLabel: experience.promoLockLabel(promo.id),
-                        onTap: () => _openPromo(promo),
-                        onFavoriteTap: () {
-                          if (!auth.isLoggedIn) {
-                            Navigator.pushNamed(context, AppRoutes.login);
-                            return;
-                          }
-                          favoriteProvider.toggleFavorite(auth.currentUser!.id, promo);
-                        },
-                      ),
-                    ),
                     const SizedBox(height: 8),
                     _SectionHeader(
                       title: 'Promo Hampir Berakhir',
                       actionLabel: 'Lihat semua',
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.promoList),
+                      onTap: () =>
+                          Navigator.pushNamed(context, AppRoutes.promoList),
                     ),
                     const SizedBox(height: 12),
                     ...promoProvider.endingSoonPromos.take(3).map(
-                      (promo) => PromoCard(
-                        promo: promo.copyWith(
-                          isFavorite: favoriteProvider.isFavorite(promo.id),
+                          (promo) => PromoCard(
+                            promo: promo.copyWith(
+                              isFavorite: favoriteProvider.isFavorite(promo.id),
+                            ),
+                            isLocked: experience.isPromoLocked(promo.id),
+                            lockLabel: experience.promoLockLabel(promo.id),
+                            onTap: () => _openPromo(promo),
+                            onFavoriteTap: () {
+                              if (!auth.isLoggedIn) {
+                                Navigator.pushNamed(context, AppRoutes.login);
+                                return;
+                              }
+                              favoriteProvider.toggleFavorite(
+                                  auth.currentUser!.id, promo);
+                            },
+                          ),
                         ),
-                        isLocked: experience.isPromoLocked(promo.id),
-                        lockLabel: experience.promoLockLabel(promo.id),
-                        onTap: () => _openPromo(promo),
-                        onFavoriteTap: () {
-                          if (!auth.isLoggedIn) {
-                            Navigator.pushNamed(context, AppRoutes.login);
-                            return;
-                          }
-                          favoriteProvider.toggleFavorite(auth.currentUser!.id, promo);
-                        },
-                      ),
-                    ),
                     if (promoProvider.recentlyViewedPromos.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       _SectionHeader(
@@ -719,39 +745,42 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 12),
                       ...promoProvider.recentlyViewedPromos.take(3).map(
-                        (promo) => PromoCard(
-                          promo: promo.copyWith(
-                            isFavorite: favoriteProvider.isFavorite(promo.id),
+                            (promo) => PromoCard(
+                              promo: promo.copyWith(
+                                isFavorite:
+                                    favoriteProvider.isFavorite(promo.id),
+                              ),
+                              isLocked: experience.isPromoLocked(promo.id),
+                              lockLabel: experience.promoLockLabel(promo.id),
+                              onTap: () => _openPromo(promo),
+                              onFavoriteTap: () {
+                                if (!auth.isLoggedIn) {
+                                  Navigator.pushNamed(context, AppRoutes.login);
+                                  return;
+                                }
+                                favoriteProvider.toggleFavorite(
+                                  auth.currentUser!.id,
+                                  promo,
+                                );
+                              },
+                            ),
                           ),
-                          isLocked: experience.isPromoLocked(promo.id),
-                          lockLabel: experience.promoLockLabel(promo.id),
-                          onTap: () => _openPromo(promo),
-                          onFavoriteTap: () {
-                            if (!auth.isLoggedIn) {
-                              Navigator.pushNamed(context, AppRoutes.login);
-                              return;
-                            }
-                            favoriteProvider.toggleFavorite(
-                              auth.currentUser!.id,
-                              promo,
-                            );
-                          },
-                        ),
-                      ),
                     ],
                     const SizedBox(height: 8),
                     _SectionHeader(
                       title: 'Toko Terdekat',
                       actionLabel: 'Lihat toko',
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.stores),
+                      onTap: () =>
+                          Navigator.pushNamed(context, AppRoutes.stores),
                     ),
                     const SizedBox(height: 12),
                     if (nearbyStores.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color:
-                              Theme.of(context).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: const Text(
@@ -764,7 +793,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: nearbyStores.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
                           itemBuilder: (context, index) {
                             final store = nearbyStores[index];
                             return StoreCard(
@@ -797,14 +827,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           label: const Text('Reminder'),
                         ),
                         OutlinedButton.icon(
-                          onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.calculator),
+                          onPressed: () => Navigator.pushNamed(
+                              context, AppRoutes.calculator),
                           icon: const Icon(Icons.calculate_outlined),
                           label: const Text('Kalkulator'),
                         ),
                         OutlinedButton.icon(
-                          onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.shoppingList),
+                          onPressed: () => Navigator.pushNamed(
+                              context, AppRoutes.shoppingList),
                           icon: const Icon(Icons.shopping_cart_outlined),
                           label: const Text('Belanja'),
                         ),
@@ -892,7 +922,8 @@ class _PremiumCard extends StatelessWidget {
             isPremium
                 ? Icons.workspace_premium_rounded
                 : Icons.workspace_premium_outlined,
-            color: isPremium ? const Color(0xFF0F9D58) : const Color(0xFFB45309),
+            color:
+                isPremium ? const Color(0xFF0F9D58) : const Color(0xFFB45309),
           ),
           const SizedBox(height: 12),
           Text(

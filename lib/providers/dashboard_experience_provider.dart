@@ -1,6 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DashboardExperienceProvider extends ChangeNotifier {
@@ -11,7 +12,12 @@ class DashboardExperienceProvider extends ChangeNotifier {
   static const _dailyCycleKey = 'dashboard_daily_cycle_count';
   static const _lastClaimKey = 'dashboard_last_claim_date';
   static const _lastPopupKey = 'dashboard_last_popup_date';
+  static const _miniGameAttemptsKey = 'dashboard_mini_game_attempts';
+  static const _miniGameDateKey = 'dashboard_mini_game_date';
+  static const _redeemedVouchersKey = 'dashboard_redeemed_vouchers';
   static const freeAccessDelay = Duration(hours: 6);
+  static const miniGameDailyLimit = 3;
+  static const miniGameRounds = 5;
   static const unlockCost = 30;
   static const coinPackages = <CoinPackage>[
     CoinPackage(
@@ -61,6 +67,32 @@ class DashboardExperienceProvider extends ChangeNotifier {
       description: 'Paket paling hemat untuk pengguna rutin.',
     ),
   ];
+  static const voucherCatalog = <VoucherReward>[
+    VoucherReward(
+      id: 'voucher-15k',
+      title: 'Voucher Belanja Rp15.000',
+      coinCost: 45,
+      description: 'Cocok untuk belanja ringan atau item promo kecil.',
+      benefitLabel: 'Potongan Rp15.000',
+      icon: Icons.local_offer_outlined,
+    ),
+    VoucherReward(
+      id: 'voucher-ongkir',
+      title: 'Voucher Gratis Ongkir',
+      coinCost: 30,
+      description: 'Pakai saat checkout supaya biaya kirim lebih ringan.',
+      benefitLabel: 'Gratis ongkir',
+      icon: Icons.local_shipping_outlined,
+    ),
+    VoucherReward(
+      id: 'voucher-25k',
+      title: 'Voucher Belanja Rp25.000',
+      coinCost: 70,
+      description: 'Lebih hemat untuk pembelian mingguan yang lebih besar.',
+      benefitLabel: 'Potongan Rp25.000',
+      icon: Icons.confirmation_number_outlined,
+    ),
+  ];
 
   bool isReady = false;
   bool isPremium = false;
@@ -69,8 +101,12 @@ class DashboardExperienceProvider extends ChangeNotifier {
   int claimedDaysInCycle = 0;
   DateTime? lastClaimedAt;
   DateTime? lastPopupShownAt;
+  int miniGameAttemptsUsedToday = 0;
+  DateTime? lastMiniGamePlayedAt;
+  List<RedeemedVoucher> redeemedVouchers = <RedeemedVoucher>[];
   bool _hasShownEntryDialogsThisSession = false;
   Timer? _lockCountdownTimer;
+  Timer? _miniGameResetTimer;
 
   Future<void> bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
@@ -83,6 +119,11 @@ class DashboardExperienceProvider extends ChangeNotifier {
     claimedDaysInCycle = prefs.getInt(_dailyCycleKey) ?? 0;
     lastClaimedAt = _parseDate(prefs.getString(_lastClaimKey));
     lastPopupShownAt = _parseDate(prefs.getString(_lastPopupKey));
+    redeemedVouchers = _parseRedeemedVouchers(
+      prefs.getStringList(_redeemedVouchersKey) ?? const <String>[],
+    );
+    await _syncMiniGameDailyState(prefs);
+    _scheduleMiniGameResetTimer();
     isReady = true;
     _startLockCountdownTimer();
     notifyListeners();
@@ -155,6 +196,18 @@ class DashboardExperienceProvider extends ChangeNotifier {
 
   bool get canUnlockWithCoins => coinBalance >= unlockCost;
 
+  int get miniGameRemainingAttempts {
+    final playedAt = lastMiniGamePlayedAt;
+    if (playedAt == null || !_isSameDay(playedAt, DateTime.now())) {
+      return miniGameDailyLimit;
+    }
+    return (miniGameDailyLimit - miniGameAttemptsUsedToday)
+        .clamp(0, miniGameDailyLimit)
+        .toInt();
+  }
+
+  bool get canPlayMiniGame => miniGameRemainingAttempts > 0;
+
   Future<bool> unlockPromoWithCoins(int promoId) async {
     if (isPremium || unlockedPromoIds.contains(promoId)) return true;
     if (coinBalance < unlockCost) return false;
@@ -208,6 +261,80 @@ class DashboardExperienceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<MiniGameResult> playMiniGame({required int score}) async {
+    final prefs = await SharedPreferences.getInstance();
+    _cachedPrefs = prefs;
+    await _syncMiniGameDailyState(prefs);
+
+    if (miniGameRemainingAttempts <= 0) {
+      return const MiniGameResult(
+        score: 0,
+        coinsEarned: 0,
+        attemptsLeft: 0,
+        isLimitReached: true,
+      );
+    }
+
+    final safeScore = score.clamp(0, miniGameRounds);
+    final coinsEarned = _coinsForMiniGameScore(safeScore);
+
+    miniGameAttemptsUsedToday += 1;
+    lastMiniGamePlayedAt = DateTime.now();
+    coinBalance += coinsEarned;
+
+    await prefs.setInt(_miniGameAttemptsKey, miniGameAttemptsUsedToday);
+    await prefs.setString(
+      _miniGameDateKey,
+      lastMiniGamePlayedAt!.toIso8601String(),
+    );
+    await prefs.setInt(_coinsKey, coinBalance);
+    notifyListeners();
+
+    return MiniGameResult(
+      score: safeScore,
+      coinsEarned: coinsEarned,
+      attemptsLeft: miniGameRemainingAttempts,
+      isLimitReached: false,
+    );
+  }
+
+  Future<RedeemedVoucher?> redeemVoucher(String voucherId) async {
+    VoucherReward? voucher;
+    for (final item in voucherCatalog) {
+      if (item.id == voucherId) {
+        voucher = item;
+        break;
+      }
+    }
+    if (voucher == null || coinBalance < voucher.coinCost) {
+      return null;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    _cachedPrefs = prefs;
+    await _syncMiniGameDailyState(prefs);
+
+    coinBalance -= voucher.coinCost;
+    final redemption = RedeemedVoucher(
+      id: 'redeem-${DateTime.now().millisecondsSinceEpoch}',
+      voucherId: voucher.id,
+      title: voucher.title,
+      benefitLabel: voucher.benefitLabel,
+      coinCost: voucher.coinCost,
+      code: _generateVoucherCode(voucher),
+      redeemedAt: DateTime.now(),
+    );
+    redeemedVouchers = <RedeemedVoucher>[redemption, ...redeemedVouchers];
+
+    await prefs.setInt(_coinsKey, coinBalance);
+    await prefs.setStringList(
+      _redeemedVouchersKey,
+      redeemedVouchers.map((item) => jsonEncode(item.toJson())).toList(),
+    );
+    notifyListeners();
+    return redemption;
+  }
+
   Future<DailyClaimResult> claimDailyReward() async {
     final prefs = await SharedPreferences.getInstance();
     _cachedPrefs = prefs;
@@ -228,7 +355,8 @@ class DashboardExperienceProvider extends ChangeNotifier {
       final currentDate = DateTime(now.year, now.month, now.day);
       final gap = currentDate.difference(previousDate).inDays;
       if (gap <= 1) {
-        claimedDaysInCycle = claimedDaysInCycle >= 7 ? 1 : claimedDaysInCycle + 1;
+        claimedDaysInCycle =
+            claimedDaysInCycle >= 7 ? 1 : claimedDaysInCycle + 1;
       } else {
         claimedDaysInCycle = 1;
       }
@@ -266,10 +394,77 @@ class DashboardExperienceProvider extends ChangeNotifier {
   String _promoFirstSeenKey(int promoId) => '$_promoFirstSeenPrefix$promoId';
 
   Set<int> _parseUnlockedPromoIds(List<String> values) {
+    return values.map((value) => int.tryParse(value)).whereType<int>().toSet();
+  }
+
+  Future<void> _syncMiniGameDailyState(SharedPreferences prefs) async {
+    final now = DateTime.now();
+    final storedDate = _parseDate(prefs.getString(_miniGameDateKey));
+    if (storedDate == null || !_isSameDay(storedDate, now)) {
+      miniGameAttemptsUsedToday = 0;
+      lastMiniGamePlayedAt = null;
+      await prefs.remove(_miniGameAttemptsKey);
+      await prefs.remove(_miniGameDateKey);
+      return;
+    }
+
+    miniGameAttemptsUsedToday = prefs.getInt(_miniGameAttemptsKey) ?? 0;
+    lastMiniGamePlayedAt = storedDate;
+  }
+
+  void _scheduleMiniGameResetTimer() {
+    _miniGameResetTimer?.cancel();
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    final delay = nextMidnight.difference(now) + const Duration(seconds: 1);
+    _miniGameResetTimer = Timer(delay, () async {
+      final prefs = _cachedPrefs ?? await SharedPreferences.getInstance();
+      await _syncMiniGameDailyState(prefs);
+      if (isReady) {
+        notifyListeners();
+      }
+      _scheduleMiniGameResetTimer();
+    });
+  }
+
+  int _coinsForMiniGameScore(int score) {
+    switch (score) {
+      case 5:
+        return 25;
+      case 4:
+        return 18;
+      case 3:
+        return 12;
+      case 2:
+        return 8;
+      case 1:
+        return 5;
+      default:
+        return 0;
+    }
+  }
+
+  String _generateVoucherCode(VoucherReward voucher) {
+    final token = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
+    final prefix = voucher.id.replaceAll('-', '');
+    return 'PH-${prefix.substring(0, 3).toUpperCase()}-${token.toUpperCase()}';
+  }
+
+  List<RedeemedVoucher> _parseRedeemedVouchers(List<String> values) {
     return values
-        .map((value) => int.tryParse(value))
-        .whereType<int>()
-        .toSet();
+        .map((value) {
+          try {
+            final decoded = jsonDecode(value);
+            if (decoded is Map<String, dynamic>) {
+              return RedeemedVoucher.fromJson(decoded);
+            }
+          } catch (_) {
+            return null;
+          }
+          return null;
+        })
+        .whereType<RedeemedVoucher>()
+        .toList();
   }
 
   void _startLockCountdownTimer() {
@@ -284,6 +479,7 @@ class DashboardExperienceProvider extends ChangeNotifier {
   @override
   void dispose() {
     _lockCountdownTimer?.cancel();
+    _miniGameResetTimer?.cancel();
     super.dispose();
   }
 }
@@ -332,4 +528,81 @@ class SubscriptionPlan {
   final String durationLabel;
   final String description;
   final bool isRecommended;
+}
+
+class MiniGameResult {
+  const MiniGameResult({
+    required this.score,
+    required this.coinsEarned,
+    required this.attemptsLeft,
+    required this.isLimitReached,
+  });
+
+  final int score;
+  final int coinsEarned;
+  final int attemptsLeft;
+  final bool isLimitReached;
+}
+
+class VoucherReward {
+  const VoucherReward({
+    required this.id,
+    required this.title,
+    required this.coinCost,
+    required this.description,
+    required this.benefitLabel,
+    required this.icon,
+  });
+
+  final String id;
+  final String title;
+  final int coinCost;
+  final String description;
+  final String benefitLabel;
+  final IconData icon;
+}
+
+class RedeemedVoucher {
+  const RedeemedVoucher({
+    required this.id,
+    required this.voucherId,
+    required this.title,
+    required this.benefitLabel,
+    required this.coinCost,
+    required this.code,
+    required this.redeemedAt,
+  });
+
+  final String id;
+  final String voucherId;
+  final String title;
+  final String benefitLabel;
+  final int coinCost;
+  final String code;
+  final DateTime redeemedAt;
+
+  factory RedeemedVoucher.fromJson(Map<String, dynamic> json) {
+    return RedeemedVoucher(
+      id: json['id'] as String? ?? '',
+      voucherId: json['voucherId'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      benefitLabel: json['benefitLabel'] as String? ?? '',
+      coinCost: (json['coinCost'] as num?)?.toInt() ?? 0,
+      code: json['code'] as String? ?? '',
+      redeemedAt: DateTime.tryParse(json['redeemedAt'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'voucherId': voucherId,
+      'title': title,
+      'benefitLabel': benefitLabel,
+      'coinCost': coinCost,
+      'code': code,
+      'redeemedAt': redeemedAt.toIso8601String(),
+    };
+  }
 }
