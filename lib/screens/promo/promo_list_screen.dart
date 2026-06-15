@@ -50,43 +50,42 @@ class PromoListScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: provider.selectedStore,
-                            decoration: const InputDecoration(labelText: 'Toko'),
-                            items: provider.stores
-                                .map(
-                                  (item) => DropdownMenuItem(
-                                    value: item.name,
-                                    child: Text(item.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) =>
-                                provider.updateSelectedStore(value ?? 'Semua'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: provider.selectedCategory,
-                            decoration:
-                                const InputDecoration(labelText: 'Kategori'),
-                            items: provider.categories
-                                .map(
-                                  (item) => DropdownMenuItem(
-                                    value: item.name,
-                                    child: Text(item.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) => provider
-                                .updateSelectedCategory(value ?? 'Semua'),
-                          ),
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final storeDropdown = _FilterDropdown(
+                          label: 'Toko',
+                          value: provider.selectedStore,
+                          options: provider.stores.map((item) => item.name),
+                          onChanged: (value) =>
+                              provider.updateSelectedStore(value ?? 'Semua'),
+                        );
+                        final categoryDropdown = _FilterDropdown(
+                          label: 'Kategori',
+                          value: provider.selectedCategory,
+                          options:
+                              provider.categories.map((item) => item.name),
+                          onChanged: (value) => provider
+                              .updateSelectedCategory(value ?? 'Semua'),
+                        );
+
+                        if (constraints.maxWidth < 430) {
+                          return Column(
+                            children: [
+                              storeDropdown,
+                              const SizedBox(height: 12),
+                              categoryDropdown,
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: storeDropdown),
+                            const SizedBox(width: 12),
+                            Expanded(child: categoryDropdown),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -181,6 +180,54 @@ class PromoListScreen extends StatelessWidget {
                       ),
                   ],
                 ),
+    );
+  }
+}
+
+class _FilterDropdown extends StatelessWidget {
+  const _FilterDropdown({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String value;
+  final Iterable<String> options;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final uniqueOptions = options.toSet().toList();
+    final safeValue = uniqueOptions.contains(value) ? value : null;
+
+    return DropdownButtonFormField<String>(
+      initialValue: safeValue,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: label),
+      selectedItemBuilder: (context) => uniqueOptions
+          .map(
+            (item) => Text(
+              item,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          )
+          .toList(),
+      items: uniqueOptions
+          .map(
+            (item) => DropdownMenuItem(
+              value: item,
+              child: Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
     );
   }
 }

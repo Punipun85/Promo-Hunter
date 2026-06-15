@@ -12,21 +12,121 @@ class ManagePromoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<PromoProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Kelola Promo')),
+      appBar: AppBar(
+        title: const Text('Kelola Promo'),
+        actions: [
+          IconButton(
+            tooltip: 'Sync promo dari n8n',
+            onPressed: provider.isSyncingN8n
+                ? null
+                : () async {
+                    try {
+                      final imported =
+                          await context.read<PromoProvider>().syncPromosFromN8n();
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            imported == 0
+                                ? 'n8n dicek, belum ada promo baru.'
+                                : '$imported promo baru berhasil diimpor.',
+                          ),
+                        ),
+                      );
+                    } catch (_) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Gagal sync dari n8n. Cek workflow dan koneksi.',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+            icon: provider.isSyncingN8n
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync_rounded),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.pushNamed(context, AppRoutes.promoForm),
         icon: const Icon(Icons.add),
         label: const Text('Tambah Promo'),
       ),
-      body: provider.promos.isEmpty
-          ? const EmptyState(
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF4FF),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.hub_outlined,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    provider.isSyncingN8n
+                        ? 'Sedang scraping promo dari n8n. Proses bisa memakan waktu 1-3 menit...'
+                        : provider.syncMessage ??
+                            'Ambil promo otomatis dari n8n agar katalog selalu terisi. Format data mengikuti tabel PromoHunter.',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.tonal(
+                  onPressed: provider.isSyncingN8n
+                      ? null
+                      : () async {
+                          try {
+                            final imported = await context
+                                .read<PromoProvider>()
+                                .syncPromosFromN8n();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  imported == 0
+                                      ? 'n8n dicek, belum ada promo baru.'
+                                      : '$imported promo baru berhasil diimpor.',
+                                ),
+                              ),
+                            );
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Gagal sync dari n8n. Cek workflow dan koneksi.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                  child: const Text('Sync'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (provider.promos.isEmpty)
+            const EmptyState(
               title: 'Belum ada promo',
-              subtitle: 'Tambahkan promo baru untuk mulai mengelola katalog.',
+              subtitle:
+                  'Tambahkan promo manual atau tekan Sync untuk mengambil dari n8n.',
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: provider.promos.length,
-              itemBuilder: (context, index) {
+          else
+            ...List.generate(provider.promos.length, (index) {
                 final promo = provider.promos[index];
                 return Card(
                   child: ListTile(
@@ -54,8 +154,9 @@ class ManagePromoScreen extends StatelessWidget {
                     ),
                   ),
                 );
-              },
-            ),
+              }),
+        ],
+      ),
     );
   }
 }

@@ -155,7 +155,11 @@ class PromoService {
     final client = _supabaseService.clientOrNull;
     if (client != null) {
       try {
-        await client.from('promos').insert(promo.toInsertMap());
+        final storeId = await _findOrCreateStoreId(promo);
+        final categoryId = await _findOrCreateCategoryId(promo.categoryName);
+        await client.from('promos').insert(
+              promo.toInsertMap(storeId: storeId, categoryId: categoryId),
+            );
       } catch (_) {
         // Keep optimistic local support for MVP fallback.
       }
@@ -167,7 +171,12 @@ class PromoService {
     final client = _supabaseService.clientOrNull;
     if (client != null) {
       try {
-        await client.from('promos').update(promo.toInsertMap()).eq('id', promo.id);
+        final storeId = await _findOrCreateStoreId(promo);
+        final categoryId = await _findOrCreateCategoryId(promo.categoryName);
+        await client
+            .from('promos')
+            .update(promo.toInsertMap(storeId: storeId, categoryId: categoryId))
+            .eq('id', promo.id);
       } catch (_) {
         // Keep optimistic local support for MVP fallback.
       }
@@ -184,5 +193,56 @@ class PromoService {
         // Keep optimistic local support for MVP fallback.
       }
     }
+  }
+
+  Future<int?> _findOrCreateStoreId(PromoModel promo) async {
+    final client = _supabaseService.clientOrNull;
+    if (client == null || promo.storeName.trim().isEmpty) return null;
+
+    final existing = await client
+        .from('stores')
+        .select('id')
+        .eq('name', promo.storeName)
+        .limit(1);
+    if (existing.isNotEmpty) {
+      return ((existing.first as Map)['id'] as num).toInt();
+    }
+
+    final inserted = await client
+        .from('stores')
+        .insert({
+          'name': promo.storeName,
+          'address': promo.storeAddress,
+          'city': '',
+          'google_maps_url': '',
+          'opening_hours': '',
+        })
+        .select('id')
+        .single();
+    return (inserted['id'] as num).toInt();
+  }
+
+  Future<int?> _findOrCreateCategoryId(String categoryName) async {
+    final client = _supabaseService.clientOrNull;
+    final normalized = categoryName.trim();
+    if (client == null || normalized.isEmpty || normalized == 'Semua') {
+      return null;
+    }
+
+    final existing = await client
+        .from('categories')
+        .select('id')
+        .eq('name', normalized)
+        .limit(1);
+    if (existing.isNotEmpty) {
+      return ((existing.first as Map)['id'] as num).toInt();
+    }
+
+    final inserted = await client
+        .from('categories')
+        .insert({'name': normalized, 'icon': 'category'})
+        .select('id')
+        .single();
+    return (inserted['id'] as num).toInt();
   }
 }

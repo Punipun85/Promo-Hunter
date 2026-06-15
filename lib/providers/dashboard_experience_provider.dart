@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -68,6 +70,7 @@ class DashboardExperienceProvider extends ChangeNotifier {
   DateTime? lastClaimedAt;
   DateTime? lastPopupShownAt;
   bool _hasShownEntryDialogsThisSession = false;
+  Timer? _lockCountdownTimer;
 
   Future<void> bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
@@ -81,6 +84,7 @@ class DashboardExperienceProvider extends ChangeNotifier {
     lastClaimedAt = _parseDate(prefs.getString(_lastClaimKey));
     lastPopupShownAt = _parseDate(prefs.getString(_lastPopupKey));
     isReady = true;
+    _startLockCountdownTimer();
     notifyListeners();
   }
 
@@ -266,6 +270,21 @@ class DashboardExperienceProvider extends ChangeNotifier {
         .map((value) => int.tryParse(value))
         .whereType<int>()
         .toSet();
+  }
+
+  void _startLockCountdownTimer() {
+    _lockCountdownTimer?.cancel();
+    _lockCountdownTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (isReady && !isPremium) {
+        notifyListeners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _lockCountdownTimer?.cancel();
+    super.dispose();
   }
 }
 

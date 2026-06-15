@@ -20,7 +20,17 @@ Future<void> openPromoWithAccessGuard(
       builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('Promo Early Access'),
+          titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
+          title: Row(
+            children: [
+              const Expanded(child: Text('Promo Early Access')),
+              IconButton(
+                tooltip: 'Tutup',
+                onPressed: () => Navigator.pop(dialogContext, false),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,28 +58,35 @@ Future<void> openPromoWithAccessGuard(
               ),
             ],
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Nanti'),
-            ),
-            TextButton(
-              onPressed: experience.canUnlockWithCoins
-                  ? () async {
-                      final ok = await experience.unlockPromoWithCoins(promo.id);
-                      if (!dialogContext.mounted) return;
-                      Navigator.pop(dialogContext, ok);
-                    }
-                  : null,
-              child: const Text('Pakai Coin'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-                if (!context.mounted) return;
-                Navigator.pushNamed(context, AppRoutes.wallet);
-              },
-              child: const Text('Langganan'),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.tonal(
+                    onPressed: experience.canUnlockWithCoins
+                        ? () async {
+                            final ok =
+                                await experience.unlockPromoWithCoins(promo.id);
+                            if (!dialogContext.mounted) return;
+                            Navigator.pop(dialogContext, ok);
+                          }
+                        : null,
+                    child: const Text('Pakai Coin'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext, false);
+                      if (!context.mounted) return;
+                      Navigator.pushNamed(context, AppRoutes.wallet);
+                    },
+                    child: const Text('Langganan'),
+                  ),
+                ),
+              ],
             ),
           ],
         );

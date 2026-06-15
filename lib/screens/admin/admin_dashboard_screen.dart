@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
+import '../../models/category_model.dart';
 import '../../models/promo_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/promo_provider.dart';
@@ -28,12 +29,23 @@ class AdminDashboardScreen extends StatelessWidget {
 
     final realStores = promoProvider.stores.where((store) => store.id != 0).toList();
     final totalPromos = promoProvider.promos.length;
-    final activePromos =
-        promoProvider.promos.where((promo) => !promo.isExpired).toList();
-    final expiredPromos = promoProvider.promos.where((promo) => promo.isExpired).toList();
-    final endingSoonPromos =
-        activePromos.where((promo) => promo.isEndingSoon).toList();
-    final totalCategories = promoProvider.categories.length;
+    final activePromos = promoProvider.promos
+        .where((promo) => !promo.isExpired)
+        .toList()
+      ..sort((a, b) => a.endDate.compareTo(b.endDate));
+    final expiredPromos = promoProvider.promos
+        .where((promo) => promo.isExpired)
+        .toList()
+      ..sort((a, b) => b.endDate.compareTo(a.endDate));
+    final endingSoonPromos = activePromos
+        .where((promo) => promo.isEndingSoon)
+        .toList()
+      ..sort((a, b) => a.endDate.compareTo(b.endDate));
+    final adminCategories = promoProvider.categories
+        .where((category) => category.name != 'Semua')
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    final totalCategories = adminCategories.length;
     final List<PromoModel> bestDiscountPromos = [...promoProvider.promos]
       ..sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
     final List<PromoModel> newestPromos = [...promoProvider.promos]
@@ -142,6 +154,54 @@ class AdminDashboardScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
+          _PromoMonitorSection(
+            title: 'Promo Hampir Berakhir',
+            subtitle: 'Prioritas dicek agar tidak ada promo kedaluwarsa diam-diam.',
+            promos: endingSoonPromos,
+            emptyText: 'Belum ada promo yang hampir berakhir.',
+            badgeColor: const Color(0xFFF59E0B),
+            onManage: () => Navigator.pushNamed(context, AppRoutes.managePromos),
+            onEdit: (promo) => Navigator.pushNamed(
+              context,
+              AppRoutes.promoForm,
+              arguments: promo,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _PromoMonitorSection(
+            title: 'Promo Aktif',
+            subtitle: 'Daftar promo yang sedang tampil ke user.',
+            promos: activePromos,
+            emptyText: 'Belum ada promo aktif.',
+            badgeColor: const Color(0xFF0F9D58),
+            onManage: () => Navigator.pushNamed(context, AppRoutes.managePromos),
+            onEdit: (promo) => Navigator.pushNamed(
+              context,
+              AppRoutes.promoForm,
+              arguments: promo,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _PromoMonitorSection(
+            title: 'Promo Expired',
+            subtitle: 'Promo yang sudah lewat masa berlaku dan perlu diarsipkan/diedit.',
+            promos: expiredPromos,
+            emptyText: 'Tidak ada promo expired. Rapi sekali.',
+            badgeColor: const Color(0xFFDC2626),
+            onManage: () => Navigator.pushNamed(context, AppRoutes.managePromos),
+            onEdit: (promo) => Navigator.pushNamed(
+              context,
+              AppRoutes.promoForm,
+              arguments: promo,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _CategoryMonitorSection(
+            categories: adminCategories,
+            promoCountByCategory: promoCountByCategory,
+            onManage: () => Navigator.pushNamed(context, AppRoutes.manageCategories),
+          ),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
@@ -214,6 +274,293 @@ class AdminDashboardScreen extends StatelessWidget {
     final sorted = items.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return sorted.first;
+  }
+}
+
+class _PromoMonitorSection extends StatelessWidget {
+  const _PromoMonitorSection({
+    required this.title,
+    required this.subtitle,
+    required this.promos,
+    required this.emptyText,
+    required this.badgeColor,
+    required this.onManage,
+    required this.onEdit,
+  });
+
+  final String title;
+  final String subtitle;
+  final List<PromoModel> promos;
+  final String emptyText;
+  final Color badgeColor;
+  final VoidCallback onManage;
+  final ValueChanged<PromoModel> onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final visiblePromos = promos.take(5).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF64748B),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              _CountBadge(
+                value: promos.length.toString(),
+                color: badgeColor,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (visiblePromos.isEmpty)
+            Text(
+              emptyText,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF64748B),
+                  ),
+            )
+          else
+            ...visiblePromos.map(
+              (promo) => _AdminPromoTile(
+                promo: promo,
+                color: badgeColor,
+                onEdit: () => onEdit(promo),
+              ),
+            ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onManage,
+              icon: const Icon(Icons.manage_search_outlined),
+              label: Text(
+                promos.length > visiblePromos.length
+                    ? 'Lihat semua ${promos.length} promo'
+                    : 'Buka kelola promo',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminPromoTile extends StatelessWidget {
+  const _AdminPromoTile({
+    required this.promo,
+    required this.color,
+    required this.onEdit,
+  });
+
+  final PromoModel promo;
+  final Color color;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(Icons.local_offer_outlined, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  promo.productName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${promo.storeName} - ${promo.categoryName}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF64748B),
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Sampai ${DateFormatter.short(promo.endDate)}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Edit promo',
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit_outlined),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryMonitorSection extends StatelessWidget {
+  const _CategoryMonitorSection({
+    required this.categories,
+    required this.promoCountByCategory,
+    required this.onManage,
+  });
+
+  final List<CategoryModel> categories;
+  final Map<String, int> promoCountByCategory;
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Kategori Promo',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ),
+              _CountBadge(
+                value: categories.length.toString(),
+                color: const Color(0xFF2563EB),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Pantau kategori yang tersedia dan jumlah promo aktif di dalamnya.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                ),
+          ),
+          const SizedBox(height: 14),
+          if (categories.isEmpty)
+            const Text('Belum ada kategori. Tambahkan kategori dulu.')
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: categories.map((category) {
+                final count = promoCountByCategory[category.name] ?? 0;
+                return Chip(
+                  avatar: const Icon(Icons.category_outlined, size: 18),
+                  label: Text('${category.name} ($count)'),
+                );
+              }).toList(),
+            ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onManage,
+              icon: const Icon(Icons.category_outlined),
+              label: const Text('Kelola kategori'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({
+    required this.value,
+    required this.color,
+  });
+
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        value,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+      ),
+    );
   }
 }
 

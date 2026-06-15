@@ -102,7 +102,17 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('Promo Bagus Hari Ini'),
+          titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
+          title: Row(
+            children: [
+              const Expanded(child: Text('Promo Bagus Hari Ini')),
+              IconButton(
+                tooltip: 'Tutup',
+                onPressed: () => Navigator.pop(context, false),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,14 +153,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Nanti'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Lihat Promo'),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Lihat Promo'),
+              ),
             ),
           ],
         );
@@ -165,7 +175,17 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('Langganan Member Premium'),
+          titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
+          title: Row(
+            children: [
+              const Expanded(child: Text('Langganan Member Premium')),
+              IconButton(
+                tooltip: 'Tutup',
+                onPressed: () => Navigator.pop(context, false),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,14 +211,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Lewati'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Lihat Paket'),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Lihat Paket'),
+              ),
             ),
           ],
         );
@@ -216,7 +236,17 @@ class _HomeScreenState extends State<HomeScreen> {
         final claimedToday = experience.hasClaimedToday;
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('7 Day Daily'),
+          titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
+          title: Row(
+            children: [
+              const Expanded(child: Text('7 Day Daily')),
+              IconButton(
+                tooltip: 'Tutup',
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,20 +292,20 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Nanti'),
-            ),
-            FilledButton(
-              onPressed: claimedToday
-                  ? null
-                  : () async {
-                      final result = await experience.claimDailyReward();
-                      if (!context.mounted) return;
-                      Navigator.pop(context, result);
-                    },
-              child: Text(claimedToday ? 'Sudah Diklaim' : 'Claim Hari Ini'),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: claimedToday
+                    ? null
+                    : () async {
+                        final result = await experience.claimDailyReward();
+                        if (!context.mounted) return;
+                        Navigator.pop(context, result);
+                      },
+                child: Text(claimedToday ? 'Sudah Diklaim' : 'Claim Hari Ini'),
+              ),
             ),
           ],
         );
@@ -305,7 +335,17 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('Promo Early Access'),
+          titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
+          title: Row(
+            children: [
+              const Expanded(child: Text('Promo Early Access')),
+              IconButton(
+                tooltip: 'Tutup',
+                onPressed: () => Navigator.pop(dialogContext, false),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,27 +373,34 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Nanti'),
-            ),
-            TextButton(
-              onPressed: experience.canUnlockWithCoins
-                  ? () async {
-                      final ok = await experience.unlockPromoWithCoins(promo.id);
-                      if (!dialogContext.mounted) return;
-                      Navigator.pop(dialogContext, ok);
-                    }
-                  : null,
-              child: const Text('Pakai Coin'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-                Navigator.pushNamed(pageContext, AppRoutes.wallet);
-              },
-              child: const Text('Langganan'),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.tonal(
+                    onPressed: experience.canUnlockWithCoins
+                        ? () async {
+                            final ok =
+                                await experience.unlockPromoWithCoins(promo.id);
+                            if (!dialogContext.mounted) return;
+                            Navigator.pop(dialogContext, ok);
+                          }
+                        : null,
+                    child: const Text('Pakai Coin'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext, false);
+                      Navigator.pushNamed(pageContext, AppRoutes.wallet);
+                    },
+                    child: const Text('Langganan'),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -516,43 +563,56 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _PremiumCard(
-                            isPremium: experience.isPremium,
-                            coinBalance: experience.coinBalance,
-                            onActivate: experience.isPremium
-                                ? null
-                                : () async => Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.wallet,
-                                    ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _DailyCard(
-                            currentDay: experience.nextDailyDay,
-                            coinBalance: experience.coinBalance,
-                            claimedToday: experience.hasClaimedToday,
-                            onClaim: experience.hasClaimedToday
-                                ? null
-                                : () async {
-                                    final result =
-                                        await experience.claimDailyReward();
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Day ${result.day} memberi ${result.coinsEarned} coin.',
-                                        ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final premiumCard = _PremiumCard(
+                          isPremium: experience.isPremium,
+                          coinBalance: experience.coinBalance,
+                          onActivate: experience.isPremium
+                              ? null
+                              : () async => Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.wallet,
+                                  ),
+                        );
+                        final dailyCard = _DailyCard(
+                          currentDay: experience.nextDailyDay,
+                          coinBalance: experience.coinBalance,
+                          claimedToday: experience.hasClaimedToday,
+                          onClaim: experience.hasClaimedToday
+                              ? null
+                              : () async {
+                                  final result =
+                                      await experience.claimDailyReward();
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Day ${result.day} memberi ${result.coinsEarned} coin.',
                                       ),
-                                    );
-                                  },
-                          ),
-                        ),
-                      ],
+                                    ),
+                                  );
+                                },
+                        );
+
+                        if (constraints.maxWidth < 520) {
+                          return Column(
+                            children: [
+                              premiumCard,
+                              const SizedBox(height: 12),
+                              dailyCard,
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: premiumCard),
+                            const SizedBox(width: 12),
+                            Expanded(child: dailyCard),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 12),
                     Wrap(

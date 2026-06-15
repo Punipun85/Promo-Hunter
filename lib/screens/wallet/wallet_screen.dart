@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../config/app_routes.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_experience_provider.dart';
 import '../../utils/currency_formatter.dart';
 
@@ -9,6 +11,7 @@ class WalletScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
 
     return DefaultTabController(
@@ -25,8 +28,14 @@ class WalletScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _CoinTab(experience: experience),
-            _PremiumTab(experience: experience),
+            _CoinTab(
+              experience: experience,
+              isLoggedIn: auth.isLoggedIn,
+            ),
+            _PremiumTab(
+              experience: experience,
+              isLoggedIn: auth.isLoggedIn,
+            ),
           ],
         ),
       ),
@@ -35,9 +44,13 @@ class WalletScreen extends StatelessWidget {
 }
 
 class _CoinTab extends StatelessWidget {
-  const _CoinTab({required this.experience});
+  const _CoinTab({
+    required this.experience,
+    required this.isLoggedIn,
+  });
 
   final DashboardExperienceProvider experience;
+  final bool isLoggedIn;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +74,20 @@ class _CoinTab extends StatelessWidget {
             icon: Icons.toll_outlined,
             actionLabel: 'Topup',
             onTap: () async {
+              if (!isLoggedIn) {
+                await _showGuestRequiredDialog(context);
+                return;
+              }
+              final paid = await _showTransactionDialog(
+                context,
+                title: 'Konfirmasi Topup Coin',
+                itemName: package.name,
+                value: '${package.coins} coin',
+                price: package.price,
+                description:
+                    'Coin akan masuk ke saldo akun setelah transaksi demo ini dikonfirmasi.',
+              );
+              if (paid != true) return;
               await experience.topUpCoins(package);
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -79,9 +106,13 @@ class _CoinTab extends StatelessWidget {
 }
 
 class _PremiumTab extends StatelessWidget {
-  const _PremiumTab({required this.experience});
+  const _PremiumTab({
+    required this.experience,
+    required this.isLoggedIn,
+  });
 
   final DashboardExperienceProvider experience;
+  final bool isLoggedIn;
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +138,20 @@ class _PremiumTab extends StatelessWidget {
             onTap: experience.isPremium
                 ? null
                 : () async {
+                    if (!isLoggedIn) {
+                      await _showGuestRequiredDialog(context);
+                      return;
+                    }
+                    final paid = await _showTransactionDialog(
+                      context,
+                      title: 'Konfirmasi Langganan',
+                      itemName: plan.name,
+                      value: plan.durationLabel,
+                      price: plan.price,
+                      description:
+                          'Premium akan aktif setelah transaksi demo ini dikonfirmasi.',
+                    );
+                    if (paid != true) return;
                     await experience.subscribeToPlan(plan);
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -115,6 +160,187 @@ class _PremiumTab extends StatelessWidget {
                       ),
                     );
                   },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Future<void> _showGuestRequiredDialog(BuildContext context) {
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
+        title: Row(
+          children: [
+            const Expanded(child: Text('Anda belum mendaftar akun')),
+            IconButton(
+              tooltip: 'Tutup',
+              onPressed: () => Navigator.pop(dialogContext),
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Topup coin dan langganan premium hanya bisa dilakukan setelah kamu login atau membuat akun PromoHunter.',
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonal(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    Navigator.pushNamed(context, AppRoutes.login);
+                  },
+                  child: const Text('Login'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    Navigator.pushNamed(context, AppRoutes.register);
+                  },
+                  child: const Text('Daftar'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<bool?> _showTransactionDialog(
+  BuildContext context, {
+  required String title,
+  required String itemName,
+  required String value,
+  required int price,
+  required String description,
+}) {
+  const paymentMethod = 'E-Wallet PromoPay';
+  final invoiceCode =
+      'PH-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+
+  return showDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    builder: (dialogContext) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
+        title: Row(
+          children: [
+            Expanded(child: Text(title)),
+            IconButton(
+              tooltip: 'Tutup',
+              onPressed: () => Navigator.pop(dialogContext, false),
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF4FF),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _TransactionRow(label: 'Invoice', value: invoiceCode),
+                  const SizedBox(height: 8),
+                  _TransactionRow(label: 'Paket', value: itemName),
+                  const SizedBox(height: 8),
+                  _TransactionRow(label: 'Benefit', value: value),
+                  const SizedBox(height: 8),
+                  const _TransactionRow(
+                    label: 'Metode',
+                    value: paymentMethod,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(description),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total Bayar',
+                  style: Theme.of(dialogContext).textTheme.titleSmall,
+                ),
+                Text(
+                  CurrencyFormatter.format(price),
+                  style: Theme.of(dialogContext).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(dialogContext).colorScheme.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.payments_outlined),
+              label: const Text('Bayar Sekarang'),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _TransactionRow extends StatelessWidget {
+  const _TransactionRow({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 70,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ),
       ],
@@ -228,32 +454,16 @@ class _PackageCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      if (badge != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF0A8),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            badge!,
-                            style:
-                                Theme.of(context).textTheme.labelSmall?.copyWith(
-                                      color: const Color(0xFF7C5A00),
-                                    ),
-                          ),
-                        ),
+                      if (badge != null) _PackageBadge(label: badge!),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -275,22 +485,42 @@ class _PackageCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  FilledButton.tonalIcon(
+                  FilledButton.tonal(
                     onPressed: onTap == null
                         ? null
                         : () async {
-                    await onTap!();
-                  },
-                    icon: Icon(onTap == null
-                        ? Icons.check_circle_outline
-                        : Icons.shopping_bag_outlined),
-                    label: Text(onTap == null ? 'Sudah Aktif' : actionLabel),
+                            await onTap!();
+                          },
+                    child: Text(onTap == null ? 'Sudah Aktif' : actionLabel),
                   ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PackageBadge extends StatelessWidget {
+  const _PackageBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF0A8),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: const Color(0xFF7C5A00),
+            ),
       ),
     );
   }

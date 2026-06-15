@@ -18,15 +18,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     if (!auth.isLoggedIn) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Profil')),
-        body: Center(
-          child: FilledButton(
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
-            child: const Text('Login untuk melanjutkan'),
-          ),
-        ),
-      );
+      return const _GuestProfileView();
     }
 
     final user = auth.currentUser!;
@@ -326,6 +318,303 @@ class ProfileScreen extends StatelessWidget {
             },
             icon: const Icon(Icons.logout_rounded),
             label: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestProfileView extends StatelessWidget {
+  const _GuestProfileView();
+
+  @override
+  Widget build(BuildContext context) {
+    final promoProvider = context.watch<PromoProvider>();
+    final experience = context.watch<DashboardExperienceProvider>();
+    final activePromoCount = promoProvider.filteredPromos.length;
+    final storeCount = promoProvider.stores.where((store) => store.id != 0).length;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profil')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0F766E), Color(0xFF1D4ED8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: const Icon(
+                    Icons.person_add_alt_1_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Akun hemat kamu belum aktif',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Masuk untuk menyimpan promo favorit, klaim daily coin, dan buka promo early access tanpa ribet.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.88),
+                      ),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _GuestHeroBadge(
+                      icon: Icons.local_offer_outlined,
+                      label: '$activePromoCount promo',
+                    ),
+                    _GuestHeroBadge(
+                      icon: Icons.storefront_outlined,
+                      label: '$storeCount toko',
+                    ),
+                    _GuestHeroBadge(
+                      icon: Icons.monetization_on_outlined,
+                      label: '${experience.coinBalance} coin',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
+                  child: const Text('Masuk'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.tonal(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.register),
+                  child: const Text('Daftar'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Benefit setelah login',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          GridView.count(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            crossAxisCount: 2,
+            childAspectRatio: 1.05,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            children: const [
+              _GuestBenefitCard(
+                icon: Icons.favorite_border_rounded,
+                title: 'Favorit',
+                subtitle: 'Simpan promo yang ingin kamu incar.',
+                color: Color(0xFFDC2626),
+              ),
+              _GuestBenefitCard(
+                icon: Icons.notifications_none_rounded,
+                title: 'Reminder',
+                subtitle: 'Dapatkan pengingat sebelum promo habis.',
+                color: Color(0xFFF59E0B),
+              ),
+              _GuestBenefitCard(
+                icon: Icons.calendar_month_outlined,
+                title: 'Daily Coin',
+                subtitle: 'Klaim coin harian untuk buka promo.',
+                color: Color(0xFF2563EB),
+              ),
+              _GuestBenefitCard(
+                icon: Icons.lock_open_outlined,
+                title: 'Early Access',
+                subtitle: 'Buka promo terkunci pakai coin.',
+                color: Color(0xFF0F9D58),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const Icon(
+                        Icons.workspace_premium_outlined,
+                        color: Color(0xFFB45309),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Gratis pakai coin, Premium tanpa menunggu',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'User gratis bisa menunggu 6 jam atau membuka promo terkunci dengan ${DashboardExperienceProvider.unlockCost} coin. Premium mulai Rp9.000.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, AppRoutes.wallet),
+                  icon: const Icon(Icons.account_balance_wallet_outlined),
+                  label: const Text('Lihat Topup & Premium'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Daftar gratis. Kamu tetap bisa melihat promo umum tanpa langganan.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestHeroBadge extends StatelessWidget {
+  const _GuestHeroBadge({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.white,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestBenefitCard extends StatelessWidget {
+  const _GuestBenefitCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const Spacer(),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                ),
           ),
         ],
       ),

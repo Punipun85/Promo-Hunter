@@ -5,6 +5,7 @@ import '../models/promo_model.dart';
 import '../models/reminder_model.dart';
 import '../models/store_model.dart';
 import '../services/category_service.dart';
+import '../services/n8n_promo_import_service.dart';
 import '../services/notification_service.dart';
 import '../services/promo_service.dart';
 import '../services/store_service.dart';
@@ -21,9 +22,12 @@ class PromoProvider extends ChangeNotifier {
   final PromoService _promoService;
   final CategoryService _categoryService;
   final StoreService _storeService;
+  final N8nPromoImportService _n8nPromoImportService = N8nPromoImportService();
 
   bool isLoading = false;
+  bool isSyncingN8n = false;
   String? errorMessage;
+  String? syncMessage;
   List<PromoModel> promos = [];
   List<CategoryModel> categories = [];
   List<StoreModel> stores = [];
@@ -209,6 +213,52 @@ class PromoProvider extends ChangeNotifier {
     await _promoService.createPromo(localPromo);
     promos = [...promos, localPromo];
     notifyListeners();
+  }
+
+  Future<int> syncPromosFromN8n() async {
+    isSyncingN8n = true;
+    syncMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await _n8nPromoImportService.importPromos();
+      var insertedCount = 0;
+
+      for (final promo in result.importedPromos) {
+        if (_hasSimilarPromo(promo)) continue;
+        await createPromo(promo);
+        insertedCount++;
+      }
+
+      await bootstrap();
+      syncMessage = insertedCount == 0
+          ? 'n8n berhasil dicek, belum ada promo baru.'
+          : '$insertedCount promo baru berhasil diimpor dari n8n.';
+      return insertedCount;
+    } catch (error) {
+      syncMessage =
+          'Gagal sinkron promo dari n8n. Pastikan workflow aktif dan coba lagi.';
+      rethrow;
+    } finally {
+      isSyncingN8n = false;
+      notifyListeners();
+    }
+  }
+
+  bool _hasSimilarPromo(PromoModel incoming) {
+    return promos.any((promo) {
+      final sameProduct = promo.productName.trim().toLowerCase() ==
+          incoming.productName.trim().toLowerCase();
+      final sameStore =
+          promo.storeName.trim().toLowerCase() == incoming.storeName.trim().toLowerCase();
+      final sameEndDate = promo.endDate.year == incoming.endDate.year &&
+          promo.endDate.month == incoming.endDate.month &&
+          promo.endDate.day == incoming.endDate.day;
+      final sameSource = incoming.sourceUrl.isNotEmpty &&
+          promo.sourceUrl.trim().toLowerCase() ==
+              incoming.sourceUrl.trim().toLowerCase();
+      return sameProduct && (sameSource || (sameStore && sameEndDate));
+    });
   }
 
   Future<void> updateExistingPromo(PromoModel promo) async {
