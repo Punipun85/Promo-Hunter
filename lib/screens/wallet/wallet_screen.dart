@@ -63,14 +63,14 @@ class _CoinTab extends StatelessWidget {
         _BalanceHeader(
           title: '${experience.coinBalance} Coin',
           subtitle:
-              'Gunakan coin untuk membuka promo early access, main mini game, atau tukar voucher.',
+              'Gunakan coin untuk membuka promo early access, main Mini Games, atau tukar voucher.',
           icon: Icons.monetization_on_outlined,
         ),
         const SizedBox(height: 18),
         FilledButton.icon(
           onPressed: () => Navigator.pushNamed(context, AppRoutes.miniGame),
           icon: const Icon(Icons.sports_esports_outlined),
-          label: const Text('Main Mini Game'),
+          label: const Text('Mini Games'),
         ),
         const SizedBox(height: 16),
         ...DashboardExperienceProvider.coinPackages.map(
@@ -113,34 +113,48 @@ class _CoinTab extends StatelessWidget {
         const _SectionTitle(
           title: 'Tukar Voucher',
           subtitle:
-              'Ubah coin hasil top up atau mini game menjadi voucher yang bisa dipakai lagi.',
+              'Ambil voucher gratis atau kumpulkan coin dari Mini Games untuk voucher yang lebih besar.',
         ),
         const SizedBox(height: 12),
         ...DashboardExperienceProvider.voucherCatalog.map(
           (voucher) {
-            final canRedeem = experience.coinBalance >= voucher.coinCost;
+            final alreadyRedeemedFree =
+                voucher.coinCost == 0 && experience.hasRedeemedVoucher(voucher.id);
+            final needsMoreCoins = experience.coinBalance < voucher.coinCost;
             return _PackageCard(
               title: voucher.title,
-              badge: 'Voucher',
-              value: '${voucher.coinCost} coin',
+              badge: voucher.coinCost == 0 ? 'Gratis' : 'Voucher',
+              value: voucher.coinCost == 0
+                  ? 'Tanpa coin'
+                  : '${voucher.coinCost} coin',
               price: voucher.benefitLabel,
               description: voucher.description,
               icon: voucher.icon,
-              actionLabel: 'Tukar',
-              onTap: canRedeem
-                  ? () async {
-                      final redemption =
-                          await experience.redeemVoucher(voucher.id);
-                      if (!context.mounted || redemption == null) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Voucher ${redemption.title} didapatkan. Kode: ${redemption.code}',
-                          ),
-                        ),
-                      );
-                    }
-                  : null,
+              actionLabel: alreadyRedeemedFree
+                  ? 'Sudah Diambil'
+                  : needsMoreCoins
+                      ? 'Cari Coin'
+                      : voucher.coinCost == 0
+                          ? 'Ambil'
+                          : 'Tukar',
+              onTap: alreadyRedeemedFree
+                  ? null
+                  : needsMoreCoins
+                      ? () async {
+                          Navigator.pushNamed(context, AppRoutes.miniGame);
+                        }
+                      : () async {
+                          final redemption =
+                              await experience.redeemVoucher(voucher.id);
+                          if (!context.mounted || redemption == null) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Voucher ${redemption.title} didapatkan. Kode: ${redemption.code}',
+                              ),
+                            ),
+                          );
+                        },
             );
           },
         ),

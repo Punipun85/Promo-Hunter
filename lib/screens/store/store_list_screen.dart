@@ -14,7 +14,7 @@ class StoreListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<PromoProvider>();
-    final stores = provider.stores.where((store) => store.id != 0).toList();
+    final stores = provider.sortedStores;
     return Scaffold(
       appBar: AppBar(title: const Text('Daftar Toko')),
       body: provider.isLoading
@@ -33,11 +33,36 @@ class StoreListScreen extends StatelessWidget {
             )
           : ListView.builder(
               padding: const EdgeInsets.all(20),
-              itemCount: stores.length,
+              itemCount: stores.length + 1,
               itemBuilder: (context, index) {
-                final store = stores[index];
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: OutlinedButton.icon(
+                      onPressed: provider.isLoadingLocation
+                          ? null
+                          : () => provider.refreshUserLocation(
+                                makeNearestDefault: true,
+                              ),
+                      icon: provider.isLoadingLocation
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.my_location_rounded),
+                      label: Text(
+                        provider.hasUserLocation
+                            ? 'Toko diurutkan dari lokasi kamu'
+                            : 'Gunakan lokasi saya',
+                      ),
+                    ),
+                  );
+                }
+                final store = stores[index - 1];
                 return StoreCard(
                   store: store,
+                  distanceKm: provider.distanceToStore(store),
                   onTap: () => Navigator.pushNamed(
                     context,
                     AppRoutes.storeDetail,

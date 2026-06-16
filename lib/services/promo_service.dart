@@ -13,7 +13,7 @@ class PromoService {
       try {
         final response = await client
             .from('promos')
-            .select('*, stores(name,address), categories(name)')
+            .select('*, stores(name,address,latitude,longitude), categories(name)')
             .eq('is_active', true)
             .order('end_date');
         return (response as List)
@@ -160,8 +160,10 @@ class PromoService {
         await client.from('promos').insert(
               promo.toInsertMap(storeId: storeId, categoryId: categoryId),
             );
-      } catch (_) {
-        // Keep optimistic local support for MVP fallback.
+      } catch (error) {
+        throw PromoPersistenceException(
+          'Promo gagal disimpan ke Supabase: $error',
+        );
       }
     }
     return promo;
@@ -177,8 +179,10 @@ class PromoService {
             .from('promos')
             .update(promo.toInsertMap(storeId: storeId, categoryId: categoryId))
             .eq('id', promo.id);
-      } catch (_) {
-        // Keep optimistic local support for MVP fallback.
+      } catch (error) {
+        throw PromoPersistenceException(
+          'Promo gagal diperbarui di Supabase: $error',
+        );
       }
     }
     return promo;
@@ -189,8 +193,10 @@ class PromoService {
     if (client != null) {
       try {
         await client.from('promos').delete().eq('id', promoId);
-      } catch (_) {
-        // Keep optimistic local support for MVP fallback.
+      } catch (error) {
+        throw PromoPersistenceException(
+          'Promo gagal dihapus dari Supabase: $error',
+        );
       }
     }
   }
@@ -198,28 +204,142 @@ class PromoService {
   Future<int?> _findOrCreateStoreId(PromoModel promo) async {
     final client = _supabaseService.clientOrNull;
     if (client == null || promo.storeName.trim().isEmpty) return null;
+    final storeDefaults = _storeDefaultsFor(promo);
 
     final existing = await client
         .from('stores')
-        .select('id')
+        .select('id,address,city,google_maps_url,opening_hours')
         .eq('name', promo.storeName)
         .limit(1);
     if (existing.isNotEmpty) {
-      return ((existing.first as Map)['id'] as num).toInt();
+      final existingStore = existing.first as Map;
+      final storeId = (existingStore['id'] as num).toInt();
+      if (_shouldEnrichStore(existingStore)) {
+        await client.from('stores').update(storeDefaults).eq('id', storeId);
+      }
+      return storeId;
     }
 
     final inserted = await client
         .from('stores')
         .insert({
           'name': promo.storeName,
-          'address': promo.storeAddress,
-          'city': '',
-          'google_maps_url': '',
-          'opening_hours': '',
+          ...storeDefaults,
         })
         .select('id')
         .single();
     return (inserted['id'] as num).toInt();
+  }
+
+  bool _shouldEnrichStore(Map existingStore) {
+    final address = (existingStore['address'] ?? '').toString().trim();
+    final mapsUrl = (existingStore['google_maps_url'] ?? '').toString().trim();
+    return address.isEmpty ||
+        address == 'Sumber promo dari n8n' ||
+        mapsUrl.isEmpty;
+  }
+
+  Map<String, dynamic> _storeDefaultsFor(PromoModel promo) {
+    final rawName = promo.storeName.trim();
+    final normalized = rawName.toLowerCase();
+    final chainProfiles = <String, ({String address, String hours})>{
+      'indomaret': (
+        address: 'Gerai Indomaret terdekat',
+        hours: '07.00 - 22.00',
+      ),
+      'klik indomaret': (
+        address: 'Layanan online Klik Indomaret',
+        hours: '24 jam',
+      ),
+      'alfamart': (
+        address: 'Gerai Alfamart terdekat',
+        hours: '24 jam',
+      ),
+      'alfagift': (
+        address: 'Layanan online Alfagift',
+        hours: '24 jam',
+      ),
+      'super indo': (
+        address: 'Gerai Super Indo terdekat',
+        hours: '08.00 - 22.00',
+      ),
+      'hypermart': (
+        address: 'Gerai Hypermart terdekat',
+        hours: '10.00 - 22.00',
+      ),
+      'transmart': (
+        address: 'Gerai Transmart terdekat',
+        hours: '10.00 - 22.00',
+      ),
+      'lotte mart': (
+        address: 'Gerai Lotte Mart terdekat',
+        hours: '09.00 - 22.00',
+      ),
+      'farmers market': (
+        address: 'Gerai Farmers Market terdekat',
+        hours: '08.00 - 22.00',
+      ),
+      'ranch market': (
+        address: 'Gerai Ranch Market terdekat',
+        hours: '08.00 - 22.00',
+      ),
+      'grand lucky': (
+        address: 'Gerai Grand Lucky terdekat',
+        hours: '08.00 - 22.00',
+      ),
+      'hero supermarket': (
+        address: 'Gerai Hero Supermarket terdekat',
+        hours: '08.00 - 22.00',
+      ),
+    };
+
+    ({String address, String hours})? matchedProfile;
+    for (final entry in chainProfiles.entries) {
+      if (normalized.contains(entry.key)) {
+        matchedProfile = entry.value;
+        break;
+      }
+    }
+    final address = promo.storeAddress.trim().isNotEmpty &&
+            promo.storeAddress != 'Sumber promo dari n8n'
+        ? promo.storeAddress
+        : matchedProfile?.address ?? 'Gerai $rawName terdekat';
+
+    return {
+      'address': address,
+      'city': 'Indonesia',
+      'google_maps_url':
+          'https://maps.google.com/?q=${Uri.encodeComponent(rawName)}',
+      'opening_hours': matchedProfile?.hours ?? '08.00 - 22.00',
+      'latitude': _defaultLatitudeFor(normalized),
+      'longitude': _defaultLongitudeFor(normalized),
+    };
+  }
+
+  double _defaultLatitudeFor(String normalizedStoreName) {
+    if (normalizedStoreName.contains('alfamart')) return -6.2091;
+    if (normalizedStoreName.contains('super indo')) return -6.2245;
+    if (normalizedStoreName.contains('hypermart')) return -6.1767;
+    if (normalizedStoreName.contains('transmart')) return -6.2431;
+    if (normalizedStoreName.contains('lotte')) return -6.2271;
+    if (normalizedStoreName.contains('farmers')) return -6.2440;
+    if (normalizedStoreName.contains('ranch')) return -6.2088;
+    if (normalizedStoreName.contains('grand lucky')) return -6.2364;
+    if (normalizedStoreName.contains('hero')) return -6.2297;
+    return -6.2000;
+  }
+
+  double _defaultLongitudeFor(String normalizedStoreName) {
+    if (normalizedStoreName.contains('alfamart')) return 106.8459;
+    if (normalizedStoreName.contains('super indo')) return 106.8098;
+    if (normalizedStoreName.contains('hypermart')) return 106.7906;
+    if (normalizedStoreName.contains('transmart')) return 106.8448;
+    if (normalizedStoreName.contains('lotte')) return 106.8331;
+    if (normalizedStoreName.contains('farmers')) return 106.7990;
+    if (normalizedStoreName.contains('ranch')) return 106.8200;
+    if (normalizedStoreName.contains('grand lucky')) return 106.7815;
+    if (normalizedStoreName.contains('hero')) return 106.8140;
+    return 106.8167;
   }
 
   Future<int?> _findOrCreateCategoryId(String categoryName) async {
@@ -245,4 +365,13 @@ class PromoService {
         .single();
     return (inserted['id'] as num).toInt();
   }
+}
+
+class PromoPersistenceException implements Exception {
+  const PromoPersistenceException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

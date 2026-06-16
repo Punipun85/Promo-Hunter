@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/store_model.dart';
+import '../utils/maps_launcher.dart';
 
 class StoreCard extends StatelessWidget {
   const StoreCard({
@@ -9,11 +9,13 @@ class StoreCard extends StatelessWidget {
     required this.store,
     required this.onTap,
     this.compact = false,
+    this.distanceKm,
   });
 
   final StoreModel store;
   final VoidCallback onTap;
   final bool compact;
+  final double? distanceKm;
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +65,16 @@ class StoreCard extends StatelessWidget {
                 '${store.city} - ${store.openingHours}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              if (distanceKm != null && !distanceKm!.isInfinite) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '${distanceKm!.toStringAsFixed(distanceKm! < 10 ? 1 : 0)} km dari lokasi kamu',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -86,10 +98,7 @@ class StoreCard extends StatelessWidget {
                   ),
                   OutlinedButton.icon(
                     onPressed: () async {
-                      await launchUrl(
-                        Uri.parse(store.googleMapsUrl),
-                        mode: LaunchMode.externalApplication,
-                      );
+                      await MapsLauncher.openStore(context, store);
                     },
                     icon: const Icon(Icons.map_outlined),
                     label: const Text('Buka Maps'),

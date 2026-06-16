@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -14,6 +13,7 @@ import '../../providers/reminder_provider.dart';
 import '../../providers/shopping_list_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_formatter.dart';
+import '../../widgets/promo_image.dart';
 
 class PromoDetailScreen extends StatefulWidget {
   const PromoDetailScreen({super.key, required this.promo});
@@ -103,13 +103,11 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
           : ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: CachedNetworkImage(
-              imageUrl: decoratedPromo.imageUrl,
-              height: 260,
-              fit: BoxFit.cover,
-            ),
+          PromoImage(
+            imageUrl: decoratedPromo.imageUrl,
+            width: double.infinity,
+            height: 260,
+            borderRadius: 28,
           ),
           const SizedBox(height: 20),
           Wrap(
@@ -279,7 +277,7 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
           OutlinedButton.icon(
             onPressed: () async {
               final uri = Uri.parse(
-                'https://maps.google.com/?q=${Uri.encodeComponent(decoratedPromo.storeAddress)}',
+                'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${decoratedPromo.storeName} ${decoratedPromo.storeAddress}')}',
               );
               await launchUrl(uri, mode: LaunchMode.externalApplication);
             },

@@ -20,6 +20,7 @@ class PromoListScreen extends StatelessWidget {
     'Diskon terbesar',
     'Harga termurah',
     'Hampir berakhir',
+    'Terdekat',
     'Toko A-Z',
   ];
 
@@ -102,6 +103,37 @@ class PromoListScreen extends StatelessWidget {
                           label: const Text('Reset'),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: provider.isLoadingLocation
+                          ? null
+                          : () async {
+                              await provider.refreshUserLocation(
+                                makeNearestDefault: true,
+                              );
+                              if (!context.mounted ||
+                                  provider.locationMessage == null) {
+                                return;
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(provider.locationMessage!),
+                                ),
+                              );
+                            },
+                      icon: provider.isLoadingLocation
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.my_location_rounded),
+                      label: Text(
+                        provider.hasUserLocation
+                            ? 'Lokasi aktif, prioritaskan terdekat'
+                            : 'Gunakan lokasi saya',
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(

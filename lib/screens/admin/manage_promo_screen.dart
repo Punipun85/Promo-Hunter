@@ -35,11 +35,12 @@ class ManagePromoScreen extends StatelessWidget {
                       );
                     } catch (_) {
                       if (!context.mounted) return;
+                      final message =
+                          context.read<PromoProvider>().syncMessage ??
+                              'Gagal sync dari n8n. Cek workflow dan koneksi.';
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Gagal sync dari n8n. Cek workflow dan koneksi.',
-                          ),
+                        SnackBar(
+                          content: Text(message),
                         ),
                       );
                     }
@@ -104,11 +105,12 @@ class ManagePromoScreen extends StatelessWidget {
                             );
                           } catch (_) {
                             if (!context.mounted) return;
+                            final message =
+                                context.read<PromoProvider>().syncMessage ??
+                                    'Gagal sync dari n8n. Cek workflow dan koneksi.';
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Gagal sync dari n8n. Cek workflow dan koneksi.',
-                                ),
+                              SnackBar(
+                                content: Text(message),
                               ),
                             );
                           }

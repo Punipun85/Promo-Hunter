@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,11 +15,56 @@ class DashboardExperienceProvider extends ChangeNotifier {
   static const _lastPopupKey = 'dashboard_last_popup_date';
   static const _miniGameAttemptsKey = 'dashboard_mini_game_attempts';
   static const _miniGameDateKey = 'dashboard_mini_game_date';
+  static const _dailySpinDateKey = 'dashboard_daily_spin_date';
   static const _redeemedVouchersKey = 'dashboard_redeemed_vouchers';
   static const freeAccessDelay = Duration(hours: 6);
   static const miniGameDailyLimit = 3;
   static const miniGameRounds = 5;
   static const unlockCost = 30;
+  static const dailySpinRewards = <DailySpinReward>[
+    DailySpinReward(
+      id: 'coin-10',
+      title: '10 Coin',
+      description: 'Tambahan kecil untuk membuka promo terkunci.',
+      coins: 10,
+      icon: Icons.monetization_on_outlined,
+    ),
+    DailySpinReward(
+      id: 'coin-20',
+      title: '20 Coin',
+      description: 'Lumayan dekat ke biaya unlock promo.',
+      coins: 20,
+      icon: Icons.savings_outlined,
+    ),
+    DailySpinReward(
+      id: 'voucher-ongkir-spin',
+      title: 'Gratis Ongkir',
+      description: 'Voucher langsung masuk ke wallet kamu.',
+      voucherId: 'voucher-ongkir',
+      icon: Icons.local_shipping_outlined,
+    ),
+    DailySpinReward(
+      id: 'coin-30',
+      title: '30 Coin',
+      description: 'Cukup untuk membuka satu promo early access.',
+      coins: 30,
+      icon: Icons.lock_open_outlined,
+    ),
+    DailySpinReward(
+      id: 'voucher-15k-spin',
+      title: 'Voucher Rp15.000',
+      description: 'Reward voucher belanja dari spin harian.',
+      voucherId: 'voucher-15k',
+      icon: Icons.local_offer_outlined,
+    ),
+    DailySpinReward(
+      id: 'coin-15',
+      title: '15 Coin',
+      description: 'Bonus harian untuk pemburu promo aktif.',
+      coins: 15,
+      icon: Icons.toll_outlined,
+    ),
+  ];
   static const coinPackages = <CoinPackage>[
     CoinPackage(
       id: 'starter',
@@ -69,6 +115,14 @@ class DashboardExperienceProvider extends ChangeNotifier {
   ];
   static const voucherCatalog = <VoucherReward>[
     VoucherReward(
+      id: 'voucher-starter',
+      title: 'Voucher Starter Rp5.000',
+      coinCost: 0,
+      description: 'Voucher gratis agar wallet tidak terasa semua terkunci.',
+      benefitLabel: 'Potongan Rp5.000',
+      icon: Icons.redeem_outlined,
+    ),
+    VoucherReward(
       id: 'voucher-15k',
       title: 'Voucher Belanja Rp15.000',
       coinCost: 45,
@@ -103,6 +157,7 @@ class DashboardExperienceProvider extends ChangeNotifier {
   DateTime? lastPopupShownAt;
   int miniGameAttemptsUsedToday = 0;
   DateTime? lastMiniGamePlayedAt;
+  DateTime? lastDailySpinAt;
   List<RedeemedVoucher> redeemedVouchers = <RedeemedVoucher>[];
   bool _hasShownEntryDialogsThisSession = false;
   Timer? _lockCountdownTimer;
@@ -119,6 +174,7 @@ class DashboardExperienceProvider extends ChangeNotifier {
     claimedDaysInCycle = prefs.getInt(_dailyCycleKey) ?? 0;
     lastClaimedAt = _parseDate(prefs.getString(_lastClaimKey));
     lastPopupShownAt = _parseDate(prefs.getString(_lastPopupKey));
+    lastDailySpinAt = _parseDate(prefs.getString(_dailySpinDateKey));
     redeemedVouchers = _parseRedeemedVouchers(
       prefs.getStringList(_redeemedVouchersKey) ?? const <String>[],
     );
@@ -207,6 +263,13 @@ class DashboardExperienceProvider extends ChangeNotifier {
   }
 
   bool get canPlayMiniGame => miniGameRemainingAttempts > 0;
+
+  bool get hasSpunToday {
+    if (lastDailySpinAt == null) return false;
+    return _isSameDay(lastDailySpinAt!, DateTime.now());
+  }
+
+  bool get canSpinDaily => !hasSpunToday;
 
   Future<bool> unlockPromoWithCoins(int promoId) async {
     if (isPremium || unlockedPromoIds.contains(promoId)) return true;
@@ -309,21 +372,16 @@ class DashboardExperienceProvider extends ChangeNotifier {
     if (voucher == null || coinBalance < voucher.coinCost) {
       return null;
     }
+    if (voucher.coinCost == 0 && hasRedeemedVoucher(voucher.id)) {
+      return null;
+    }
 
     final prefs = await SharedPreferences.getInstance();
     _cachedPrefs = prefs;
     await _syncMiniGameDailyState(prefs);
 
     coinBalance -= voucher.coinCost;
-    final redemption = RedeemedVoucher(
-      id: 'redeem-${DateTime.now().millisecondsSinceEpoch}',
-      voucherId: voucher.id,
-      title: voucher.title,
-      benefitLabel: voucher.benefitLabel,
-      coinCost: voucher.coinCost,
-      code: _generateVoucherCode(voucher),
-      redeemedAt: DateTime.now(),
-    );
+    final redemption = _createVoucherRedemption(voucher);
     redeemedVouchers = <RedeemedVoucher>[redemption, ...redeemedVouchers];
 
     await prefs.setInt(_coinsKey, coinBalance);
@@ -333,6 +391,60 @@ class DashboardExperienceProvider extends ChangeNotifier {
     );
     notifyListeners();
     return redemption;
+  }
+
+  bool hasRedeemedVoucher(String voucherId) {
+    return redeemedVouchers.any((voucher) => voucher.voucherId == voucherId);
+  }
+
+  Future<DailySpinResult> spinDailyReward({int? forcedIndex}) async {
+    final prefs = await SharedPreferences.getInstance();
+    _cachedPrefs = prefs;
+
+    if (hasSpunToday) {
+      return const DailySpinResult(
+        reward: null,
+        coinsEarned: 0,
+        redeemedVoucher: null,
+        isAlreadyClaimed: true,
+      );
+    }
+
+    final index = forcedIndex ?? Random().nextInt(dailySpinRewards.length);
+    final reward = dailySpinRewards[index % dailySpinRewards.length];
+    RedeemedVoucher? redeemedVoucher;
+    var coinsEarned = reward.coins;
+
+    if (coinsEarned > 0) {
+      coinBalance += coinsEarned;
+      await prefs.setInt(_coinsKey, coinBalance);
+    }
+
+    if (reward.voucherId != null) {
+      final voucher = _voucherById(reward.voucherId!);
+      if (voucher != null) {
+        redeemedVoucher = _createVoucherRedemption(voucher, coinCost: 0);
+        redeemedVouchers = <RedeemedVoucher>[
+          redeemedVoucher,
+          ...redeemedVouchers,
+        ];
+        await prefs.setStringList(
+          _redeemedVouchersKey,
+          redeemedVouchers.map((item) => jsonEncode(item.toJson())).toList(),
+        );
+      }
+    }
+
+    lastDailySpinAt = DateTime.now();
+    await prefs.setString(_dailySpinDateKey, lastDailySpinAt!.toIso8601String());
+    notifyListeners();
+
+    return DailySpinResult(
+      reward: reward,
+      coinsEarned: coinsEarned,
+      redeemedVoucher: redeemedVoucher,
+      isAlreadyClaimed: false,
+    );
   }
 
   Future<DailyClaimResult> claimDailyReward() async {
@@ -482,6 +594,28 @@ class DashboardExperienceProvider extends ChangeNotifier {
     _miniGameResetTimer?.cancel();
     super.dispose();
   }
+
+  VoucherReward? _voucherById(String voucherId) {
+    for (final voucher in voucherCatalog) {
+      if (voucher.id == voucherId) return voucher;
+    }
+    return null;
+  }
+
+  RedeemedVoucher _createVoucherRedemption(
+    VoucherReward voucher, {
+    int? coinCost,
+  }) {
+    return RedeemedVoucher(
+      id: 'redeem-${DateTime.now().millisecondsSinceEpoch}',
+      voucherId: voucher.id,
+      title: voucher.title,
+      benefitLabel: voucher.benefitLabel,
+      coinCost: coinCost ?? voucher.coinCost,
+      code: _generateVoucherCode(voucher),
+      redeemedAt: DateTime.now(),
+    );
+  }
 }
 
 class DailyClaimResult {
@@ -542,6 +676,40 @@ class MiniGameResult {
   final int coinsEarned;
   final int attemptsLeft;
   final bool isLimitReached;
+}
+
+class DailySpinReward {
+  const DailySpinReward({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.icon,
+    this.coins = 0,
+    this.voucherId,
+  });
+
+  final String id;
+  final String title;
+  final String description;
+  final IconData icon;
+  final int coins;
+  final String? voucherId;
+
+  bool get isVoucher => voucherId != null;
+}
+
+class DailySpinResult {
+  const DailySpinResult({
+    required this.reward,
+    required this.coinsEarned,
+    required this.redeemedVoucher,
+    required this.isAlreadyClaimed,
+  });
+
+  final DailySpinReward? reward;
+  final int coinsEarned;
+  final RedeemedVoucher? redeemedVoucher;
+  final bool isAlreadyClaimed;
 }
 
 class VoucherReward {

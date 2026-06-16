@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import '../models/category_model.dart';
@@ -5,6 +7,7 @@ import '../models/promo_model.dart';
 import '../models/reminder_model.dart';
 import '../models/store_model.dart';
 import '../services/category_service.dart';
+import '../services/location_service.dart';
 import '../services/n8n_promo_import_service.dart';
 import '../services/notification_service.dart';
 import '../services/promo_service.dart';
@@ -15,23 +18,29 @@ class PromoProvider extends ChangeNotifier {
     required PromoService promoService,
     required CategoryService categoryService,
     required StoreService storeService,
+    LocationService locationService = const LocationService(),
   })  : _promoService = promoService,
         _categoryService = categoryService,
-        _storeService = storeService;
+        _storeService = storeService,
+        _locationService = locationService;
 
   final PromoService _promoService;
   final CategoryService _categoryService;
   final StoreService _storeService;
+  final LocationService _locationService;
   final N8nPromoImportService _n8nPromoImportService = N8nPromoImportService();
 
   bool isLoading = false;
   bool isSyncingN8n = false;
+  bool isLoadingLocation = false;
   String? errorMessage;
   String? syncMessage;
+  String? locationMessage;
   List<PromoModel> promos = [];
   List<CategoryModel> categories = [];
   List<StoreModel> stores = [];
   List<ReminderModel> reminders = [];
+  UserLocation? userLocation;
   List<int> recentlyViewedPromoIds = [];
   String searchKeyword = '';
   String selectedCategory = 'Semua';
@@ -56,12 +65,24 @@ class PromoProvider extends ChangeNotifier {
         ),
         ...await _storeService.getStores(),
       ];
+      await refreshUserLocation(makeNearestDefault: true, notify: false);
     } catch (_) {
       errorMessage = 'Gagal memuat katalog promo. Periksa koneksi lalu coba lagi.';
     } finally {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  bool get hasUserLocation => userLocation != null;
+
+  List<StoreModel> get sortedStores {
+    final visibleStores = stores.where((store) => store.id != 0).toList();
+    if (userLocation == null) return visibleStores;
+    visibleStores.sort((a, b) {
+      return distanceToStore(a).compareTo(distanceToStore(b));
+    });
+    return visibleStores;
   }
 
   List<PromoModel> get filteredPromos {
@@ -91,6 +112,9 @@ class PromoProvider extends ChangeNotifier {
       case 'Hampir berakhir':
         filtered.sort((a, b) => a.endDate.compareTo(b.endDate));
         break;
+      case 'Terdekat':
+        filtered.sort((a, b) => distanceToPromo(a).compareTo(distanceToPromo(b)));
+        break;
       case 'Toko A-Z':
         filtered.sort((a, b) => a.storeName.compareTo(b.storeName));
         break;
@@ -99,6 +123,90 @@ class PromoProvider extends ChangeNotifier {
         break;
     }
     return filtered;
+  }
+
+  double distanceToStore(StoreModel store) {
+    final location = userLocation;
+    final latitude = store.latitude;
+    final longitude = store.longitude;
+    if (location == null || latitude == null || longitude == null) {
+      return double.infinity;
+    }
+    return _haversineDistanceKm(
+      location.latitude,
+      location.longitude,
+      latitude,
+      longitude,
+    );
+  }
+
+  double distanceToPromo(PromoModel promo) {
+    final location = userLocation;
+    final matchingStore = _storeForPromo(promo);
+    final latitude = promo.storeLatitude ?? matchingStore?.latitude;
+    final longitude = promo.storeLongitude ?? matchingStore?.longitude;
+    if (location == null || latitude == null || longitude == null) {
+      return double.infinity;
+    }
+    return _haversineDistanceKm(
+      location.latitude,
+      location.longitude,
+      latitude,
+      longitude,
+    );
+  }
+
+  StoreModel? _storeForPromo(PromoModel promo) {
+    for (final store in stores) {
+      if (store.name == promo.storeName) return store;
+    }
+    return null;
+  }
+
+  double _haversineDistanceKm(
+    double startLatitude,
+    double startLongitude,
+    double endLatitude,
+    double endLongitude,
+  ) {
+    const earthRadiusKm = 6371.0;
+    final dLat = _degreesToRadians(endLatitude - startLatitude);
+    final dLon = _degreesToRadians(endLongitude - startLongitude);
+    final lat1 = _degreesToRadians(startLatitude);
+    final lat2 = _degreesToRadians(endLatitude);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1) *
+            math.cos(lat2) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
+  double _degreesToRadians(double degrees) => degrees * math.pi / 180;
+
+  Future<void> refreshUserLocation({
+    bool makeNearestDefault = false,
+    bool notify = true,
+  }) async {
+    isLoadingLocation = true;
+    locationMessage = null;
+    if (notify) notifyListeners();
+
+    try {
+      userLocation = await _locationService.getCurrentLocation();
+      locationMessage = 'Promo terdekat diurutkan dari lokasi kamu.';
+      if (makeNearestDefault && selectedSort == 'Terbaru') {
+        selectedSort = 'Terdekat';
+      }
+    } on LocationServiceException catch (error) {
+      locationMessage = error.message;
+    } catch (_) {
+      locationMessage = 'Lokasi belum bisa dibaca. Promo ditampilkan dengan urutan biasa.';
+    } finally {
+      isLoadingLocation = false;
+      if (notify) notifyListeners();
+    }
   }
 
   List<PromoModel> get favoritePromos =>
@@ -222,6 +330,14 @@ class PromoProvider extends ChangeNotifier {
 
     try {
       final result = await _n8nPromoImportService.importPromos();
+      if (result.isDirectSupabaseInsert) {
+        await bootstrap();
+        syncMessage = result.insertedCount == 0
+            ? 'n8n selesai sync gambar dan promo, belum ada data baru.'
+            : 'n8n berhasil menyimpan ${result.insertedCount} promo beserta gambar ke Supabase.';
+        return result.insertedCount;
+      }
+
       var insertedCount = 0;
 
       for (final promo in result.importedPromos) {
@@ -235,7 +351,13 @@ class PromoProvider extends ChangeNotifier {
           ? 'n8n berhasil dicek, belum ada promo baru.'
           : '$insertedCount promo baru berhasil diimpor dari n8n.';
       return insertedCount;
-    } catch (error) {
+    } on N8nPromoImportException catch (error) {
+      syncMessage = error.message;
+      rethrow;
+    } on PromoPersistenceException catch (error) {
+      syncMessage = error.message;
+      rethrow;
+    } catch (_) {
       syncMessage =
           'Gagal sinkron promo dari n8n. Pastikan workflow aktif dan coba lagi.';
       rethrow;
@@ -294,6 +416,8 @@ class PromoProvider extends ChangeNotifier {
       city: store.city,
       googleMapsUrl: store.googleMapsUrl,
       openingHours: store.openingHours,
+      latitude: store.latitude,
+      longitude: store.longitude,
       activePromoCount: store.activePromoCount,
     );
     await _storeService.createStore(localStore);

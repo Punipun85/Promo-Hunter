@@ -13,6 +13,8 @@ import '../screens/calculator/price_calculator_screen.dart';
 import '../screens/favorite/favorite_screen.dart';
 import '../screens/home/home_shell_screen.dart';
 import '../screens/mini_game/mini_game_screen.dart';
+import '../screens/mini_game/daily_spin_screen.dart';
+import '../screens/mini_game/coin_rush_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/promo/promo_detail_screen.dart';
@@ -46,6 +48,8 @@ class AppRoutes {
   static const profile = '/profile';
   static const wallet = '/wallet';
   static const miniGame = '/mini-game';
+  static const dailySpin = '/daily-spin';
+  static const coinRush = '/coin-rush';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -102,6 +106,10 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const WalletScreen());
       case miniGame:
         return MaterialPageRoute(builder: (_) => const MiniGameScreen());
+      case dailySpin:
+        return MaterialPageRoute(builder: (_) => const DailySpinScreen());
+      case coinRush:
+        return MaterialPageRoute(builder: (_) => const CoinRushScreen());
       default:
         return MaterialPageRoute(builder: (_) => const HomeShellScreen());
     }

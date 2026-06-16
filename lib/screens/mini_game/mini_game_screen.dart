@@ -1,118 +1,19 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
 import '../../providers/dashboard_experience_provider.dart';
-import '../../utils/date_formatter.dart';
 
-class MiniGameScreen extends StatefulWidget {
+class MiniGameScreen extends StatelessWidget {
   const MiniGameScreen({super.key});
-
-  @override
-  State<MiniGameScreen> createState() => _MiniGameScreenState();
-}
-
-class _MiniGameScreenState extends State<MiniGameScreen> {
-  final Random _random = Random();
-
-  bool _isPlaying = false;
-  bool _isRevealing = false;
-  int _roundIndex = 0;
-  int _score = 0;
-  int _luckyCard = 0;
-  int? _selectedCard;
-  bool? _wasCorrect;
-  MiniGameResult? _lastResult;
-
-  void _startGame() {
-    final experience = context.read<DashboardExperienceProvider>();
-    if (!experience.canPlayMiniGame) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kuota mini game hari ini sudah habis.')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isPlaying = true;
-      _isRevealing = false;
-      _roundIndex = 0;
-      _score = 0;
-      _selectedCard = null;
-      _wasCorrect = null;
-      _lastResult = null;
-      _luckyCard = _random.nextInt(4);
-    });
-  }
-
-  void _prepareNextRound() {
-    setState(() {
-      _selectedCard = null;
-      _wasCorrect = null;
-      _isRevealing = false;
-      _luckyCard = _random.nextInt(4);
-    });
-  }
-
-  Future<void> _chooseCard(int index) async {
-    if (!_isPlaying || _isRevealing) return;
-
-    final correct = index == _luckyCard;
-    setState(() {
-      _selectedCard = index;
-      _wasCorrect = correct;
-      _isRevealing = true;
-      if (correct) {
-        _score += 1;
-      }
-    });
-
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-
-    if (_roundIndex >= DashboardExperienceProvider.miniGameRounds - 1) {
-      await _finishGame();
-    } else {
-      setState(() {
-        _roundIndex += 1;
-      });
-      _prepareNextRound();
-    }
-  }
-
-  Future<void> _finishGame() async {
-    final experience = context.read<DashboardExperienceProvider>();
-    final result = await experience.playMiniGame(score: _score);
-    if (!mounted) return;
-
-    setState(() {
-      _isPlaying = false;
-      _isRevealing = false;
-      _lastResult = result;
-    });
-
-    final message = result.isLimitReached
-        ? 'Kuota harian sudah habis.'
-        : result.coinsEarned > 0
-            ? 'Kamu mendapatkan ${result.coinsEarned} coin.'
-            : 'Belum dapat coin, coba lagi besok.';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final experience = context.watch<DashboardExperienceProvider>();
-    final now = DateTime.now();
-    final tomorrowReset = DateTime(now.year, now.month, now.day + 1);
-    final attemptsLeft = experience.miniGameRemainingAttempts;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mini Game Coin Rush'),
+        title: const Text('Mini Games'),
         actions: [
           IconButton(
             onPressed: () => Navigator.pushNamed(context, AppRoutes.wallet),
@@ -138,7 +39,7 @@ class _MiniGameScreenState extends State<MiniGameScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Cari kartu coin di 5 ronde cepat.',
+                  'Main gratis, kumpulkan reward',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
@@ -146,7 +47,7 @@ class _MiniGameScreenState extends State<MiniGameScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Setiap hari kamu punya 3 kesempatan. Kuota akan kembali lagi besok.',
+                  'Pilih game harian untuk mendapatkan coin atau voucher tanpa harus langganan premium.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.white.withValues(alpha: 0.86),
                       ),
@@ -157,17 +58,19 @@ class _MiniGameScreenState extends State<MiniGameScreen> {
                   runSpacing: 10,
                   children: [
                     _StatusChip(
-                      label: 'Tersisa $attemptsLeft/3',
-                      icon: Icons.timelapse_outlined,
-                    ),
-                    _StatusChip(
                       label: '${experience.coinBalance} coin',
                       icon: Icons.monetization_on_outlined,
                     ),
-                    const _StatusChip(
+                    _StatusChip(
+                      label: experience.canSpinDaily
+                          ? 'Spin tersedia'
+                          : 'Spin sudah diklaim',
+                      icon: Icons.casino_outlined,
+                    ),
+                    _StatusChip(
                       label:
-                          '${DashboardExperienceProvider.miniGameRounds} ronde',
-                      icon: Icons.sports_esports_outlined,
+                          'Coin Rush ${experience.miniGameRemainingAttempts}/3',
+                      icon: Icons.style_outlined,
                     ),
                   ],
                 ),
@@ -175,157 +78,121 @@ class _MiniGameScreenState extends State<MiniGameScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          if (!_isPlaying) ...[
-            _SummaryCard(
-              title: _lastResult == null
-                  ? 'Siap main?'
-                  : 'Hasil permainan terakhir',
-              subtitle: _lastResult == null
-                  ? 'Tekan mulai untuk membuka putaran baru dan kumpulkan coin.'
-                  : _lastResult!.isLimitReached
-                      ? 'Kuota hari ini sudah penuh. Coba lagi setelah reset besok.'
-                      : 'Skor kamu ${_lastResult!.score}/${DashboardExperienceProvider.miniGameRounds}.',
-              trailing: _lastResult == null
-                  ? null
-                  : Text(
-                      '+${_lastResult!.coinsEarned} coin',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-            ),
-            const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: attemptsLeft > 0 ? _startGame : null,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(attemptsLeft > 0 ? 'Mulai Main' : 'Kuota Habis'),
-            ),
-            const SizedBox(height: 14),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, AppRoutes.wallet),
-              icon: const Icon(Icons.storefront_outlined),
-              label: const Text('Tukar coin jadi voucher'),
-            ),
-            const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(24),
+          _GameCard(
+            title: 'Daily Spin',
+            subtitle:
+                'Putar sekali sehari untuk hadiah coin atau voucher langsung ke wallet.',
+            icon: Icons.casino_outlined,
+            badge: experience.canSpinDaily ? 'Gratis hari ini' : 'Sudah spin',
+            accentColor: const Color(0xFFF59E0B),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.dailySpin),
+          ),
+          const SizedBox(height: 14),
+          _GameCard(
+            title: 'Coin Rush',
+            subtitle:
+                'Game kartu 5 ronde. Temukan kartu coin dan kumpulkan skor terbaik.',
+            icon: Icons.style_outlined,
+            badge: '${experience.miniGameRemainingAttempts} kesempatan',
+            accentColor: const Color(0xFF0F9D58),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.coinRush),
+          ),
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.wallet),
+            icon: const Icon(Icons.confirmation_number_outlined),
+            label: const Text('Lihat coin dan voucher'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GameCard extends StatelessWidget {
+  const _GameCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.badge,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String badge;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(icon, color: accentColor),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Reset harian',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Kuota mini game kembali pada ${DateFormatter.short(tomorrowReset)}.',
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            _SummaryCard(
-              title:
-                  'Ronde ${_roundIndex + 1} dari ${DashboardExperienceProvider.miniGameRounds}',
-              subtitle: 'Pilih kartu yang menyembunyikan coin di bawahnya.',
-              trailing: Text(
-                'Skor $_score',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.15,
-              children: List.generate(4, (index) {
-                final isCorrect = _selectedCard == index && _wasCorrect == true;
-                final isWrong = _selectedCard == index && _wasCorrect == false;
-                final reveal = _isRevealing;
-                return InkWell(
-                  onTap: () => _chooseCard(index),
-                  borderRadius: BorderRadius.circular(24),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isCorrect
-                          ? const Color(0xFFE8F7EE)
-                          : isWrong
-                              ? const Color(0xFFFFEBEE)
-                              : const Color(0xFFEFF4FF),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isCorrect
-                            ? const Color(0xFF0F9D58)
-                            : isWrong
-                                ? const Color(0xFFE53935)
-                                : const Color(0xFFD7E3FF),
-                        width: 1.3,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Icon(
-                          reveal && index == _luckyCard
-                              ? Icons.monetization_on
-                              : Icons.question_mark_rounded,
-                          size: 40,
-                          color: isCorrect
-                              ? const Color(0xFF0F9D58)
-                              : isWrong
-                                  ? const Color(0xFFE53935)
-                                  : Theme.of(context).colorScheme.secondary,
-                        ),
-                        const SizedBox(height: 12),
                         Text(
-                          reveal && index == _luckyCard
-                              ? 'Coin'
-                              : 'Kartu ${index + 1}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                          title,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          reveal
-                              ? index == _luckyCard
-                                  ? 'Benar'
-                                  : index == _selectedCard
-                                      ? 'Salah'
-                                      : 'Tutup'
-                              : 'Tap untuk buka',
-                          style: Theme.of(context).textTheme.bodySmall,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF0A8),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            badge,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color: const Color(0xFF7C5A00),
+                                ),
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              onPressed: () => Navigator.pushNamed(context, AppRoutes.wallet),
-              icon: const Icon(Icons.wallet_outlined),
-              label: const Text('Cek voucher di wallet'),
-            ),
-          ],
-        ],
+                    const SizedBox(height: 8),
+                    Text(subtitle),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -360,59 +227,6 @@ class _StatusChip extends StatelessWidget {
                   color: Colors.white,
                 ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.title,
-    required this.subtitle,
-    this.trailing,
-  });
-
-  final String title;
-  final String subtitle;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F000000),
-            blurRadius: 20,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(subtitle),
-              ],
-            ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: 12),
-            trailing!,
-          ],
         ],
       ),
     );

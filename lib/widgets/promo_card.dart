@@ -1,10 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/promo_model.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/date_formatter.dart';
+import 'promo_image.dart';
 
 class PromoCard extends StatelessWidget {
   const PromoCard({
@@ -37,14 +37,10 @@ class PromoCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: CachedNetworkImage(
-                    imageUrl: promo.imageUrl,
-                    width: 96,
-                    height: 96,
-                    fit: BoxFit.cover,
-                  ),
+                PromoImage(
+                  imageUrl: promo.imageUrl,
+                  width: 96,
+                  height: 96,
                 ),
                 const SizedBox(width: 14),
                 Expanded(

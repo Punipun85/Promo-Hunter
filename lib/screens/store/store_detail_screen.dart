@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_routes.dart';
 import '../../models/store_model.dart';
@@ -9,6 +8,7 @@ import '../../providers/favorite_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/maps_launcher.dart';
 import '../../utils/promo_access_dialog.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/promo_card.dart';
@@ -213,19 +213,7 @@ class StoreDetailScreen extends StatelessWidget {
   }
 
   Future<void> _openMaps(BuildContext context) async {
-    final uri = Uri.tryParse(store.googleMapsUrl);
-    if (uri == null || store.googleMapsUrl.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link Google Maps toko belum tersedia.')),
-      );
-      return;
-    }
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal membuka Google Maps untuk toko ini.')),
-      );
-    }
+    await MapsLauncher.openStore(context, store);
   }
 }
 

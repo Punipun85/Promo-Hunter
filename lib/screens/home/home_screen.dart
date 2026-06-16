@@ -416,8 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final favoriteProvider = context.watch<FavoriteProvider>();
     final promoProvider = context.watch<PromoProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
-    final nearbyStores =
-        promoProvider.stores.where((store) => store.id != 0).take(3).toList();
+    final nearbyStores = promoProvider.sortedStores.take(3).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -646,7 +645,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             AppRoutes.miniGame,
                           ),
                           icon: const Icon(Icons.sports_esports_outlined),
-                          label: const Text('Mini Game'),
+                          label: const Text('Mini Games'),
                         ),
                         OutlinedButton.icon(
                           onPressed: () async {
@@ -800,6 +799,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             return StoreCard(
                               store: store,
                               compact: true,
+                              distanceKm: promoProvider.distanceToStore(store),
                               onTap: () => Navigator.pushNamed(
                                 context,
                                 AppRoutes.storeDetail,

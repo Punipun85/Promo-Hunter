@@ -17,6 +17,8 @@ class PromoModel {
     this.sourceUrl = '',
     this.isFavorite = false,
     this.isActive = true,
+    this.storeLatitude,
+    this.storeLongitude,
   });
 
   final int id;
@@ -30,6 +32,8 @@ class PromoModel {
   final String storeName;
   final String storeAddress;
   final String categoryName;
+  final double? storeLatitude;
+  final double? storeLongitude;
   final DateTime startDate;
   final DateTime endDate;
   final String terms;
@@ -92,6 +96,10 @@ class PromoModel {
       storeAddress: map['stores']?['address'] as String? ??
           map['store_address'] as String? ??
           '',
+      storeLatitude: (map['stores']?['latitude'] as num?)?.toDouble() ??
+          (map['store_latitude'] as num?)?.toDouble(),
+      storeLongitude: (map['stores']?['longitude'] as num?)?.toDouble() ??
+          (map['store_longitude'] as num?)?.toDouble(),
       categoryName: map['categories']?['name'] as String? ??
           map['category_name'] as String? ??
           '',
@@ -140,6 +148,8 @@ class PromoModel {
     String? storeName,
     String? storeAddress,
     String? categoryName,
+    double? storeLatitude,
+    double? storeLongitude,
     DateTime? startDate,
     DateTime? endDate,
     String? terms,
@@ -159,6 +169,8 @@ class PromoModel {
       storeName: storeName ?? this.storeName,
       storeAddress: storeAddress ?? this.storeAddress,
       categoryName: categoryName ?? this.categoryName,
+      storeLatitude: storeLatitude ?? this.storeLatitude,
+      storeLongitude: storeLongitude ?? this.storeLongitude,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       terms: terms ?? this.terms,
