@@ -14,6 +14,9 @@ class CategoryChip extends StatelessWidget {
   final VoidCallback onTap;
   final String? icon;
 
+  static const Color _primaryGreen = Color(0xFF0F7B4F);
+  static const Color _surfaceLight = Color(0xFFF1F5F9);
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -21,60 +24,61 @@ class CategoryChip extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
           decoration: BoxDecoration(
             gradient: selected
-                ? LinearGradient(
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                     colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.tertiary,
+                      Color(0xFF065F46),
+                      Color(0xFF059669),
                     ],
                   )
                 : null,
-            color: selected
-                ? null
-                : Theme.of(context).colorScheme.surfaceContainerLow,
+            color: selected ? null : _surfaceLight,
             borderRadius: BorderRadius.circular(999),
             border: selected
                 ? null
                 : Border.all(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outlineVariant
-                        .withOpacity(0.4),
+                    color: const Color(0xFFE2E8F0),
                     width: 1,
                   ),
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                      color: const Color(0xFF059669).withOpacity(0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
                     ),
                   ]
-                : null,
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Text(icon!, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 6),
+                Text(icon!, style: const TextStyle(fontSize: 15)),
+                const SizedBox(width: 7),
               ],
               Text(
                 label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: selected
-                          ? Theme.of(context).colorScheme.onPrimary
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w500,
-                    ),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  color: selected
+                      ? Colors.white
+                      : const Color(0xFF475569),
+                  letterSpacing: selected ? 0.2 : 0,
+                ),
               ),
             ],
           ),
