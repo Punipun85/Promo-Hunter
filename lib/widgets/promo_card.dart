@@ -38,28 +38,123 @@ class PromoCard extends StatelessWidget {
   Widget _buildGridCard(BuildContext context) {
     final muted = promo.isExpired;
     return Opacity(
-      opacity: muted ? 0.72 : 1,
-      child: SizedBox(
+      opacity: muted ? 0.65 : 1,
+      child: Container(
         width: 220,
-        child: Card(
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: onTap,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Image area
-                Stack(
-                  children: [
-                    PromoImage(
-                      imageUrl: promo.imageUrl,
-                      width: 220,
-                      height: 140,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image area
+              Stack(
+                children: [
+                  PromoImage(
+                    imageUrl: promo.imageUrl,
+                    width: 220,
+                    height: 140,
+                  ),
+                  // Gradient overlay at bottom of image
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 40,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.15),
+                          ],
+                        ),
+                      ),
                     ),
-                    // Discount badge
+                  ),
+                  // Discount badge
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF0A8),
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        '-${promo.discountPercent.toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF7C5A00),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Favorite button
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.92),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        onPressed: onFavoriteTap,
+                        iconSize: 20,
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                        icon: Icon(
+                          promo.isFavorite
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: promo.isFavorite ? Colors.red : null,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Lock badge
+                  if (isLocked)
                     Positioned(
-                      top: 10,
+                      bottom: 10,
                       left: 10,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -67,150 +162,90 @@ class PromoCard extends StatelessWidget {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFF0A8),
+                          color: const Color(0xFFFEE2E2),
                           borderRadius: BorderRadius.circular(999),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
                         child: Text(
-                          '-${promo.discountPercent.toStringAsFixed(0)}%',
-                          style:
-                              Theme.of(context).textTheme.labelMedium?.copyWith(
-                                    color: const Color(0xFF7C5A00),
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                        ),
-                      ),
-                    ),
-                    // Favorite button
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          onPressed: onFavoriteTap,
-                          iconSize: 20,
-                          padding: const EdgeInsets.all(6),
-                          constraints: const BoxConstraints(
-                            minWidth: 36,
-                            minHeight: 36,
-                          ),
-                          icon: Icon(
-                            promo.isFavorite
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            color: promo.isFavorite ? Colors.red : null,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Lock badge
-                    if (isLocked)
-                      Positioned(
-                        bottom: 10,
-                        left: 10,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEE2E2),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            lockLabel
-                                        ?.toLowerCase()
-                                        .contains('member') ==
-                                    true
-                                ? '🔒 Member'
-                                : '🔒 Terkunci',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: const Color(0xFF991B1B),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                // Info area
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        promo.productName,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${promo.brand} • ${promo.storeName}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        isLocked
-                            ? 'Harga terkunci'
-                            : CurrencyFormatter.format(promo.promoPrice),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                      if (!isLocked) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          CurrencyFormatter.format(promo.normalPrice),
+                          lockLabel
+                                      ?.toLowerCase()
+                                      .contains('member') ==
+                                  true
+                              ? '🔒 Member'
+                              : '🔒 Terkunci',
                           style: const TextStyle(
-                            decoration: TextDecoration.lineThrough,
-                            fontSize: 12,
-                            color: Color(0xFF94A3B8),
+                            fontSize: 11,
+                            color: Color(0xFF991B1B),
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ],
-                      const SizedBox(height: 6),
+                      ),
+                    ),
+                ],
+              ),
+              // Info area
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      promo.productName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0B1C30),
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${promo.brand} • ${promo.storeName}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      isLocked
+                          ? 'Harga terkunci'
+                          : CurrencyFormatter.format(promo.promoPrice),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        color: Color(0xFF059669),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (!isLocked) ...[
+                      const SizedBox(height: 2),
                       Text(
-                        isLocked
-                            ? lockLabel ?? 'Buka dengan coin atau premium'
-                            : 'Hemat ${CurrencyFormatter.format(promo.savingsAmount)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        CurrencyFormatter.format(promo.normalPrice),
+                        style: const TextStyle(
+                          decoration: TextDecoration.lineThrough,
+                          fontSize: 12,
+                          color: Color(0xFF94A3B8),
+                        ),
                       ),
                     ],
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isLocked
+                          ? lockLabel ?? 'Buka dengan coin atau premium'
+                          : 'Hemat ${CurrencyFormatter.format(promo.savingsAmount)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF059669),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
