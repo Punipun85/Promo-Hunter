@@ -6,6 +6,7 @@ import '../screens/admin/admin_dashboard_screen.dart';
 import '../screens/admin/manage_category_screen.dart';
 import '../screens/admin/manage_promo_screen.dart';
 import '../screens/admin/manage_store_screen.dart';
+import '../screens/admin/payment_verification_screen.dart';
 import '../screens/admin/promo_form_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
@@ -24,6 +25,7 @@ import '../screens/shopping_list/shopping_list_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/store/store_list_screen.dart';
 import '../screens/store/store_detail_screen.dart';
+import '../screens/wallet/payment_result_screen.dart';
 import '../screens/wallet/wallet_screen.dart';
 
 class AppRoutes {
@@ -44,15 +46,21 @@ class AppRoutes {
   static const managePromos = '/admin/promos';
   static const manageStores = '/admin/stores';
   static const manageCategories = '/admin/categories';
+  static const paymentVerification = '/admin/payments';
   static const promoForm = '/admin/promo-form';
   static const profile = '/profile';
   static const wallet = '/wallet';
+  static const paymentResult = '/payment-result';
   static const miniGame = '/mini-game';
   static const dailySpin = '/daily-spin';
   static const coinRush = '/coin-rush';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
-    switch (settings.name) {
+    final rawName = settings.name ?? home;
+    final uri = Uri.tryParse(rawName);
+    final routeName = uri?.path.isNotEmpty == true ? uri!.path : rawName;
+
+    switch (routeName) {
       case splash:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
       case onboarding:
@@ -94,6 +102,10 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const ManageStoreScreen());
       case manageCategories:
         return MaterialPageRoute(builder: (_) => const ManageCategoryScreen());
+      case paymentVerification:
+        return MaterialPageRoute(
+          builder: (_) => const PaymentVerificationScreen(),
+        );
       case promoForm:
         return MaterialPageRoute(
           builder: (_) => PromoFormScreen(
@@ -104,6 +116,13 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
       case wallet:
         return MaterialPageRoute(builder: (_) => const WalletScreen());
+      case paymentResult:
+        return MaterialPageRoute(
+          builder: (_) => PaymentResultScreen(
+            orderId: uri?.queryParameters['order_id'] ?? '',
+            result: uri?.queryParameters['result'] ?? 'pending',
+          ),
+        );
       case miniGame:
         return MaterialPageRoute(builder: (_) => const MiniGameScreen());
       case dailySpin:

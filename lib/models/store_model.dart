@@ -34,4 +34,28 @@ class StoreModel {
       activePromoCount: ((map['active_promo_count'] ?? 0) as num).toInt(),
     );
   }
+
+  StoreModel copyWith({
+    int? id,
+    String? name,
+    String? address,
+    String? city,
+    String? googleMapsUrl,
+    String? openingHours,
+    double? latitude,
+    double? longitude,
+    int? activePromoCount,
+  }) {
+    return StoreModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      address: address ?? this.address,
+      city: city ?? this.city,
+      googleMapsUrl: googleMapsUrl ?? this.googleMapsUrl,
+      openingHours: openingHours ?? this.openingHours,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      activePromoCount: activePromoCount ?? this.activePromoCount,
+    );
+  }
 }

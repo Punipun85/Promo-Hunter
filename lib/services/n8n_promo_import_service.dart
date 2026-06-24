@@ -11,7 +11,9 @@ class N8nPromoImportService {
 
   final Dio _dio;
 
-  Future<PromoImportResult> importPromos() async {
+  Future<PromoImportResult> importPromos({
+    PromoImportSource source = PromoImportSource.webScrape,
+  }) async {
     Response<dynamic>? response;
     final failures = <String>[];
 
@@ -19,7 +21,7 @@ class N8nPromoImportService {
       try {
         response = await _dio.post<dynamic>(
           webhookUrl,
-          data: _buildImportRequest(),
+          data: _buildImportRequest(source),
           options: Options(
             contentType: Headers.jsonContentType,
             responseType: ResponseType.json,
@@ -32,7 +34,8 @@ class N8nPromoImportService {
         );
         break;
       } on DioException catch (error) {
-        failures.add('${_shortWebhookUrl(webhookUrl)}: ${_friendlyDioMessage(error)}');
+        failures.add(
+            '${_shortWebhookUrl(webhookUrl)}: ${_friendlyDioMessage(error)}');
         if (error.response?.statusCode != 404) {
           continue;
         }
@@ -57,10 +60,10 @@ class N8nPromoImportService {
           'supabase_inserted',
         ]) ??
         _findString(response.data, const ['mode', 'sync_mode'])
-                ?.toLowerCase()
-                .contains('direct') ==
-            true ||
-        directInsertCount != null;
+                    ?.toLowerCase()
+                    .contains('direct') ==
+                true ||
+            directInsertCount != null;
     final promos = _extractPromotionMaps(response.data)
         .map(_mapToPromo)
         .whereType<PromoModel>()
@@ -71,6 +74,7 @@ class N8nPromoImportService {
       rawCount: promos.length,
       sourceName: _findString(response.data, const ['source_name']) ??
           'n8n Promo Scraper',
+      message: _findString(response.data, const ['message']),
       insertedCount: directInsertCount ?? 0,
       isDirectSupabaseInsert: isDirectInsert,
     );
@@ -84,14 +88,25 @@ class N8nPromoImportService {
             : url;
   }
 
-  Map<String, dynamic> _buildImportRequest() {
+  Map<String, dynamic> _buildImportRequest(PromoImportSource source) {
     final now = DateTime.now();
     final monthLabel = '${now.year}-${now.month.toString().padLeft(2, '0')}';
     return {
       'source': 'promohunter_admin',
+      'import_source': source.name,
+      'import_source_label': source.label,
       'requested_at': now.toIso8601String(),
-      'mode': 'multi_source_web_scrape_with_supabase_insert',
+      'mode': source == PromoImportSource.notion
+          ? 'notion_curated_promos_with_supabase_storage'
+          : 'multi_source_web_scrape_with_supabase_insert',
       'sync_strategy': 'n8n_download_images_upload_storage_insert_supabase',
+      'notion_target': const {
+        'database': 'PromoHunter Promos',
+        'status_ready': 'Ready',
+        'status_synced': 'Synced',
+        'status_error': 'Error',
+        'image_field': 'Image',
+      },
       'locale': 'id_ID',
       'country': 'Indonesia',
       'supabase_target': const {
@@ -103,17 +118,21 @@ class N8nPromoImportService {
         },
         'image_upload': {
           'enabled': true,
+          'required': true,
           'folder': 'n8n-promos',
           'save_public_url_to': 'promos.image_url',
+          'source_image_field': 'original_image_url',
           'fallback_image_url':
               'https://images.unsplash.com/photo-1607083206968-13611e3d76db?w=1200',
         },
       },
       'limits': const {
-        'max_total_promos': 40,
-        'max_promos_per_source': 5,
-        'max_pages_per_source': 2,
-        'prefer_response_under_seconds': 120,
+        'max_total_promos': 12,
+        'max_promos_per_source': 2,
+        'max_pages_per_source': 1,
+        'max_image_download_seconds': 8,
+        'max_image_size_mb': 3,
+        'prefer_response_under_seconds': 45,
       },
       'period': {
         'month': monthLabel,
@@ -154,6 +173,9 @@ class N8nPromoImportService {
           'inserted_count',
           'skipped_count',
           'failed_count',
+          'image_uploaded_count',
+          'image_fallback_count',
+          'image_failed_count',
           'message',
         ],
         'required_fields': const [
@@ -162,13 +184,14 @@ class N8nPromoImportService {
           'promo_price',
           'store_name',
           'category',
+          'image_url',
           'start_date',
           'end_date',
           'source_url',
         ],
         'optional_fields': const [
           'brand',
-          'image_url',
+          'original_image_url',
           'unit_size',
           'unit_type',
           'terms',
@@ -179,8 +202,15 @@ class N8nPromoImportService {
           'Ambil promo publik dari banyak sumber, bukan satu website saja.',
           'Prioritaskan promo supermarket dan minimarket Indonesia.',
           'Batasi hasil sesuai limits agar webhook cepat mengirim response.',
-          'Download image_url produk di n8n lalu upload ke Supabase Storage bucket promo-images.',
+          'Jika sudah mendekati prefer_response_under_seconds, hentikan scraping dan response dengan hasil parsial.',
+          'Ambil gambar produk dari halaman promo yang sama dengan source_url.',
+          'Jika halaman promo memakai meta og:image atau image tag produk, gunakan gambar tersebut sebagai original_image_url.',
+          'Download original_image_url di n8n lalu upload ke Supabase Storage bucket promo-images.',
           'Simpan public URL dari Supabase Storage ke kolom promos.image_url.',
+          'image_url harus berisi public URL Supabase Storage, bukan URL gambar eksternal dari website sumber.',
+          'Jangan biarkan image_url kosong; jika gambar produk gagal diambil, download fallback_image_url lalu upload fallback itu ke Supabase Storage.',
+          'Pastikan image_url yang disimpan adalah file gambar valid yang bisa dibuka publik dan content-type diawali image/.',
+          'Jika original_image_url redirect loop, HTML, 403, 404, atau tidak bisa didecode, gunakan fallback image Storage.',
           'Insert atau upsert stores dan categories sebelum insert promos.',
           'Gunakan Supabase service role hanya di n8n, jangan pernah kirim service role ke Flutter.',
           'Set direct_insert true jika n8n sudah menulis data ke Supabase.',
@@ -206,7 +236,7 @@ class N8nPromoImportService {
         if (statusCode == 404) {
           return 'Webhook n8n tidak ditemukan. Pastikan workflow aktif dan URL production webhook benar.';
         }
-        return 'n8n mengembalikan error HTTP ${statusCode ?? '-'}.'; 
+        return 'n8n mengembalikan error HTTP ${statusCode ?? '-'}.';
       case DioExceptionType.connectionError:
         return 'Tidak bisa terhubung ke n8n. Cek internet atau status n8n cloud.';
       case DioExceptionType.cancel:
@@ -484,10 +514,31 @@ class N8nPromoImportService {
   }
 
   String _validImageUrl(String? value) {
-    final uri = Uri.tryParse(value?.trim() ?? '');
-    if (uri == null || !uri.hasScheme) return PromoImage.fallbackImageUrl;
-    return value!.trim();
+    final trimmed = value?.trim() ?? '';
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null ||
+        !uri.hasScheme ||
+        trimmed.isEmpty ||
+        _isPlaceholderHost(uri.host)) {
+      return PromoImage.fallbackImageUrl;
+    }
+    return trimmed;
   }
+
+  bool _isPlaceholderHost(String host) {
+    final normalized = host.toLowerCase();
+    return normalized == 'example.com' || normalized.endsWith('.example.com');
+  }
+}
+
+enum PromoImportSource {
+  webScrape('web_scrape', 'web scraping'),
+  notion('notion', 'Notion');
+
+  const PromoImportSource(this.name, this.label);
+
+  final String name;
+  final String label;
 }
 
 class PromoImportResult {
@@ -495,6 +546,7 @@ class PromoImportResult {
     required this.importedPromos,
     required this.rawCount,
     required this.sourceName,
+    this.message,
     this.insertedCount = 0,
     this.isDirectSupabaseInsert = false,
   });
@@ -502,6 +554,7 @@ class PromoImportResult {
   final List<PromoModel> importedPromos;
   final int rawCount;
   final String sourceName;
+  final String? message;
   final int insertedCount;
   final bool isDirectSupabaseInsert;
 }

@@ -5,8 +5,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class DashboardExperienceProvider extends ChangeNotifier {
+import '../services/midtrans_payment_status_service.dart';
+import '../services/notification_service.dart';
+
+class DashboardExperienceProvider extends ChangeNotifier
+    with WidgetsBindingObserver {
   static const _premiumKey = 'dashboard_is_premium';
+  static const _premiumExpiresAtKey = 'dashboard_premium_expires_at';
   static const _coinsKey = 'dashboard_coin_balance';
   static const _unlockedPromosKey = 'dashboard_unlocked_promos';
   static const _promoFirstSeenPrefix = 'dashboard_promo_first_seen_';
@@ -17,10 +22,14 @@ class DashboardExperienceProvider extends ChangeNotifier {
   static const _miniGameDateKey = 'dashboard_mini_game_date';
   static const _dailySpinDateKey = 'dashboard_daily_spin_date';
   static const _redeemedVouchersKey = 'dashboard_redeemed_vouchers';
+  static const _paymentTransactionsKey = 'dashboard_payment_transactions';
   static const freeAccessDelay = Duration(hours: 6);
   static const miniGameDailyLimit = 3;
   static const miniGameRounds = 5;
   static const unlockCost = 30;
+  static const memberOnlyPromoModulo = 4;
+  static const _midtransStatusPollAttempts = 30;
+  static const _midtransStatusPollDelay = Duration(seconds: 2);
   static const dailySpinRewards = <DailySpinReward>[
     DailySpinReward(
       id: 'coin-10',
@@ -67,11 +76,25 @@ class DashboardExperienceProvider extends ChangeNotifier {
   ];
   static const coinPackages = <CoinPackage>[
     CoinPackage(
+      id: 'trial',
+      name: 'Coba Dulu',
+      coins: 30,
+      price: 3000,
+      description: 'Pas untuk membuka 1 promo early access.',
+    ),
+    CoinPackage(
       id: 'starter',
       name: 'Starter Coin',
       coins: 60,
       price: 5000,
       description: 'Cukup untuk membuka 2 promo early access.',
+    ),
+    CoinPackage(
+      id: 'daily',
+      name: 'Daily Hunter',
+      coins: 100,
+      price: 9000,
+      description: 'Pilihan ringan untuk berburu promo harian.',
     ),
     CoinPackage(
       id: 'smart',
@@ -82,11 +105,25 @@ class DashboardExperienceProvider extends ChangeNotifier {
       isRecommended: true,
     ),
     CoinPackage(
+      id: 'family',
+      name: 'Family Saver',
+      coins: 250,
+      price: 19000,
+      description: 'Saldo pas untuk belanja mingguan keluarga.',
+    ),
+    CoinPackage(
       id: 'hunter',
       name: 'Promo Hunter',
       coins: 350,
       price: 25000,
       description: 'Saldo besar untuk banyak unlock promo.',
+    ),
+    CoinPackage(
+      id: 'ultimate',
+      name: 'Ultimate Hemat',
+      coins: 600,
+      price: 39000,
+      description: 'Value terbaik untuk pengguna aktif.',
     ),
   ];
   static const subscriptionPlans = <SubscriptionPlan>[
@@ -95,6 +132,7 @@ class DashboardExperienceProvider extends ChangeNotifier {
       name: 'Premium Mingguan',
       price: 9000,
       durationLabel: '7 hari',
+      durationDays: 7,
       description: 'Cocok untuk belanja mingguan dan demo singkat.',
     ),
     SubscriptionPlan(
@@ -102,6 +140,7 @@ class DashboardExperienceProvider extends ChangeNotifier {
       name: 'Premium Bulanan',
       price: 29000,
       durationLabel: '30 hari',
+      durationDays: 30,
       description: 'Akses semua promo tanpa delay selama sebulan.',
       isRecommended: true,
     ),
@@ -110,7 +149,16 @@ class DashboardExperienceProvider extends ChangeNotifier {
       name: 'Premium Semester',
       price: 99000,
       durationLabel: '6 bulan',
+      durationDays: 180,
       description: 'Paket paling hemat untuk pengguna rutin.',
+    ),
+    SubscriptionPlan(
+      id: 'yearly',
+      name: 'Premium Tahunan',
+      price: 179000,
+      durationLabel: '1 tahun',
+      durationDays: 365,
+      description: 'Akses promo premium setahun penuh dengan harga terbaik.',
     ),
   ];
   static const voucherCatalog = <VoucherReward>[
@@ -150,6 +198,7 @@ class DashboardExperienceProvider extends ChangeNotifier {
 
   bool isReady = false;
   bool isPremium = false;
+  DateTime? premiumExpiresAt;
   int coinBalance = 0;
   Set<int> unlockedPromoIds = <int>{};
   int claimedDaysInCycle = 0;
@@ -159,14 +208,24 @@ class DashboardExperienceProvider extends ChangeNotifier {
   DateTime? lastMiniGamePlayedAt;
   DateTime? lastDailySpinAt;
   List<RedeemedVoucher> redeemedVouchers = <RedeemedVoucher>[];
+  List<PaymentTransaction> paymentTransactions = <PaymentTransaction>[];
   bool _hasShownEntryDialogsThisSession = false;
   Timer? _lockCountdownTimer;
   Timer? _miniGameResetTimer;
+  final MidtransPaymentStatusService _midtransStatusService =
+      MidtransPaymentStatusService();
+  bool _isLifecycleObserverRegistered = false;
 
   Future<void> bootstrap() async {
+    if (!_isLifecycleObserverRegistered) {
+      WidgetsBinding.instance.addObserver(this);
+      _isLifecycleObserverRegistered = true;
+    }
     final prefs = await SharedPreferences.getInstance();
     _cachedPrefs = prefs;
     isPremium = prefs.getBool(_premiumKey) ?? false;
+    premiumExpiresAt = _parseDate(prefs.getString(_premiumExpiresAtKey));
+    await _refreshPremiumStatus(prefs);
     coinBalance = prefs.getInt(_coinsKey) ?? 0;
     unlockedPromoIds = _parseUnlockedPromoIds(
       prefs.getStringList(_unlockedPromosKey) ?? const <String>[],
@@ -178,11 +237,22 @@ class DashboardExperienceProvider extends ChangeNotifier {
     redeemedVouchers = _parseRedeemedVouchers(
       prefs.getStringList(_redeemedVouchersKey) ?? const <String>[],
     );
+    paymentTransactions = _parsePaymentTransactions(
+      prefs.getStringList(_paymentTransactionsKey) ?? const <String>[],
+    );
     await _syncMiniGameDailyState(prefs);
     _scheduleMiniGameResetTimer();
     isReady = true;
     _startLockCountdownTimer();
     notifyListeners();
+    unawaited(syncSettledMidtransPayments());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(syncSettledMidtransPayments());
+    }
   }
 
   bool get hasClaimedToday {
@@ -222,12 +292,18 @@ class DashboardExperienceProvider extends ChangeNotifier {
   }
 
   bool isPromoLocked(int promoId) {
-    if (!isReady || isPremium || unlockedPromoIds.contains(promoId)) {
+    if (!isReady || isPremium) {
       return false;
     }
+    if (isMemberOnlyPromo(promoId)) return true;
+    if (unlockedPromoIds.contains(promoId)) return false;
     final firstSeenAt = _promoFirstSeenAt(promoId);
     if (firstSeenAt == null) return true;
     return DateTime.now().isBefore(firstSeenAt.add(freeAccessDelay));
+  }
+
+  bool isMemberOnlyPromo(int promoId) {
+    return promoId > 0 && promoId % memberOnlyPromoModulo == 0;
   }
 
   Duration promoWaitRemaining(int promoId) {
@@ -240,6 +316,9 @@ class DashboardExperienceProvider extends ChangeNotifier {
   }
 
   String promoLockLabel(int promoId) {
+    if (isMemberOnlyPromo(promoId) && !isPremium) {
+      return 'Khusus member premium';
+    }
     final remaining = promoWaitRemaining(promoId);
     if (remaining == Duration.zero) return 'Gratis sudah terbuka';
     final hours = remaining.inHours;
@@ -251,6 +330,10 @@ class DashboardExperienceProvider extends ChangeNotifier {
   }
 
   bool get canUnlockWithCoins => coinBalance >= unlockCost;
+
+  bool canUnlockPromoWithCoins(int promoId) {
+    return !isMemberOnlyPromo(promoId) && canUnlockWithCoins;
+  }
 
   int get miniGameRemainingAttempts {
     final playedAt = lastMiniGamePlayedAt;
@@ -271,8 +354,42 @@ class DashboardExperienceProvider extends ChangeNotifier {
 
   bool get canSpinDaily => !hasSpunToday;
 
+  List<PaymentTransaction> get pendingPaymentTransactions => paymentTransactions
+      .where((transaction) => transaction.status == PaymentStatus.pending)
+      .toList()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  Duration get premiumRemaining {
+    final expiresAt = premiumExpiresAt;
+    if (!isPremium || expiresAt == null) return Duration.zero;
+    final remaining = expiresAt.difference(DateTime.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  String get premiumCountdownLabel {
+    final remaining = premiumRemaining;
+    if (remaining == Duration.zero) return 'Tidak aktif';
+    final days = remaining.inDays;
+    final hours = remaining.inHours.remainder(24);
+    final minutes = remaining.inMinutes.remainder(60);
+    if (days > 0) return '$days hari $hours jam tersisa';
+    if (hours > 0) return '$hours jam $minutes menit tersisa';
+    return '$minutes menit tersisa';
+  }
+
+  String get premiumStatusText {
+    if (!isPremium) {
+      return 'Paket mulai Rp9.000. Premium membuka semua info promo baru tanpa delay dan tanpa coin.';
+    }
+    final expiry = premiumExpiresAt == null
+        ? ''
+        : ' sampai ${_formatShortDateTime(premiumExpiresAt!)}';
+    return 'Premium aktif$expiry. Sisa waktu: $premiumCountdownLabel.';
+  }
+
   Future<bool> unlockPromoWithCoins(int promoId) async {
     if (isPremium || unlockedPromoIds.contains(promoId)) return true;
+    if (isMemberOnlyPromo(promoId)) return false;
     if (coinBalance < unlockCost) return false;
     final prefs = await SharedPreferences.getInstance();
     _cachedPrefs = prefs;
@@ -304,16 +421,26 @@ class DashboardExperienceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> enablePremium() async {
+  Future<void> enablePremium(
+      {Duration duration = const Duration(days: 30)}) async {
     final prefs = await SharedPreferences.getInstance();
     _cachedPrefs = prefs;
+    final now = DateTime.now();
+    final baseTime = premiumExpiresAt != null && premiumExpiresAt!.isAfter(now)
+        ? premiumExpiresAt!
+        : now;
     isPremium = true;
+    premiumExpiresAt = baseTime.add(duration);
     await prefs.setBool(_premiumKey, true);
+    await prefs.setString(
+      _premiumExpiresAtKey,
+      premiumExpiresAt!.toIso8601String(),
+    );
     notifyListeners();
   }
 
   Future<void> subscribeToPlan(SubscriptionPlan plan) async {
-    await enablePremium();
+    await enablePremium(duration: Duration(days: plan.durationDays));
   }
 
   Future<void> topUpCoins(CoinPackage package) async {
@@ -321,6 +448,229 @@ class DashboardExperienceProvider extends ChangeNotifier {
     _cachedPrefs = prefs;
     coinBalance += package.coins;
     await prefs.setInt(_coinsKey, coinBalance);
+    notifyListeners();
+  }
+
+  Future<PaymentTransaction> createCoinTopUpTransaction({
+    required CoinPackage package,
+    required String userId,
+    required String userName,
+    required String userEmail,
+    required String paymentMethod,
+    required String proofFileName,
+    String? paymentReference,
+    String? paymentUrl,
+  }) async {
+    final transaction = PaymentTransaction(
+      id: _generateTransactionId(),
+      userId: userId,
+      userName: userName,
+      userEmail: userEmail,
+      type: PaymentTransactionType.coinTopUp,
+      status: PaymentStatus.pending,
+      itemId: package.id,
+      itemName: package.name,
+      benefitLabel: '${package.coins} coin',
+      price: package.price,
+      coins: package.coins,
+      durationDays: null,
+      paymentMethod: paymentMethod,
+      proofFileName: proofFileName,
+      paymentReference: paymentReference,
+      paymentUrl: paymentUrl,
+      createdAt: DateTime.now(),
+    );
+    await _savePaymentTransaction(transaction);
+    return transaction;
+  }
+
+  Future<PaymentTransaction> createSubscriptionTransaction({
+    required SubscriptionPlan plan,
+    required String userId,
+    required String userName,
+    required String userEmail,
+    required String paymentMethod,
+    required String proofFileName,
+    String? paymentReference,
+    String? paymentUrl,
+  }) async {
+    final transaction = PaymentTransaction(
+      id: _generateTransactionId(),
+      userId: userId,
+      userName: userName,
+      userEmail: userEmail,
+      type: PaymentTransactionType.subscription,
+      status: PaymentStatus.pending,
+      itemId: plan.id,
+      itemName: plan.name,
+      benefitLabel: plan.durationLabel,
+      price: plan.price,
+      coins: null,
+      durationDays: plan.durationDays,
+      paymentMethod: paymentMethod,
+      proofFileName: proofFileName,
+      paymentReference: paymentReference,
+      paymentUrl: paymentUrl,
+      createdAt: DateTime.now(),
+    );
+    await _savePaymentTransaction(transaction);
+    return transaction;
+  }
+
+  Future<void> approvePaymentTransaction(String transactionId) async {
+    final index = paymentTransactions.indexWhere(
+      (transaction) => transaction.id == transactionId,
+    );
+    if (index == -1) return;
+    final transaction = paymentTransactions[index];
+    if (transaction.status != PaymentStatus.pending) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    _cachedPrefs = prefs;
+
+    if (transaction.type == PaymentTransactionType.coinTopUp) {
+      coinBalance += transaction.coins ?? 0;
+      await prefs.setInt(_coinsKey, coinBalance);
+    } else {
+      final now = DateTime.now();
+      final baseTime =
+          premiumExpiresAt != null && premiumExpiresAt!.isAfter(now)
+              ? premiumExpiresAt!
+              : now;
+      isPremium = true;
+      premiumExpiresAt =
+          baseTime.add(Duration(days: transaction.durationDays ?? 30));
+      await prefs.setBool(_premiumKey, true);
+      await prefs.setString(
+        _premiumExpiresAtKey,
+        premiumExpiresAt!.toIso8601String(),
+      );
+    }
+
+    final updated = transaction.copyWith(
+      status: PaymentStatus.approved,
+      verifiedAt: DateTime.now(),
+    );
+    paymentTransactions = [
+      ...paymentTransactions.sublist(0, index),
+      updated,
+      ...paymentTransactions.sublist(index + 1),
+    ];
+    await _persistPaymentTransactions(prefs);
+    notifyListeners();
+    await NotificationService.instance.showPaymentCompleted(
+      title: 'Pembayaran berhasil',
+      body: '${transaction.itemName} sudah aktif untuk ${transaction.userName}.',
+    );
+  }
+
+  Future<bool> syncSettledMidtransPayments() async {
+    var approvedAny = false;
+    final pendingMidtransTransactions = paymentTransactions.where(
+      (transaction) =>
+          transaction.status == PaymentStatus.pending &&
+          transaction.paymentReference != null &&
+          transaction.paymentMethod.toLowerCase().contains('midtrans'),
+    ).toList();
+
+    for (final transaction in pendingMidtransTransactions) {
+      final status = await _midtransStatusService.getStatus(
+        transaction.paymentReference!,
+      );
+      if (status == null || !status.paid) continue;
+
+      await approvePaymentTransaction(transaction.id);
+      approvedAny = true;
+    }
+    return approvedAny;
+  }
+
+  Future<bool> waitForMidtransSettlement(String transactionId) async {
+    final initialMatch = paymentTransactions.where(
+      (item) => item.id == transactionId,
+    );
+    if (initialMatch.isEmpty ||
+        !initialMatch.first.paymentMethod.toLowerCase().contains('midtrans')) {
+      return false;
+    }
+
+    for (var attempt = 0; attempt < _midtransStatusPollAttempts; attempt += 1) {
+      final synced = await syncSettledMidtransPayments();
+      final transaction = paymentTransactions.where(
+        (item) => item.id == transactionId,
+      );
+      if (transaction.isNotEmpty &&
+          transaction.first.status == PaymentStatus.approved) {
+        return true;
+      }
+      if (synced) return true;
+      await Future<void>.delayed(_midtransStatusPollDelay);
+    }
+    return false;
+  }
+
+  Future<PaymentStatus?> syncMidtransTransactionByReference(
+    String paymentReference,
+  ) async {
+    final normalized = paymentReference.trim();
+    if (normalized.isEmpty) return null;
+
+    final index = paymentTransactions.indexWhere(
+      (transaction) => transaction.paymentReference == normalized,
+    );
+    if (index == -1) return null;
+
+    final transaction = paymentTransactions[index];
+    final status = await _midtransStatusService.getStatus(normalized);
+    if (status == null) return transaction.status;
+
+    if (status.paid) {
+      await approvePaymentTransaction(transaction.id);
+      return PaymentStatus.approved;
+    }
+
+    if (status.failed) {
+      await rejectPaymentTransaction(transaction.id);
+      return PaymentStatus.rejected;
+    }
+
+    return transaction.status;
+  }
+
+  Future<PaymentStatus?> waitForMidtransResultByReference(
+    String paymentReference,
+  ) async {
+    for (var attempt = 0; attempt < _midtransStatusPollAttempts; attempt += 1) {
+      final status = await syncMidtransTransactionByReference(paymentReference);
+      if (status == PaymentStatus.approved ||
+          status == PaymentStatus.rejected) {
+        return status;
+      }
+      await Future<void>.delayed(_midtransStatusPollDelay);
+    }
+
+    return syncMidtransTransactionByReference(paymentReference);
+  }
+
+  Future<void> rejectPaymentTransaction(String transactionId) async {
+    final index = paymentTransactions.indexWhere(
+      (transaction) => transaction.id == transactionId,
+    );
+    if (index == -1) return;
+    final transaction = paymentTransactions[index];
+    if (transaction.status != PaymentStatus.pending) return;
+    final prefs = await SharedPreferences.getInstance();
+    _cachedPrefs = prefs;
+    final updated = transaction.copyWith(
+      status: PaymentStatus.rejected,
+      verifiedAt: DateTime.now(),
+    );
+    paymentTransactions = [
+      ...paymentTransactions.sublist(0, index),
+      updated,
+      ...paymentTransactions.sublist(index + 1),
+    ];
+    await _persistPaymentTransactions(prefs);
     notifyListeners();
   }
 
@@ -436,7 +786,8 @@ class DashboardExperienceProvider extends ChangeNotifier {
     }
 
     lastDailySpinAt = DateTime.now();
-    await prefs.setString(_dailySpinDateKey, lastDailySpinAt!.toIso8601String());
+    await prefs.setString(
+        _dailySpinDateKey, lastDailySpinAt!.toIso8601String());
     notifyListeners();
 
     return DailySpinResult(
@@ -579,17 +930,85 @@ class DashboardExperienceProvider extends ChangeNotifier {
         .toList();
   }
 
+  List<PaymentTransaction> _parsePaymentTransactions(List<String> values) {
+    return values
+        .map((value) {
+          try {
+            final decoded = jsonDecode(value);
+            if (decoded is Map<String, dynamic>) {
+              return PaymentTransaction.fromJson(decoded);
+            }
+          } catch (_) {
+            return null;
+          }
+          return null;
+        })
+        .whereType<PaymentTransaction>()
+        .toList();
+  }
+
+  Future<void> _savePaymentTransaction(
+    PaymentTransaction transaction,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    _cachedPrefs = prefs;
+    paymentTransactions = [transaction, ...paymentTransactions];
+    await _persistPaymentTransactions(prefs);
+    notifyListeners();
+  }
+
+  Future<void> _persistPaymentTransactions(SharedPreferences prefs) {
+    return prefs.setStringList(
+      _paymentTransactionsKey,
+      paymentTransactions
+          .map((transaction) => jsonEncode(transaction.toJson()))
+          .toList(),
+    );
+  }
+
+  String _generateTransactionId() {
+    return 'trx-${DateTime.now().millisecondsSinceEpoch}';
+  }
+
   void _startLockCountdownTimer() {
     _lockCountdownTimer?.cancel();
-    _lockCountdownTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (isReady && !isPremium) {
+    _lockCountdownTimer = Timer.periodic(const Duration(minutes: 1), (_) async {
+      if (!isReady) return;
+      final prefs = _cachedPrefs ?? await SharedPreferences.getInstance();
+      final changed = await _refreshPremiumStatus(prefs);
+      if (isPremium || changed) {
         notifyListeners();
       }
     });
   }
 
+  Future<bool> _refreshPremiumStatus(SharedPreferences prefs) async {
+    final expiresAt = premiumExpiresAt;
+    if (!isPremium || expiresAt == null) return false;
+    if (DateTime.now().isBefore(expiresAt)) return false;
+
+    isPremium = false;
+    premiumExpiresAt = null;
+    await prefs.setBool(_premiumKey, false);
+    await prefs.remove(_premiumExpiresAtKey);
+    return true;
+  }
+
+  String _formatShortDateTime(DateTime dateTime) {
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final year = dateTime.year.toString();
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year $hour:$minute';
+  }
+
   @override
   void dispose() {
+    if (_isLifecycleObserverRegistered) {
+      WidgetsBinding.instance.removeObserver(this);
+      _isLifecycleObserverRegistered = false;
+    }
     _lockCountdownTimer?.cancel();
     _miniGameResetTimer?.cancel();
     super.dispose();
@@ -652,6 +1071,7 @@ class SubscriptionPlan {
     required this.name,
     required this.price,
     required this.durationLabel,
+    required this.durationDays,
     required this.description,
     this.isRecommended = false,
   });
@@ -660,8 +1080,172 @@ class SubscriptionPlan {
   final String name;
   final int price;
   final String durationLabel;
+  final int durationDays;
   final String description;
   final bool isRecommended;
+}
+
+enum PaymentTransactionType {
+  coinTopUp,
+  subscription;
+
+  String get label {
+    switch (this) {
+      case PaymentTransactionType.coinTopUp:
+        return 'Topup Coin';
+      case PaymentTransactionType.subscription:
+        return 'Langganan Premium';
+    }
+  }
+}
+
+enum PaymentStatus {
+  pending,
+  approved,
+  rejected;
+
+  String get label {
+    switch (this) {
+      case PaymentStatus.pending:
+        return 'Menunggu Verifikasi';
+      case PaymentStatus.approved:
+        return 'Berhasil';
+      case PaymentStatus.rejected:
+        return 'Ditolak';
+    }
+  }
+}
+
+class PaymentTransaction {
+  const PaymentTransaction({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.userEmail,
+    required this.type,
+    required this.status,
+    required this.itemId,
+    required this.itemName,
+    required this.benefitLabel,
+    required this.price,
+    required this.paymentMethod,
+    required this.proofFileName,
+    required this.createdAt,
+    this.coins,
+    this.durationDays,
+    this.paymentReference,
+    this.paymentUrl,
+    this.verifiedAt,
+  });
+
+  final String id;
+  final String userId;
+  final String userName;
+  final String userEmail;
+  final PaymentTransactionType type;
+  final PaymentStatus status;
+  final String itemId;
+  final String itemName;
+  final String benefitLabel;
+  final int price;
+  final int? coins;
+  final int? durationDays;
+  final String paymentMethod;
+  final String proofFileName;
+  final String? paymentReference;
+  final String? paymentUrl;
+  final DateTime createdAt;
+  final DateTime? verifiedAt;
+
+  bool get isMidtransPayment =>
+      paymentMethod.toLowerCase().contains('midtrans') ||
+      paymentReference != null;
+
+  String get statusLabel {
+    if (status == PaymentStatus.pending && isMidtransPayment) {
+      return 'Menunggu Konfirmasi Midtrans';
+    }
+    return status.label;
+  }
+
+  PaymentTransaction copyWith({
+    PaymentStatus? status,
+    DateTime? verifiedAt,
+  }) {
+    return PaymentTransaction(
+      id: id,
+      userId: userId,
+      userName: userName,
+      userEmail: userEmail,
+      type: type,
+      status: status ?? this.status,
+      itemId: itemId,
+      itemName: itemName,
+      benefitLabel: benefitLabel,
+      price: price,
+      coins: coins,
+      durationDays: durationDays,
+      paymentMethod: paymentMethod,
+      proofFileName: proofFileName,
+      paymentReference: paymentReference,
+      paymentUrl: paymentUrl,
+      createdAt: createdAt,
+      verifiedAt: verifiedAt ?? this.verifiedAt,
+    );
+  }
+
+  factory PaymentTransaction.fromJson(Map<String, dynamic> json) {
+    return PaymentTransaction(
+      id: json['id'] as String? ?? '',
+      userId: json['userId'] as String? ?? '',
+      userName: json['userName'] as String? ?? 'User PromoHunter',
+      userEmail: json['userEmail'] as String? ?? '',
+      type: PaymentTransactionType.values.firstWhere(
+        (type) => type.name == json['type'],
+        orElse: () => PaymentTransactionType.coinTopUp,
+      ),
+      status: PaymentStatus.values.firstWhere(
+        (status) => status.name == json['status'],
+        orElse: () => PaymentStatus.pending,
+      ),
+      itemId: json['itemId'] as String? ?? '',
+      itemName: json['itemName'] as String? ?? '',
+      benefitLabel: json['benefitLabel'] as String? ?? '',
+      price: (json['price'] as num?)?.toInt() ?? 0,
+      coins: (json['coins'] as num?)?.toInt(),
+      durationDays: (json['durationDays'] as num?)?.toInt(),
+      paymentMethod: json['paymentMethod'] as String? ?? '',
+      proofFileName: json['proofFileName'] as String? ?? '',
+      paymentReference: json['paymentReference'] as String?,
+      paymentUrl: json['paymentUrl'] as String?,
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      verifiedAt: DateTime.tryParse(json['verifiedAt'] as String? ?? ''),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'userName': userName,
+      'userEmail': userEmail,
+      'type': type.name,
+      'status': status.name,
+      'itemId': itemId,
+      'itemName': itemName,
+      'benefitLabel': benefitLabel,
+      'price': price,
+      'coins': coins,
+      'durationDays': durationDays,
+      'paymentMethod': paymentMethod,
+      'proofFileName': proofFileName,
+      'paymentReference': paymentReference,
+      'paymentUrl': paymentUrl,
+      'createdAt': createdAt.toIso8601String(),
+      'verifiedAt': verifiedAt?.toIso8601String(),
+    };
+  }
 }
 
 class MiniGameResult {

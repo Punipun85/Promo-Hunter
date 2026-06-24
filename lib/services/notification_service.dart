@@ -84,6 +84,35 @@ class NotificationService {
     await _plugin.cancel(promoId);
   }
 
+  Future<void> showPaymentCompleted({
+    required String title,
+    required String body,
+  }) async {
+    await initialize();
+    if (kIsWeb) return;
+
+    const androidDetails = AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: _channelDescription,
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const darwinDetails = DarwinNotificationDetails();
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+      macOS: darwinDetails,
+    );
+
+    await _plugin.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      title,
+      body,
+      details,
+    );
+  }
+
   Future<void> _requestPermissions() async {
     if (kIsWeb) return;
 

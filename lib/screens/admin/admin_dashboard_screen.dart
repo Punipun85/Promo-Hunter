@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../config/app_routes.dart';
 import '../../models/category_model.dart';
 import '../../models/promo_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_formatter.dart';
@@ -17,6 +19,7 @@ class AdminDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final promoProvider = context.watch<PromoProvider>();
+    final experience = context.watch<DashboardExperienceProvider>();
     if (!auth.isAdmin) {
       return const Scaffold(
         body: EmptyState(
@@ -27,7 +30,8 @@ class AdminDashboardScreen extends StatelessWidget {
       );
     }
 
-    final realStores = promoProvider.stores.where((store) => store.id != 0).toList();
+    final realStores =
+        promoProvider.stores.where((store) => store.id != 0).toList();
     final totalPromos = promoProvider.promos.length;
     final activePromos = promoProvider.promos
         .where((promo) => !promo.isExpired)
@@ -54,10 +58,21 @@ class AdminDashboardScreen extends StatelessWidget {
       0,
       (total, promo) => total + promo.savingsAmount,
     );
+    final pendingPayments = experience.pendingPaymentTransactions.length;
+    final approvedPayments = experience.paymentTransactions
+        .where((transaction) => transaction.status == PaymentStatus.approved)
+        .length;
+    final rejectedPayments = experience.paymentTransactions
+        .where((transaction) => transaction.status == PaymentStatus.rejected)
+        .length;
+    final approvedRevenue = experience.paymentTransactions
+        .where((transaction) => transaction.status == PaymentStatus.approved)
+        .fold<int>(0, (total, transaction) => total + transaction.price);
     final promoCountByStore = <String, int>{};
     final promoCountByCategory = <String, int>{};
     for (final promo in activePromos) {
-      promoCountByStore[promo.storeName] = (promoCountByStore[promo.storeName] ?? 0) + 1;
+      promoCountByStore[promo.storeName] =
+          (promoCountByStore[promo.storeName] ?? 0) + 1;
       promoCountByCategory[promo.categoryName] =
           (promoCountByCategory[promo.categoryName] ?? 0) + 1;
     }
@@ -113,6 +128,10 @@ class AdminDashboardScreen extends StatelessWidget {
                       icon: Icons.savings_outlined,
                       label: CurrencyFormatter.format(totalPotentialSavings),
                     ),
+                    _HeroPill(
+                      icon: Icons.receipt_long_outlined,
+                      label: '$pendingPayments payment pending',
+                    ),
                   ],
                 ),
               ],
@@ -156,11 +175,13 @@ class AdminDashboardScreen extends StatelessWidget {
           const SizedBox(height: 20),
           _PromoMonitorSection(
             title: 'Promo Hampir Berakhir',
-            subtitle: 'Prioritas dicek agar tidak ada promo kedaluwarsa diam-diam.',
+            subtitle:
+                'Prioritas dicek agar tidak ada promo kedaluwarsa diam-diam.',
             promos: endingSoonPromos,
             emptyText: 'Belum ada promo yang hampir berakhir.',
             badgeColor: const Color(0xFFF59E0B),
-            onManage: () => Navigator.pushNamed(context, AppRoutes.managePromos),
+            onManage: () =>
+                Navigator.pushNamed(context, AppRoutes.managePromos),
             onEdit: (promo) => Navigator.pushNamed(
               context,
               AppRoutes.promoForm,
@@ -174,7 +195,8 @@ class AdminDashboardScreen extends StatelessWidget {
             promos: activePromos,
             emptyText: 'Belum ada promo aktif.',
             badgeColor: const Color(0xFF0F9D58),
-            onManage: () => Navigator.pushNamed(context, AppRoutes.managePromos),
+            onManage: () =>
+                Navigator.pushNamed(context, AppRoutes.managePromos),
             onEdit: (promo) => Navigator.pushNamed(
               context,
               AppRoutes.promoForm,
@@ -184,11 +206,13 @@ class AdminDashboardScreen extends StatelessWidget {
           const SizedBox(height: 16),
           _PromoMonitorSection(
             title: 'Promo Expired',
-            subtitle: 'Promo yang sudah lewat masa berlaku dan perlu diarsipkan/diedit.',
+            subtitle:
+                'Promo yang sudah lewat masa berlaku dan perlu diarsipkan/diedit.',
             promos: expiredPromos,
             emptyText: 'Tidak ada promo expired. Rapi sekali.',
             badgeColor: const Color(0xFFDC2626),
-            onManage: () => Navigator.pushNamed(context, AppRoutes.managePromos),
+            onManage: () =>
+                Navigator.pushNamed(context, AppRoutes.managePromos),
             onEdit: (promo) => Navigator.pushNamed(
               context,
               AppRoutes.promoForm,
@@ -199,7 +223,8 @@ class AdminDashboardScreen extends StatelessWidget {
           _CategoryMonitorSection(
             categories: adminCategories,
             promoCountByCategory: promoCountByCategory,
-            onManage: () => Navigator.pushNamed(context, AppRoutes.manageCategories),
+            onManage: () =>
+                Navigator.pushNamed(context, AppRoutes.manageCategories),
           ),
           const SizedBox(height: 20),
           Row(
@@ -233,13 +258,21 @@ class AdminDashboardScreen extends StatelessWidget {
               title: 'Diskon Terbesar',
               promo: bestDiscountPromos.first,
             ),
-          if (bestDiscountPromos.isNotEmpty)
-            const SizedBox(height: 12),
+          if (bestDiscountPromos.isNotEmpty) const SizedBox(height: 12),
           if (newestPromos.isNotEmpty)
             _PromoHighlightCard(
               title: 'Promo Terbaru',
               promo: newestPromos.first,
             ),
+          const SizedBox(height: 20),
+          _PaymentSummarySection(
+            pending: pendingPayments,
+            approved: approvedPayments,
+            rejected: rejectedPayments,
+            approvedRevenue: approvedRevenue,
+            onOpen: () =>
+                Navigator.pushNamed(context, AppRoutes.paymentVerification),
+          ),
           const SizedBox(height: 20),
           Text(
             'Aksi cepat admin',
@@ -247,13 +280,47 @@ class AdminDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.managePromos),
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.managePromos),
             icon: const Icon(Icons.local_offer_outlined),
             label: const Text('Kelola Promo'),
           ),
           const SizedBox(height: 12),
           FilledButton.tonalIcon(
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.manageStores),
+            onPressed: () => Share.share(
+              _buildAdminReport(
+                totalPromos: totalPromos,
+                activePromos: activePromos.length,
+                expiredPromos: expiredPromos.length,
+                endingSoonPromos: endingSoonPromos.length,
+                totalStores: realStores.length,
+                totalCategories: totalCategories,
+                pendingPayments: pendingPayments,
+                approvedPayments: approvedPayments,
+                rejectedPayments: rejectedPayments,
+                approvedRevenue: approvedRevenue,
+                topStore: topStore,
+                topCategory: topCategory,
+              ),
+            ),
+            icon: const Icon(Icons.ios_share_outlined),
+            label: const Text('Export Laporan Admin'),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.paymentVerification),
+            icon: const Icon(Icons.fact_check_outlined),
+            label: Text(
+              pendingPayments == 0
+                  ? 'Verifikasi Pembayaran'
+                  : 'Verifikasi Pembayaran ($pendingPayments)',
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.manageStores),
             icon: const Icon(Icons.storefront_outlined),
             label: const Text('Kelola Toko'),
           ),
@@ -274,6 +341,102 @@ class AdminDashboardScreen extends StatelessWidget {
     final sorted = items.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return sorted.first;
+  }
+
+  String _buildAdminReport({
+    required int totalPromos,
+    required int activePromos,
+    required int expiredPromos,
+    required int endingSoonPromos,
+    required int totalStores,
+    required int totalCategories,
+    required int pendingPayments,
+    required int approvedPayments,
+    required int rejectedPayments,
+    required int approvedRevenue,
+    required MapEntry<String, int>? topStore,
+    required MapEntry<String, int>? topCategory,
+  }) {
+    return '''
+Laporan Admin PromoHunter
+
+Katalog:
+- Total promo: $totalPromos
+- Promo aktif: $activePromos
+- Promo expired: $expiredPromos
+- Hampir berakhir: $endingSoonPromos
+- Toko aktif: $totalStores
+- Kategori: $totalCategories
+- Toko teramai: ${topStore == null ? 'Belum ada' : '${topStore.key} (${topStore.value} promo)'}
+- Kategori populer: ${topCategory == null ? 'Belum ada' : '${topCategory.key} (${topCategory.value} promo)'}
+
+Pembayaran:
+- Menunggu verifikasi: $pendingPayments
+- Berhasil: $approvedPayments
+- Ditolak: $rejectedPayments
+- Estimasi pemasukan: ${CurrencyFormatter.format(approvedRevenue)}
+''';
+  }
+}
+
+class _PaymentSummarySection extends StatelessWidget {
+  const _PaymentSummarySection({
+    required this.pending,
+    required this.approved,
+    required this.rejected,
+    required this.approvedRevenue,
+    required this.onOpen,
+  });
+
+  final int pending;
+  final int approved;
+  final int rejected;
+  final int approvedRevenue;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_outlined, color: Color(0xFFB45309)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Ringkasan Pembayaran',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ),
+              TextButton(onPressed: onOpen, child: const Text('Verifikasi')),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MiniBadge(label: '$pending pending'),
+              _MiniBadge(label: '$approved berhasil'),
+              _MiniBadge(label: '$rejected ditolak'),
+              _MiniBadge(
+                label: 'Revenue ${CurrencyFormatter.format(approvedRevenue)}',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

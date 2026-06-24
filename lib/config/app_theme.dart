@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const Color primary = Color(0xFF22C55E);
@@ -32,57 +31,70 @@ class AppTheme {
       error: const Color(0xFFBA1A1A),
     );
 
-    final textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme).copyWith(
-      headlineLarge: GoogleFonts.plusJakartaSans(
+    final textTheme = base.textTheme.apply(
+      fontFamily: 'PlusJakartaSans',
+      bodyColor: onSurface,
+      displayColor: onSurface,
+    ).copyWith(
+      headlineLarge: base.textTheme.headlineLarge?.copyWith(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 32,
         fontWeight: FontWeight.w700,
         height: 1.25,
         letterSpacing: -0.64,
         color: onSurface,
       ),
-      headlineMedium: GoogleFonts.plusJakartaSans(
+      headlineMedium: base.textTheme.headlineMedium?.copyWith(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 24,
         fontWeight: FontWeight.w700,
         height: 1.33,
         letterSpacing: -0.24,
         color: onSurface,
       ),
-      titleLarge: GoogleFonts.plusJakartaSans(
+      titleLarge: base.textTheme.titleLarge?.copyWith(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 20,
         fontWeight: FontWeight.w700,
         height: 1.4,
         color: onSurface,
       ),
-      titleMedium: GoogleFonts.plusJakartaSans(
+      titleMedium: base.textTheme.titleMedium?.copyWith(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 18,
         fontWeight: FontWeight.w600,
         height: 1.35,
         color: onSurface,
       ),
-      bodyLarge: GoogleFonts.plusJakartaSans(
+      bodyLarge: base.textTheme.bodyLarge?.copyWith(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 16,
         fontWeight: FontWeight.w400,
         height: 1.5,
         color: onSurface,
       ),
-      bodyMedium: GoogleFonts.plusJakartaSans(
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 14,
         fontWeight: FontWeight.w400,
         height: 1.45,
         color: onSurface,
       ),
-      bodySmall: GoogleFonts.plusJakartaSans(
+      bodySmall: base.textTheme.bodySmall?.copyWith(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 12,
         fontWeight: FontWeight.w500,
         height: 1.33,
         color: const Color(0xFF64748B),
       ),
-      labelLarge: GoogleFonts.plusJakartaSans(
+      labelLarge: base.textTheme.labelLarge?.copyWith(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 14,
         fontWeight: FontWeight.w700,
         height: 1.2,
       ),
-      labelMedium: GoogleFonts.plusJakartaSans(
+      labelMedium: base.textTheme.labelMedium?.copyWith(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 12,
         fontWeight: FontWeight.w700,
         height: 1.2,

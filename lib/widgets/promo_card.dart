@@ -78,10 +78,15 @@ class PromoCard extends StatelessWidget {
                         runSpacing: 8,
                         children: [
                           if (isLocked)
-                            const _InfoBadge(
-                              label: 'Terkunci',
-                              backgroundColor: Color(0xFFFEE2E2),
-                              textColor: Color(0xFF991B1B),
+                            _InfoBadge(
+                              label: lockLabel
+                                          ?.toLowerCase()
+                                          .contains('member') ==
+                                      true
+                                  ? 'Member'
+                                  : 'Terkunci',
+                              backgroundColor: const Color(0xFFFEE2E2),
+                              textColor: const Color(0xFF991B1B),
                             ),
                           _InfoBadge(
                             label:

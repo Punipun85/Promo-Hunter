@@ -28,6 +28,7 @@ class ProfileScreen extends StatelessWidget {
     final promoProvider = context.watch<PromoProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
     final recentlyViewed = promoProvider.recentlyViewedPromos.take(3).toList();
+    final recommended = promoProvider.recommendedPromos.take(3).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profil')),
@@ -54,10 +55,11 @@ class ProfileScreen extends StatelessWidget {
                       backgroundColor: Colors.white.withValues(alpha: 0.2),
                       child: Text(
                         user.name.substring(0, 1).toUpperCase(),
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -67,7 +69,10 @@ class ProfileScreen extends StatelessWidget {
                         children: [
                           Text(
                             user.name,
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -75,7 +80,10 @@ class ProfileScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             user.email,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(
                                   color: Colors.white.withValues(alpha: 0.86),
                                 ),
                           ),
@@ -97,11 +105,13 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     _HeaderBadge(
                       icon: Icons.local_offer_outlined,
-                      label: '${promoProvider.filteredPromos.length} promo aktif',
+                      label:
+                          '${promoProvider.filteredPromos.length} promo aktif',
                     ),
                     _HeaderBadge(
                       icon: Icons.visibility_outlined,
-                      label: '${promoProvider.recentlyViewedPromos.length} terakhir dilihat',
+                      label:
+                          '${promoProvider.recentlyViewedPromos.length} terakhir dilihat',
                     ),
                   ],
                 ),
@@ -166,7 +176,8 @@ class ProfileScreen extends StatelessWidget {
               _QuickAction(
                 icon: Icons.shopping_cart_outlined,
                 label: 'Belanja',
-                onTap: () => Navigator.pushNamed(context, AppRoutes.shoppingList),
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.shoppingList),
               ),
               _QuickAction(
                 icon: Icons.calculate_outlined,
@@ -217,6 +228,51 @@ class ProfileScreen extends StatelessWidget {
             )
           else
             ...recentlyViewed.map(
+              (promo) => PromoCard(
+                promo: promo.copyWith(
+                  isFavorite: favoriteProvider.isFavorite(promo.id),
+                ),
+                isLocked: experience.isPromoLocked(promo.id),
+                lockLabel: experience.promoLockLabel(promo.id),
+                onTap: () => openPromoWithAccessGuard(context, promo),
+                onFavoriteTap: () => favoriteProvider.toggleFavorite(
+                  user.id,
+                  promo,
+                ),
+              ),
+            ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Rekomendasi Untuk Kamu',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              if (recommended.isNotEmpty)
+                Text(
+                  '${recommended.length} promo',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF64748B),
+                      ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (recommended.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Text(
+                'Buka beberapa promo atau simpan favorit agar rekomendasi makin personal.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            )
+          else
+            ...recommended.map(
               (promo) => PromoCard(
                 promo: promo.copyWith(
                   isFavorite: favoriteProvider.isFavorite(promo.id),
@@ -333,7 +389,8 @@ class _GuestProfileView extends StatelessWidget {
     final promoProvider = context.watch<PromoProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
     final activePromoCount = promoProvider.filteredPromos.length;
-    final storeCount = promoProvider.stores.where((store) => store.id != 0).length;
+    final storeCount =
+        promoProvider.stores.where((store) => store.id != 0).length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profil')),
@@ -408,7 +465,8 @@ class _GuestProfileView extends StatelessWidget {
             children: [
               Expanded(
                 child: FilledButton(
-                  onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.login),
                   child: const Text('Masuk'),
                 ),
               ),
@@ -491,9 +549,10 @@ class _GuestProfileView extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Gratis pakai coin, Premium tanpa menunggu',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
                       ),
                     ),
                   ],
@@ -505,7 +564,8 @@ class _GuestProfileView extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 OutlinedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, AppRoutes.wallet),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.wallet),
                   icon: const Icon(Icons.account_balance_wallet_outlined),
                   label: const Text('Lihat Topup & Premium'),
                 ),

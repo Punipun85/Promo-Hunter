@@ -43,11 +43,20 @@ class PromoImage extends StatelessWidget {
   }
 
   String _safeImageUrl(String value) {
-    final uri = Uri.tryParse(value.trim());
-    if (uri == null || !uri.hasScheme || value.trim().isEmpty) {
+    final trimmed = value.trim();
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null ||
+        !uri.hasScheme ||
+        trimmed.isEmpty ||
+        _isPlaceholderHost(uri.host)) {
       return fallbackImageUrl;
     }
-    return value.trim();
+    return trimmed;
+  }
+
+  bool _isPlaceholderHost(String host) {
+    final normalized = host.toLowerCase();
+    return normalized == 'example.com' || normalized.endsWith('.example.com');
   }
 }
 

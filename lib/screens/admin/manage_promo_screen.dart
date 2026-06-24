@@ -8,6 +8,35 @@ import '../../widgets/empty_state.dart';
 class ManagePromoScreen extends StatelessWidget {
   const ManagePromoScreen({super.key});
 
+  Future<void> _syncPromos(
+    BuildContext context, {
+    required bool fromNotion,
+  }) async {
+    try {
+      final promoProvider = context.read<PromoProvider>();
+      final imported = fromNotion
+          ? await promoProvider.syncPromosFromNotion()
+          : await promoProvider.syncPromosFromN8n();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            imported == 0
+                ? promoProvider.syncMessage ?? 'n8n dicek, belum ada promo baru.'
+                : '$imported promo baru berhasil diimpor.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      final message = context.read<PromoProvider>().syncMessage ??
+          'Gagal sync dari n8n. Cek workflow dan koneksi.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<PromoProvider>();
@@ -19,32 +48,7 @@ class ManagePromoScreen extends StatelessWidget {
             tooltip: 'Sync promo dari n8n',
             onPressed: provider.isSyncingN8n
                 ? null
-                : () async {
-                    try {
-                      final imported =
-                          await context.read<PromoProvider>().syncPromosFromN8n();
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            imported == 0
-                                ? 'n8n dicek, belum ada promo baru.'
-                                : '$imported promo baru berhasil diimpor.',
-                          ),
-                        ),
-                      );
-                    } catch (_) {
-                      if (!context.mounted) return;
-                      final message =
-                          context.read<PromoProvider>().syncMessage ??
-                              'Gagal sync dari n8n. Cek workflow dan koneksi.';
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(message),
-                        ),
-                      );
-                    }
-                  },
+                : () => _syncPromos(context, fromNotion: false),
             icon: provider.isSyncingN8n
                 ? const SizedBox(
                     width: 20,
@@ -79,43 +83,32 @@ class ManagePromoScreen extends StatelessWidget {
                 Expanded(
                   child: Text(
                     provider.isSyncingN8n
-                        ? 'Sedang scraping promo dari n8n. Proses bisa memakan waktu 1-3 menit...'
+                        ? 'Sedang mengambil promo dari n8n. Proses bisa memakan waktu 1-3 menit...'
                         : provider.syncMessage ??
-                            'Ambil promo otomatis dari n8n agar katalog selalu terisi. Format data mengikuti tabel PromoHunter.',
+                            'Ambil promo otomatis dari web scraping atau promo kurasi dari Notion. Gambar akan diupload ke Supabase Storage.',
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton.tonal(
-                  onPressed: provider.isSyncingN8n
-                      ? null
-                      : () async {
-                          try {
-                            final imported = await context
-                                .read<PromoProvider>()
-                                .syncPromosFromN8n();
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  imported == 0
-                                      ? 'n8n dicek, belum ada promo baru.'
-                                      : '$imported promo baru berhasil diimpor.',
-                                ),
-                              ),
-                            );
-                          } catch (_) {
-                            if (!context.mounted) return;
-                            final message =
-                                context.read<PromoProvider>().syncMessage ??
-                                    'Gagal sync dari n8n. Cek workflow dan koneksi.';
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(message),
-                              ),
-                            );
-                          }
-                        },
-                  child: const Text('Sync'),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: provider.isSyncingN8n
+                          ? null
+                          : () => _syncPromos(context, fromNotion: false),
+                      icon: const Icon(Icons.public_rounded),
+                      label: const Text('Web'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: provider.isSyncingN8n
+                          ? null
+                          : () => _syncPromos(context, fromNotion: true),
+                      icon: const Icon(Icons.table_chart_outlined),
+                      label: const Text('Notion'),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -50,6 +50,7 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
       isFavorite: favoriteProvider.isFavorite(activePromo.id),
     );
     final isLocked = experience.isPromoLocked(decoratedPromo.id);
+    final isMemberOnly = experience.isMemberOnlyPromo(decoratedPromo.id);
 
     return Scaffold(
       appBar: AppBar(
@@ -80,8 +81,10 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
           ? _LockedPromoDetail(
               promo: decoratedPromo,
               waitLabel: experience.promoLockLabel(decoratedPromo.id),
+              isMemberOnly: isMemberOnly,
               coinBalance: experience.coinBalance,
-              canUnlockWithCoins: experience.canUnlockWithCoins,
+              canUnlockWithCoins:
+                  experience.canUnlockPromoWithCoins(decoratedPromo.id),
               onUnlockWithCoins: () async {
                 final ok =
                     await experience.unlockPromoWithCoins(decoratedPromo.id);
@@ -354,6 +357,7 @@ class _LockedPromoDetail extends StatelessWidget {
   const _LockedPromoDetail({
     required this.promo,
     required this.waitLabel,
+    required this.isMemberOnly,
     required this.coinBalance,
     required this.canUnlockWithCoins,
     required this.onUnlockWithCoins,
@@ -362,6 +366,7 @@ class _LockedPromoDetail extends StatelessWidget {
 
   final PromoModel promo;
   final String waitLabel;
+  final bool isMemberOnly;
   final int coinBalance;
   final bool canUnlockWithCoins;
   final Future<void> Function() onUnlockWithCoins;
@@ -392,7 +397,7 @@ class _LockedPromoDetail extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Promo Early Access',
+                isMemberOnly ? 'Promo Khusus Member' : 'Promo Early Access',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -404,14 +409,16 @@ class _LockedPromoDetail extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'User gratis perlu $waitLabel untuk melihat harga dan detail promo ini.',
+                isMemberOnly
+                    ? 'Promo ini hanya bisa dibuka oleh member premium. Upgrade akun untuk melihat harga, detail, dan link klaim.'
+                    : 'User gratis perlu $waitLabel untuk melihat harga dan detail promo ini.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 16),
               _LockedInfoRow(
                 icon: Icons.monetization_on_outlined,
-                label: 'Saldo coin',
-                value: '$coinBalance coin',
+                label: isMemberOnly ? 'Akses' : 'Saldo coin',
+                value: isMemberOnly ? 'Premium' : '$coinBalance coin',
               ),
               const SizedBox(height: 10),
               _LockedInfoRow(
@@ -423,7 +430,9 @@ class _LockedPromoDetail extends StatelessWidget {
               FilledButton.icon(
                 onPressed: canUnlockWithCoins ? onUnlockWithCoins : null,
                 icon: const Icon(Icons.lock_open_outlined),
-                label: const Text('Buka dengan 30 Coin'),
+                label: Text(
+                  isMemberOnly ? 'Tidak tersedia untuk coin' : 'Buka dengan 30 Coin',
+                ),
               ),
               const SizedBox(height: 12),
               FilledButton.tonalIcon(

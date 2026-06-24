@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/category_model.dart';
 import '../models/promo_model.dart';
@@ -29,6 +30,7 @@ class PromoProvider extends ChangeNotifier {
   final StoreService _storeService;
   final LocationService _locationService;
   final N8nPromoImportService _n8nPromoImportService = N8nPromoImportService();
+  static const _recentlyViewedPromoIdsKey = 'promo_recently_viewed_ids';
 
   bool isLoading = false;
   bool isSyncingN8n = false;
@@ -53,6 +55,7 @@ class PromoProvider extends ChangeNotifier {
     notifyListeners();
     try {
       promos = await _promoService.getPromos();
+      await _restoreRecentlyViewedPromos();
       categories = await _categoryService.getCategories();
       stores = [
         const StoreModel(
@@ -67,7 +70,8 @@ class PromoProvider extends ChangeNotifier {
       ];
       await refreshUserLocation(makeNearestDefault: true, notify: false);
     } catch (_) {
-      errorMessage = 'Gagal memuat katalog promo. Periksa koneksi lalu coba lagi.';
+      errorMessage =
+          'Gagal memuat katalog promo. Periksa koneksi lalu coba lagi.';
     } finally {
       isLoading = false;
       notifyListeners();
@@ -77,12 +81,27 @@ class PromoProvider extends ChangeNotifier {
   bool get hasUserLocation => userLocation != null;
 
   List<StoreModel> get sortedStores {
-    final visibleStores = stores.where((store) => store.id != 0).toList();
+    final visibleStores = stores
+        .where((store) => store.id != 0)
+        .map(_storeWithActivePromoCount)
+        .where((store) => store.activePromoCount > 0)
+        .toList();
     if (userLocation == null) return visibleStores;
     visibleStores.sort((a, b) {
       return distanceToStore(a).compareTo(distanceToStore(b));
     });
     return visibleStores;
+  }
+
+  List<StoreModel> get allStoresWithPromoCounts {
+    return stores
+        .where((store) => store.id != 0)
+        .map(_storeWithActivePromoCount)
+        .toList();
+  }
+
+  StoreModel _storeWithActivePromoCount(StoreModel store) {
+    return store.copyWith(activePromoCount: promosByStore(store.name).length);
   }
 
   List<PromoModel> get filteredPromos {
@@ -113,7 +132,8 @@ class PromoProvider extends ChangeNotifier {
         filtered.sort((a, b) => a.endDate.compareTo(b.endDate));
         break;
       case 'Terdekat':
-        filtered.sort((a, b) => distanceToPromo(a).compareTo(distanceToPromo(b)));
+        filtered
+            .sort((a, b) => distanceToPromo(a).compareTo(distanceToPromo(b)));
         break;
       case 'Toko A-Z':
         filtered.sort((a, b) => a.storeName.compareTo(b.storeName));
@@ -202,7 +222,8 @@ class PromoProvider extends ChangeNotifier {
     } on LocationServiceException catch (error) {
       locationMessage = error.message;
     } catch (_) {
-      locationMessage = 'Lokasi belum bisa dibaca. Promo ditampilkan dengan urutan biasa.';
+      locationMessage =
+          'Lokasi belum bisa dibaca. Promo ditampilkan dengan urutan biasa.';
     } finally {
       isLoadingLocation = false;
       if (notify) notifyListeners();
@@ -236,6 +257,39 @@ class PromoProvider extends ChangeNotifier {
         .toList();
   }
 
+  List<PromoModel> get recommendedPromos {
+    final recentCategories = recentlyViewedPromos
+        .map((promo) => promo.categoryName)
+        .where((category) => category.trim().isNotEmpty)
+        .toSet();
+    final favoriteCategories = favoritePromos
+        .map((promo) => promo.categoryName)
+        .where((category) => category.trim().isNotEmpty)
+        .toSet();
+    final preferredCategories = {...recentCategories, ...favoriteCategories};
+
+    final candidates = promos
+        .where(
+          (promo) =>
+              !promo.isExpired &&
+              !recentlyViewedPromoIds.contains(promo.id) &&
+              preferredCategories.contains(promo.categoryName),
+        )
+        .toList()
+      ..sort((a, b) {
+        final discountCompare = b.discountPercent.compareTo(a.discountPercent);
+        if (discountCompare != 0) return discountCompare;
+        return a.endDate.compareTo(b.endDate);
+      });
+
+    if (candidates.isNotEmpty) return candidates.take(5).toList();
+
+    return popularPromos
+        .where((promo) => !recentlyViewedPromoIds.contains(promo.id))
+        .take(5)
+        .toList();
+  }
+
   void updateSearch(String keyword) {
     searchKeyword = keyword;
     notifyListeners();
@@ -264,11 +318,16 @@ class PromoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void markAsViewed(PromoModel promo) {
+  Future<void> markAsViewed(PromoModel promo) async {
     recentlyViewedPromoIds = [
       promo.id,
       ...recentlyViewedPromoIds.where((id) => id != promo.id),
     ].take(6).toList();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _recentlyViewedPromoIdsKey,
+      recentlyViewedPromoIds.map((id) => id.toString()).toList(),
+    );
     notifyListeners();
   }
 
@@ -323,18 +382,21 @@ class PromoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<int> syncPromosFromN8n() async {
+  Future<int> syncPromosFromN8n({
+    PromoImportSource source = PromoImportSource.webScrape,
+  }) async {
     isSyncingN8n = true;
     syncMessage = null;
     notifyListeners();
 
     try {
-      final result = await _n8nPromoImportService.importPromos();
+      final result = await _n8nPromoImportService.importPromos(source: source);
       if (result.isDirectSupabaseInsert) {
         await bootstrap();
         syncMessage = result.insertedCount == 0
-            ? 'n8n selesai sync gambar dan promo, belum ada data baru.'
-            : 'n8n berhasil menyimpan ${result.insertedCount} promo beserta gambar ke Supabase.';
+            ? result.message ??
+                'n8n selesai sync ${source.label}, belum ada data baru.'
+            : 'n8n berhasil menyimpan ${result.insertedCount} promo dari ${source.label}.';
         return result.insertedCount;
       }
 
@@ -348,8 +410,9 @@ class PromoProvider extends ChangeNotifier {
 
       await bootstrap();
       syncMessage = insertedCount == 0
-          ? 'n8n berhasil dicek, belum ada promo baru.'
-          : '$insertedCount promo baru berhasil diimpor dari n8n.';
+          ? result.message ??
+              'n8n berhasil mengecek ${source.label}, belum ada promo baru.'
+          : '$insertedCount promo baru berhasil diimpor dari ${source.label}.';
       return insertedCount;
     } on N8nPromoImportException catch (error) {
       syncMessage = error.message;
@@ -359,7 +422,7 @@ class PromoProvider extends ChangeNotifier {
       rethrow;
     } catch (_) {
       syncMessage =
-          'Gagal sinkron promo dari n8n. Pastikan workflow aktif dan coba lagi.';
+          'Gagal sinkron promo dari ${source.label}. Pastikan workflow n8n aktif dan coba lagi.';
       rethrow;
     } finally {
       isSyncingN8n = false;
@@ -367,12 +430,16 @@ class PromoProvider extends ChangeNotifier {
     }
   }
 
+  Future<int> syncPromosFromNotion() {
+    return syncPromosFromN8n(source: PromoImportSource.notion);
+  }
+
   bool _hasSimilarPromo(PromoModel incoming) {
     return promos.any((promo) {
       final sameProduct = promo.productName.trim().toLowerCase() ==
           incoming.productName.trim().toLowerCase();
-      final sameStore =
-          promo.storeName.trim().toLowerCase() == incoming.storeName.trim().toLowerCase();
+      final sameStore = promo.storeName.trim().toLowerCase() ==
+          incoming.storeName.trim().toLowerCase();
       final sameEndDate = promo.endDate.year == incoming.endDate.year &&
           promo.endDate.month == incoming.endDate.month &&
           promo.endDate.day == incoming.endDate.day;
@@ -392,8 +459,19 @@ class PromoProvider extends ChangeNotifier {
   Future<void> deletePromo(int promoId) async {
     await _promoService.deletePromo(promoId);
     promos = promos.where((item) => item.id != promoId).toList();
+    recentlyViewedPromoIds =
+        recentlyViewedPromoIds.where((id) => id != promoId).toList();
     reminders = reminders.where((item) => item.promoId != promoId).toList();
     notifyListeners();
+  }
+
+  Future<void> _restoreRecentlyViewedPromos() async {
+    final prefs = await SharedPreferences.getInstance();
+    recentlyViewedPromoIds =
+        (prefs.getStringList(_recentlyViewedPromoIdsKey) ?? const <String>[])
+            .map((value) => int.tryParse(value))
+            .whereType<int>()
+            .toList();
   }
 
   List<PromoModel> promosByStore(String storeName) {
@@ -456,8 +534,9 @@ class PromoProvider extends ChangeNotifier {
 
   Future<void> updateCategory(CategoryModel category) async {
     await _categoryService.updateCategory(category);
-    categories =
-        categories.map((item) => item.id == category.id ? category : item).toList();
+    categories = categories
+        .map((item) => item.id == category.id ? category : item)
+        .toList();
     notifyListeners();
   }
 

@@ -102,7 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
       barrierDismissible: true,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
           title: Row(
             children: [
@@ -176,7 +177,8 @@ class _HomeScreenState extends State<HomeScreen> {
       barrierDismissible: true,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
           title: Row(
             children: [
@@ -237,7 +239,8 @@ class _HomeScreenState extends State<HomeScreen> {
         final activeDay = experience.nextDailyDay;
         final claimedToday = experience.hasClaimedToday;
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
           title: Row(
             children: [
@@ -331,16 +334,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<bool?> _showLockedPromoDialog(PromoModel promo) {
     final pageContext = context;
     final experience = context.read<DashboardExperienceProvider>();
+    final isMemberOnly = experience.isMemberOnlyPromo(promo.id);
     return showDialog<bool>(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
           title: Row(
             children: [
-              const Expanded(child: Text('Promo Early Access')),
+              Expanded(
+                child: Text(
+                  isMemberOnly ? 'Promo Khusus Member' : 'Promo Early Access',
+                ),
+              ),
               IconButton(
                 tooltip: 'Tutup',
                 onPressed: () => Navigator.pop(dialogContext, false),
@@ -360,13 +369,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'User gratis bisa membuka promo ini setelah ${experience.promoLockLabel(promo.id).toLowerCase()}.',
+                isMemberOnly
+                    ? 'Promo ini hanya bisa dibuka oleh member premium. Upgrade untuk melihat harga dan detail.'
+                    : 'User gratis bisa membuka promo ini setelah ${experience.promoLockLabel(promo.id).toLowerCase()}.',
               ),
               const SizedBox(height: 14),
               _BenefitRow(
                 icon: Icons.monetization_on_outlined,
-                text:
-                    'Saldo coin: ${experience.coinBalance}. Butuh ${DashboardExperienceProvider.unlockCost} coin.',
+                text: isMemberOnly
+                    ? 'Promo member tidak bisa dibuka dengan coin.'
+                    : 'Saldo coin: ${experience.coinBalance}. Butuh ${DashboardExperienceProvider.unlockCost} coin.',
               ),
               const SizedBox(height: 8),
               const _BenefitRow(
@@ -381,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Expanded(
                   child: FilledButton.tonal(
-                    onPressed: experience.canUnlockWithCoins
+                    onPressed: experience.canUnlockPromoWithCoins(promo.id)
                         ? () async {
                             final ok =
                                 await experience.unlockPromoWithCoins(promo.id);
@@ -389,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.pop(dialogContext, ok);
                           }
                         : null,
-                    child: const Text('Pakai Coin'),
+                    child: Text(isMemberOnly ? 'Khusus Member' : 'Pakai Coin'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -734,6 +746,37 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                           ),
                         ),
+                    if (promoProvider.recommendedPromos.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _SectionHeader(
+                        title: 'Rekomendasi Untuk Kamu',
+                        actionLabel: 'Jelajahi',
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.promoList),
+                      ),
+                      const SizedBox(height: 12),
+                      ...promoProvider.recommendedPromos.take(3).map(
+                            (promo) => PromoCard(
+                              promo: promo.copyWith(
+                                isFavorite:
+                                    favoriteProvider.isFavorite(promo.id),
+                              ),
+                              isLocked: experience.isPromoLocked(promo.id),
+                              lockLabel: experience.promoLockLabel(promo.id),
+                              onTap: () => _openPromo(promo),
+                              onFavoriteTap: () {
+                                if (!auth.isLoggedIn) {
+                                  Navigator.pushNamed(context, AppRoutes.login);
+                                  return;
+                                }
+                                favoriteProvider.toggleFavorite(
+                                  auth.currentUser!.id,
+                                  promo,
+                                );
+                              },
+                            ),
+                          ),
+                    ],
                     if (promoProvider.recentlyViewedPromos.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       _SectionHeader(

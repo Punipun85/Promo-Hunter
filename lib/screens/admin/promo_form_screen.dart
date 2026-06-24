@@ -424,7 +424,8 @@ class _ImageSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasNetworkImage = imageUrl.isNotEmpty;
+    final safeNetworkImageUrl = _safeNetworkImageUrl(imageUrl);
+    final hasNetworkImage = safeNetworkImageUrl != null;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -450,7 +451,7 @@ class _ImageSection extends StatelessWidget {
                   ? Image.memory(imageBytes!, fit: BoxFit.cover)
                   : hasNetworkImage
                       ? Image.network(
-                          imageUrl,
+                          safeNetworkImageUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const _ImagePlaceholder(),
                         )
@@ -478,6 +479,23 @@ class _ImageSection extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String? _safeNetworkImageUrl(String value) {
+    final trimmed = value.trim();
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null ||
+        !uri.hasScheme ||
+        trimmed.isEmpty ||
+        _isPlaceholderHost(uri.host)) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  bool _isPlaceholderHost(String host) {
+    final normalized = host.toLowerCase();
+    return normalized == 'example.com' || normalized.endsWith('.example.com');
   }
 }
 

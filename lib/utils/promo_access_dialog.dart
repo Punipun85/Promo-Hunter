@@ -14,6 +14,7 @@ Future<void> openPromoWithAccessGuard(
   if (!context.mounted) return;
 
   if (experience.isPromoLocked(promo.id)) {
+    final isMemberOnly = experience.isMemberOnlyPromo(promo.id);
     final unlocked = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -43,13 +44,16 @@ Future<void> openPromoWithAccessGuard(
               ),
               const SizedBox(height: 8),
               Text(
-                'User gratis perlu ${experience.promoLockLabel(promo.id).toLowerCase()} untuk membuka info promo ini.',
+                isMemberOnly
+                    ? 'Promo ini khusus member premium. Upgrade akun untuk membuka harga, detail, dan link klaim.'
+                    : 'User gratis perlu ${experience.promoLockLabel(promo.id).toLowerCase()} untuk membuka info promo ini.',
               ),
               const SizedBox(height: 14),
               _AccessLine(
                 icon: Icons.monetization_on_outlined,
-                text:
-                    'Saldo coin: ${experience.coinBalance}. Unlock butuh ${DashboardExperienceProvider.unlockCost} coin.',
+                text: isMemberOnly
+                    ? 'Promo member tidak bisa dibuka dengan coin.'
+                    : 'Saldo coin: ${experience.coinBalance}. Unlock butuh ${DashboardExperienceProvider.unlockCost} coin.',
               ),
               const SizedBox(height: 8),
               const _AccessLine(
@@ -64,7 +68,7 @@ Future<void> openPromoWithAccessGuard(
               children: [
                 Expanded(
                   child: FilledButton.tonal(
-                    onPressed: experience.canUnlockWithCoins
+                    onPressed: experience.canUnlockPromoWithCoins(promo.id)
                         ? () async {
                             final ok =
                                 await experience.unlockPromoWithCoins(promo.id);
@@ -72,7 +76,7 @@ Future<void> openPromoWithAccessGuard(
                             Navigator.pop(dialogContext, ok);
                           }
                         : null,
-                    child: const Text('Pakai Coin'),
+                    child: Text(isMemberOnly ? 'Khusus Member' : 'Pakai Coin'),
                   ),
                 ),
                 const SizedBox(width: 10),
