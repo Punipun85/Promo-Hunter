@@ -1,0 +1,65 @@
+{
+  "created": "1782293822264",
+  "updated": "1782293822264",
+  "name": "promohunter-midtrans-invoice",
+  "description": "Generated from n8n Midtrans branch for PromoHunter",
+  "tags": [
+    "promohunter",
+    "midtrans",
+    "generated-from-n8n"
+  ],
+  "pieces": [
+    "@activepieces/piece-webhook"
+  ],
+  "template": {
+    "displayName": "promohunter-midtrans-invoice",
+    "trigger": {
+      "name": "trigger",
+      "valid": true,
+      "displayName": "Catch Webhook",
+      "type": "PIECE_TRIGGER",
+      "settings": {
+        "pieceName": "@activepieces/piece-webhook",
+        "pieceVersion": "0.1.32",
+        "pieceType": "OFFICIAL",
+        "packageType": "REGISTRY",
+        "triggerName": "catch_webhook",
+        "input": {
+          "authType": "none"
+        },
+        "inputUiInfo": {
+          "customizedInputs": {}
+        }
+      },
+      "nextAction": {
+        "name": "step_1",
+        "type": "CODE",
+        "valid": true,
+        "settings": {
+          "input": {
+            "body": "{{trigger['body']}}"
+          },
+          "sourceCode": {
+            "code": "import axios from 'axios';\n\nexport const code = async (inputs) => {\n  const body = inputs.body ?? {};\n  const amount = Number(body.gross_amount ?? body.amount);\n  if (!body.order_id && !body.transaction_id) {\n    throw new Error('order_id atau transaction_id wajib diisi');\n  }\n  if (!body.item_name) {\n    throw new Error('item_name wajib diisi');\n  }\n  if (!Number.isFinite(amount) || amount <= 0) {\n    throw new Error('gross_amount harus angka lebih dari 0');\n  }\n\n  const MIDTRANS_SERVER_KEY_SANDBOX = '<MIDTRANS_SERVER_KEY_SANDBOX>';\n  const MIDTRANS_SERVER_KEY_PRODUCTION = '<MIDTRANS_SERVER_KEY_PRODUCTION_OPTIONAL>';\n  const SIMULATOR_URL = 'https://simulator.sandbox.midtrans.com/v2/qris/index';\n\n  const customer = body.customer ?? {};\n  const orderId = String(body.order_id ?? body.transaction_id);\n  const itemName = String(body.item_name);\n  const transactionType = String(body.transaction_type ?? 'promohunter_payment');\n  const customerName = customer.name || body.customer_name || 'User PromoHunter';\n  const customerEmail = customer.email || body.customer_email || 'customer@promohunter.local';\n  const environment = String(body.environment ?? 'sandbox').toLowerCase();\n  const preferredPaymentMethod = String(body.preferred_payment_method ?? '').toLowerCase();\n  const requestedEnabledPayments = Array.isArray(body.enabled_payments)\n    ? body.enabled_payments.map((item) => String(item).trim()).filter(Boolean)\n    : [];\n  const enabledPayments = requestedEnabledPayments.length > 0\n    ? requestedEnabledPayments\n    : preferredPaymentMethod === 'qris'\n      ? ['gopay']\n      : ['gopay', 'shopeepay', 'bca_va', 'bni_va', 'bri_va', 'permata_va'];\n  const callbacks = body.callbacks && typeof body.callbacks === 'object' ? body.callbacks : null;\n  const paymentType = String(body.payment_type ?? '').toLowerCase();\n  const qrisConfig = body.qris && typeof body.qris === 'object' ? body.qris : { acquirer: 'gopay' };\n  const useDirectQrisSimulator =\n    environment === 'sandbox' &&\n    preferredPaymentMethod === 'qris' &&\n    paymentType === 'qris';\n\n  const serverKey = environment === 'production'\n    ? MIDTRANS_SERVER_KEY_PRODUCTION\n    : MIDTRANS_SERVER_KEY_SANDBOX;\n\n  if (!serverKey || serverKey.startsWith('<')) {\n    throw new Error('Isi MIDTRANS_SERVER_KEY di code step Activepieces sebelum publish flow.');\n  }\n\n  let midtransEndpoint;\n  let midtransPayload;\n  let midtransMode;\n\n  if (useDirectQrisSimulator) {\n    midtransEndpoint = environment === 'production'\n      ? 'https://api.midtrans.com/v2/charge'\n      : 'https://api.sandbox.midtrans.com/v2/charge';\n    midtransMode = 'direct_qris';\n    midtransPayload = {\n      payment_type: 'qris',\n      transaction_details: {\n        order_id: orderId,\n        gross_amount: amount,\n      },\n      customer_details: {\n        first_name: customerName,\n        email: customerEmail,\n      },\n      item_details: [{\n        id: transactionType,\n        price: amount,\n        quantity: 1,\n        name: itemName,\n      }],\n      qris: qrisConfig,\n    };\n  } else {\n    const hasCreditCard = enabledPayments.includes('credit_card');\n    const hasGopay = enabledPayments.includes('gopay');\n    midtransEndpoint = environment === 'production'\n      ? 'https://app.midtrans.com/snap/v1/transactions'\n      : 'https://app.sandbox.midtrans.com/snap/v1/transactions';\n    midtransMode = 'snap';\n    midtransPayload = {\n      transaction_details: {\n        order_id: orderId,\n        gross_amount: amount,\n      },\n      enabled_payments: enabledPayments,\n      customer_details: {\n        first_name: customerName,\n        email: customerEmail,\n      },\n      item_details: [{\n        id: transactionType,\n        price: amount,\n        quantity: 1,\n        name: itemName,\n      }],\n    };\n\n    if (callbacks) {\n      midtransPayload.callbacks = callbacks;\n    }\n\n    if (hasCreditCard) {\n      midtransPayload.credit_card = { secure: true };\n    }\n\n    if (hasGopay) {\n      midtransPayload.gopay = { enable_callback: false };\n    }\n  }\n\n  const response = await axios.post(midtransEndpoint, midtransPayload, {\n    timeout: 45000,\n    headers: {\n      Accept: 'application/json',\n      'Content-Type': 'application/json',\n      Authorization: 'Basic ' + Buffer.from(`${serverKey}:`).toString('base64'),\n    },\n  });\n\n  const source = response.data ?? {};\n  const actions = Array.isArray(source.actions) ? source.actions : [];\n  const qrAction =\n    actions.find((action) => String(action?.name || '').toLowerCase().includes('generate-qr-code-v2')) ||\n    actions.find((action) => String(action?.name || '').toLowerCase().includes('generate-qr-code'));\n  const qrCodeUrl = qrAction?.url || source.qr_code_url || null;\n  const isDirectQris = midtransMode === 'direct_qris';\n\n  return {\n    success: true,\n    invoice_id: orderId,\n    order_id: orderId,\n    snap_token: source.token || null,\n    invoice_url: isDirectQris ? SIMULATOR_URL : (source.redirect_url || null),\n    token: source.token || null,\n    redirect_url: source.redirect_url || null,\n    qr_code_url: qrCodeUrl,\n    simulator_url: isDirectQris ? SIMULATOR_URL : null,\n    payment_mode: midtransMode,\n    message: isDirectQris ? 'Midtrans sandbox QRIS simulator created' : 'Midtrans sandbox invoice created',\n    raw_midtrans_response: source,\n  };\n};",
+            "packageJson": "{\n  \"dependencies\": {\n    \"axios\": \"^1.7.9\"\n  }\n}"
+          },
+          "inputUiInfo": {
+            "customizedInputs": {}
+          },
+          "errorHandlingOptions": {
+            "retryOnFailure": {
+              "value": false
+            },
+            "continueOnFailure": {
+              "value": false
+            }
+          }
+        },
+        "displayName": "Create Midtrans Invoice"
+      }
+    },
+    "valid": true,
+    "schemaVersion": "1"
+  },
+  "blogUrl": ""
+}

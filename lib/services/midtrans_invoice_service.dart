@@ -98,8 +98,23 @@ class MidtransInvoiceService {
 
       final resolvedInvoiceUrl = invoiceUrl ?? simulatorUrl;
       if (resolvedInvoiceUrl == null || resolvedInvoiceUrl.isEmpty) {
+        final proxyMessage = _findString(data, const [
+          'message',
+          'error',
+          'status_message',
+        ]);
+        if (proxyMessage != null && proxyMessage.isNotEmpty) {
+          if (proxyMessage.toLowerCase() == 'error in workflow') {
+            throw const MidtransInvoiceException(
+              'Workflow proxy Midtrans sedang gagal sebelum invoice dibuat. Cek status automation backend seperti Activepieces atau n8n.',
+            );
+          }
+          throw MidtransInvoiceException(
+            'Proxy Midtrans gagal membuat invoice: $proxyMessage',
+          );
+        }
         throw const MidtransInvoiceException(
-          'Proxy Midtrans merespons, tetapi tidak mengirim invoice_url/payment_url maupun simulator_url.',
+          'Proxy Midtrans merespons, tetapi tidak mengirim URL pembayaran. Cek workflow n8n karena invoice kemungkinan gagal dibuat.',
         );
       }
 
@@ -123,6 +138,9 @@ class MidtransInvoiceService {
       'status_message',
     ]);
     if (serverMessage != null && serverMessage.isNotEmpty) {
+      if (serverMessage.toLowerCase() == 'error in workflow') {
+        return 'Workflow proxy Midtrans sedang gagal sebelum invoice dibuat. Cek status automation backend seperti Activepieces atau n8n.';
+      }
       return 'Gagal membuat invoice Midtrans: $serverMessage';
     }
     if (statusCode != null) {

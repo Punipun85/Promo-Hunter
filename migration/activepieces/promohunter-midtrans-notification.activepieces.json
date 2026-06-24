@@ -1,0 +1,91 @@
+{
+  "created": "1782293822265",
+  "updated": "1782293822265",
+  "name": "promohunter-midtrans-notification",
+  "description": "Generated from n8n Midtrans branch for PromoHunter",
+  "tags": [
+    "promohunter",
+    "midtrans",
+    "generated-from-n8n"
+  ],
+  "pieces": [
+    "@activepieces/piece-webhook"
+  ],
+  "template": {
+    "displayName": "promohunter-midtrans-notification",
+    "trigger": {
+      "name": "trigger",
+      "valid": true,
+      "displayName": "Catch Webhook",
+      "type": "PIECE_TRIGGER",
+      "settings": {
+        "pieceName": "@activepieces/piece-webhook",
+        "pieceVersion": "0.1.32",
+        "pieceType": "OFFICIAL",
+        "packageType": "REGISTRY",
+        "triggerName": "catch_webhook",
+        "input": {
+          "authType": "none"
+        },
+        "inputUiInfo": {
+          "customizedInputs": {}
+        }
+      },
+      "nextAction": {
+        "name": "step_1",
+        "type": "CODE",
+        "valid": true,
+        "settings": {
+          "input": {
+            "body": "{{trigger['body']}}"
+          },
+          "sourceCode": {
+            "code": "import crypto from 'node:crypto';\n\nexport const code = async (inputs) => {\n  const body = inputs.body ?? {};\n  const orderId = String(body.order_id ?? '').trim();\n  if (!orderId) {\n    throw new Error('order_id not found in Midtrans notification');\n  }\n\n  const statusCode = String(body.status_code ?? '');\n  const grossAmount = String(body.gross_amount ?? '');\n  const MIDTRANS_SERVER_KEY_SANDBOX = '<MIDTRANS_SERVER_KEY_SANDBOX>';\n  const MIDTRANS_SERVER_KEY_PRODUCTION = '<MIDTRANS_SERVER_KEY_PRODUCTION_OPTIONAL>';\n  const environment = String(body.environment ?? 'sandbox').toLowerCase();\n  const serverKey = environment === 'production'\n    ? MIDTRANS_SERVER_KEY_PRODUCTION\n    : MIDTRANS_SERVER_KEY_SANDBOX;\n\n  let signatureVerified = null;\n  if (serverKey && !serverKey.startsWith('<') && body.signature_key) {\n    const digest = crypto\n      .createHash('sha512')\n      .update(orderId + statusCode + grossAmount + serverKey)\n      .digest('hex');\n    signatureVerified = digest === String(body.signature_key);\n  }\n\n  const transactionStatus = String(body.transaction_status ?? '').toLowerCase();\n  const fraudStatus = String(body.fraud_status ?? '').toLowerCase();\n  const paid =\n    ['settlement', 'capture'].includes(transactionStatus) &&\n    (!fraudStatus || fraudStatus === 'accept');\n  const failed = ['deny', 'cancel', 'expire', 'failure'].includes(transactionStatus);\n\n  return {\n    order_id: orderId,\n    transaction_id: body.transaction_id ?? null,\n    transaction_status: transactionStatus || null,\n    fraud_status: fraudStatus || null,\n    payment_type: body.payment_type ?? null,\n    gross_amount: Number(body.gross_amount ?? 0),\n    status_code: statusCode || null,\n    status_message: body.status_message ?? null,\n    signature_verified: signatureVerified,\n    paid,\n    failed,\n    raw_notification: body,\n    updated_at: new Date().toISOString(),\n  };\n};",
+            "packageJson": "{}"
+          },
+          "inputUiInfo": {
+            "customizedInputs": {}
+          },
+          "errorHandlingOptions": {
+            "retryOnFailure": {
+              "value": false
+            },
+            "continueOnFailure": {
+              "value": false
+            }
+          }
+        },
+        "displayName": "Normalize Midtrans Notification",
+        "nextAction": {
+          "name": "step_2",
+          "type": "CODE",
+          "valid": true,
+          "settings": {
+            "input": {
+              "normalized": "{{step_1}}"
+            },
+            "sourceCode": {
+              "code": "import axios from 'axios';\n\nexport const code = async (inputs) => {\n  const payload = inputs.normalized;\n  const SUPABASE_URL = '<SUPABASE_URL>';\n  const SUPABASE_SERVICE_ROLE_KEY = '<SUPABASE_SERVICE_ROLE_KEY>';\n\n  if (!SUPABASE_URL || SUPABASE_URL.startsWith('<')) {\n    throw new Error('Isi SUPABASE_URL di code step Activepieces sebelum publish flow.');\n  }\n  if (!SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SERVICE_ROLE_KEY.startsWith('<')) {\n    throw new Error('Isi SUPABASE_SERVICE_ROLE_KEY di code step Activepieces sebelum publish flow.');\n  }\n\n  const url =\n    SUPABASE_URL.replace(/\\/$/, '') +\n    '/rest/v1/midtrans_payment_statuses?on_conflict=order_id';\n\n  await axios.post(url, payload, {\n    timeout: 20000,\n    headers: {\n      apikey: SUPABASE_SERVICE_ROLE_KEY,\n      Authorization: 'Bearer ' + SUPABASE_SERVICE_ROLE_KEY,\n      'Content-Type': 'application/json',\n      Prefer: 'resolution=merge-duplicates,return=representation',\n    },\n  });\n\n  return {\n    success: true,\n    order_id: payload.order_id,\n    paid: payload.paid,\n    signature_verified: payload.signature_verified,\n  };\n};",
+              "packageJson": "{\n  \"dependencies\": {\n    \"axios\": \"^1.7.9\"\n  }\n}"
+            },
+            "inputUiInfo": {
+              "customizedInputs": {}
+            },
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": false
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "displayName": "Upsert Midtrans Payment Status"
+        }
+      }
+    },
+    "valid": true,
+    "schemaVersion": "1"
+  },
+  "blogUrl": ""
+}

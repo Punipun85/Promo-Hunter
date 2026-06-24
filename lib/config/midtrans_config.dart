@@ -2,7 +2,7 @@ class MidtransConfig {
   const MidtransConfig._();
 
   static const defaultSandboxInvoiceProxyUrl =
-      'https://punpunroro.app.n8n.cloud/webhook/promohunter-midtrans-invoice';
+      'https://cloud.activepieces.com/api/v1/webhooks/ePoMYrgGmamOoidUOxRDe/sync';
 
   static const _invoiceProxyUrlOverride = String.fromEnvironment(
     'MIDTRANS_INVOICE_PROXY_URL',

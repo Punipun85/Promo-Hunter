@@ -3,10 +3,10 @@
 PromoHunter memakai pola aman:
 
 ```text
-Flutter App -> n8n/Supabase Edge Function proxy -> Midtrans Sandbox
+Flutter App -> Activepieces/n8n/Supabase Edge Function proxy -> Midtrans Sandbox
 ```
 
-Jangan simpan `server key` Midtrans di Flutter. `server key` hanya boleh berada di backend/proxy seperti n8n atau Supabase Edge Function.
+Jangan simpan `server key` Midtrans di Flutter. `server key` hanya boleh berada di backend/proxy seperti Activepieces, n8n, atau Supabase Edge Function.
 
 Catatan: Midtrans Snap mengharuskan request pembuatan token/redirect payment dilakukan dari backend merchant dengan `Server Key`. Response sukses Snap biasanya berisi `token` dan `redirect_url`, jadi proxy boleh mengembalikan `redirect_url` itu sebagai `invoice_url` ke Flutter.
 
@@ -34,7 +34,17 @@ flutter run `
 
 Jika URL proxy belum diisi, tombol Midtrans Sandbox tetap muncul tetapi nonaktif. User masih bisa memakai simulasi pembayaran manual.
 
-## 2. Variable n8n
+## 2. Variable Backend Automation
+
+Jika memakai Activepieces, ikuti kontrak migrasi di:
+
+```text
+docs/activepieces_midtrans_migration.md
+```
+
+Jika masih memakai n8n sementara, gunakan detail berikut.
+
+## 3. Variable n8n
 
 Buat credential di n8n untuk workflow utama berikut:
 
@@ -75,9 +85,17 @@ Lalu di Midtrans Sandbox Dashboard, set Payment Notification URL ke:
 https://punpunroro.app.n8n.cloud/webhook/promohunter-midtrans-notification
 ```
 
-Workflow n8n akan menerima notification Midtrans, menulis status ke tabel
-`midtrans_payment_statuses`, lalu Flutter akan membaca status itu dan otomatis
-approve transaksi ketika status Midtrans adalah `settlement` atau `capture`.
+Jika notification URL diarahkan ke Activepieces atau n8n dan terjadi masalah
+TLS/callback, gunakan Supabase Edge Function sebagai fallback yang lebih stabil.
+Panduan lengkapnya ada di:
+
+```text
+docs/supabase_midtrans_notification_setup.md
+```
+
+Notification handler akan menulis status ke tabel `midtrans_payment_statuses`,
+lalu Flutter membaca status itu dan otomatis approve transaksi ketika status
+Midtrans adalah `settlement` atau `capture`.
 
 Opsional untuk validasi signature notification di n8n, tambahkan variable:
 
@@ -85,7 +103,7 @@ Opsional untuk validasi signature notification di n8n, tambahkan variable:
 Midtrans_Server_Key=<Midtrans Sandbox Server Key>
 ```
 
-## 3. Kontrak Request dari Flutter ke Proxy
+## 4. Kontrak Request dari Flutter ke Proxy
 
 Flutter akan mengirim JSON seperti ini:
 
@@ -125,7 +143,7 @@ Untuk Snap Redirect, teruskan `enabled_payments` itu ke request
 sesuai pilihan user. Untuk Core API QRIS langsung, gunakan `payment_type:
 "qris"` dan `qris.acquirer: "gopay"`.
 
-## 4. Kontrak Response dari Proxy ke Flutter
+## 5. Kontrak Response dari Proxy ke Flutter
 
 Proxy harus mengembalikan salah satu bentuk field URL berikut:
 
@@ -148,7 +166,7 @@ Untuk ID/reference:
 invoice_id, payment_id, id, order_id, transaction_id, token
 ```
 
-## 5. Flow MVP
+## 6. Flow MVP
 
 1. User pilih topup coin atau langganan premium.
 2. User pilih salah satu metode lalu klik `Buat Invoice Sandbox`.
@@ -165,7 +183,7 @@ invoice_id, payment_id, id, order_id, transaction_id, token
    otomatis mengubah transaksi menjadi `Berhasil`, benefit user langsung aktif,
    dan halaman admin melihat pembayaran sudah selesai.
 
-## 6. Tutorial QRIS Sandbox
+## 7. Tutorial QRIS Sandbox
 
 Untuk QRIS di sandbox, jangan berharap harus membayar dengan saldo asli. Yang
 terjadi adalah Midtrans mensimulasikan pembayaran lewat web.
@@ -180,7 +198,7 @@ Langkah yang disarankan:
    [QRIS Sandbox Simulator](https://simulator.sandbox.midtrans.com/v2/qris/index)
 6. Tempel URL gambar QRIS ke simulator, lalu klik `Scan QR`.
 7. Selesaikan flow simulator sampai status sukses.
-8. Midtrans akan mengirim notification ke n8n, lalu app otomatis mengaktifkan
+8. Midtrans akan mengirim notification ke backend automation, lalu app otomatis mengaktifkan
    coin atau premium.
 
 Referensi resmi Midtrans:
@@ -189,7 +207,7 @@ Referensi resmi Midtrans:
 - [Testing BI-SNAP QRIS Sandbox](https://docs.midtrans.com/reference/testing-bi-snap-on-sandbox-environment)
 - [GoPay & QRIS](https://docs.midtrans.com/reference/gopay)
 
-## 7. Upgrade Setelah MVP
+## 8. Upgrade Setelah MVP
 
 Untuk versi production, ganti local polling menjadi Supabase Realtime atau FCM
 agar admin di device lain menerima push notification real-time ketika pembayaran
