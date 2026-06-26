@@ -1,4 +1,4 @@
-package com.example.promohunter
+package com.punpun.promohunter
 
 import io.flutter.embedding.android.FlutterActivity
 

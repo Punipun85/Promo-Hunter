@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
@@ -107,6 +108,12 @@ class StoreDetailScreen extends StatelessWidget {
                       icon: Icons.schedule_rounded,
                       label: store.openingHours,
                     ),
+                    if (store.latitude != null && store.longitude != null)
+                      _InfoPill(
+                        icon: Icons.pin_drop_outlined,
+                        label:
+                            'Lat ${store.latitude!.toStringAsFixed(5)}, Lng ${store.longitude!.toStringAsFixed(5)}',
+                      ),
                     _InfoPill(
                       icon: Icons.local_offer_outlined,
                       label: '${promos.length} promo aktif',
@@ -161,11 +168,15 @@ class StoreDetailScreen extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: () => _openMaps(context),
                         icon: const Icon(Icons.map_outlined),
-                        label: const Text('Buka Rute'),
+                        label: const Text('Buka Google Maps'),
                       ),
                     ),
                   ],
                 ),
+                if (store.latitude != null && store.longitude != null) ...[
+                  const SizedBox(height: 18),
+                  _StoreMapPreview(store: store),
+                ],
               ],
             ),
           ),
@@ -214,6 +225,74 @@ class StoreDetailScreen extends StatelessWidget {
 
   Future<void> _openMaps(BuildContext context) async {
     await MapsLauncher.openStore(context, store);
+  }
+}
+
+class _StoreMapPreview extends StatelessWidget {
+  const _StoreMapPreview({required this.store});
+
+  final StoreModel store;
+
+  @override
+  Widget build(BuildContext context) {
+    final position = LatLng(store.latitude!, store.longitude!);
+    final marker = Marker(
+      markerId: MarkerId('store-${store.id}'),
+      position: position,
+      infoWindow: InfoWindow(
+        title: store.name,
+        snippet: store.address,
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Lokasi Toko',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: SizedBox(
+            height: 220,
+            child: Stack(
+              children: [
+                IgnorePointer(
+                  child: GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: position,
+                      zoom: 15,
+                    ),
+                    markers: {marker},
+                    myLocationButtonEnabled: false,
+                    mapToolbarEnabled: false,
+                    zoomControlsEnabled: false,
+                    rotateGesturesEnabled: false,
+                    tiltGesturesEnabled: false,
+                    scrollGesturesEnabled: false,
+                    zoomGesturesEnabled: false,
+                    liteModeEnabled: true,
+                  ),
+                ),
+                Positioned(
+                  right: 14,
+                  bottom: 14,
+                  child: FilledButton.icon(
+                    onPressed: () => MapsLauncher.openStore(context, store),
+                    icon: const Icon(Icons.navigation_outlined),
+                    label: const Text('Buka Google Maps'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

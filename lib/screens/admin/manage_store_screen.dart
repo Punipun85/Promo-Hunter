@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/store_model.dart';
 import '../../providers/promo_provider.dart';
+import '../../utils/maps_launcher.dart';
 import '../../utils/validators.dart';
 import '../../widgets/empty_state.dart';
 
@@ -33,8 +34,15 @@ class ManageStoreScreen extends StatelessWidget {
                 return Card(
                   child: ListTile(
                     title: Text(store.name),
-                    subtitle: Text('${store.address}\n${store.city}'),
+                    subtitle: Text(
+                      '${store.address}\n'
+                      '${store.city}'
+                      '${store.latitude != null && store.longitude != null ? '\nLat ${store.latitude}, Lng ${store.longitude}' : ''}',
+                    ),
                     isThreeLine: true,
+                    onTap: () async {
+                      await MapsLauncher.openStore(context, store);
+                    },
                     trailing: PopupMenuButton<String>(
                       onSelected: (value) async {
                         if (value == 'edit') {
@@ -68,6 +76,12 @@ class ManageStoreScreen extends StatelessWidget {
         TextEditingController(text: initialStore?.googleMapsUrl ?? '');
     final hoursController =
         TextEditingController(text: initialStore?.openingHours ?? '');
+    final latitudeController = TextEditingController(
+      text: initialStore?.latitude?.toString() ?? '',
+    );
+    final longitudeController = TextEditingController(
+      text: initialStore?.longitude?.toString() ?? '',
+    );
     final formKey = GlobalKey<FormState>();
 
     await showModalBottomSheet<void>(
@@ -100,10 +114,32 @@ class ManageStoreScreen extends StatelessWidget {
                 _field(mapsController, 'Google Maps URL'),
                 const SizedBox(height: 12),
                 _field(hoursController, 'Jam buka'),
+                const SizedBox(height: 12),
+                _field(
+                  latitudeController,
+                  'Latitude',
+                  isRequired: false,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    signed: true,
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _field(
+                  longitudeController,
+                  'Longitude',
+                  isRequired: false,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    signed: true,
+                    decimal: true,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
+                    final latitude = _parseCoordinate(latitudeController.text);
+                    final longitude = _parseCoordinate(longitudeController.text);
                     final store = StoreModel(
                       id: initialStore?.id ?? 0,
                       name: nameController.text.trim(),
@@ -111,6 +147,8 @@ class ManageStoreScreen extends StatelessWidget {
                       city: cityController.text.trim(),
                       googleMapsUrl: mapsController.text.trim(),
                       openingHours: hoursController.text.trim(),
+                      latitude: latitude,
+                      longitude: longitude,
                       activePromoCount: initialStore?.activePromoCount ?? 0,
                     );
                     if (initialStore == null) {
@@ -131,12 +169,28 @@ class ManageStoreScreen extends StatelessWidget {
     );
   }
 
-  Widget _field(TextEditingController controller, String label) {
+  double? _parseCoordinate(String raw) {
+    final normalized = raw.trim().replaceAll(',', '.');
+    if (normalized.isEmpty) return null;
+    return double.tryParse(normalized);
+  }
+
+  Widget _field(
+    TextEditingController controller,
+    String label, {
+    bool isRequired = true,
+    TextInputType? keyboardType,
+  }) {
     return TextFormField(
       controller: controller,
+      keyboardType: keyboardType,
       decoration: InputDecoration(labelText: label),
-      validator: (value) => Validators.requiredField(value, label: label),
+      validator: (value) {
+        if (!isRequired && (value == null || value.trim().isEmpty)) {
+          return null;
+        }
+        return Validators.requiredField(value, label: label);
+      },
     );
   }
 }
-
