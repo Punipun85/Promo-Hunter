@@ -1,18 +1,25 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../config/app_routes.dart';
 import '../../models/promo_model.dart';
+import '../../models/store_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/promo_provider.dart';
+import '../../config/app_routes.dart';
+import '../../services/location_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/date_formatter.dart';
 import '../../widgets/category_chip.dart';
-import '../../widgets/error_state.dart';
-import '../../widgets/loading_widget.dart';
 import '../../widgets/promo_card.dart';
 import '../../widgets/store_card.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Home Screen — PromoHunter v2 (Modern Startup UI — Target Design Match)
+// ─────────────────────────────────────────────────────────────────────────────
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,308 +29,177 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isShowingEntryDialogs = false;
+  final LocationService _locationService = LocationService();
+
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  List<StoreModel> _nearbyStores = [];
+  bool _isLoadingStores = false;
+  bool _isShowingEntryDialog = false;
+
+  // Category icon mapping
+  final Map<String, String> _categoryIcons = {
+    'Semua': '🔥',
+    'Travel': '️',
+    'Susu': '',
+    'Snack': '🍪',
+    'Kesehatan': '💊',
+    'Kecantikan': '💄',
+    'Fashion': '👗',
+    'Elektronik': '📱',
+    'Makanan': '🍔',
+    'Minuman': '🥤',
+  };
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _registerVisiblePromos();
+      _loadNearbyStores();
       _showEntryDialogsIfNeeded();
     });
   }
 
-  Future<void> _registerVisiblePromos() async {
-    if (!mounted) return;
-    final promoProvider = context.read<PromoProvider>();
-    final experience = context.read<DashboardExperienceProvider>();
-    if (!experience.isReady || promoProvider.promos.isEmpty) return;
-    await experience
-        .registerPromos(promoProvider.promos.map((promo) => promo.id));
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
-  Future<void> _showEntryDialogsIfNeeded() async {
-    if (!mounted || _isShowingEntryDialogs) return;
+  Future<void> _loadNearbyStores() async {
+    if (!mounted) return;
+    setState(() => _isLoadingStores = true);
+    try {
+      final stores = context
+          .read<PromoProvider>()
+          .stores
+          .where((store) => store.id != 0)
+          .toList();
+      if (!mounted) return;
+      final userLocation = await _locationService.getCurrentLocation();
+      final sorted = List<StoreModel>.from(stores)
+        ..sort((a, b) {
+          final distA = _calculateDistanceKm(
+            userLocation.latitude,
+            userLocation.longitude,
+            a.latitude,
+            a.longitude,
+          );
+          final distB = _calculateDistanceKm(
+            userLocation.latitude,
+            userLocation.longitude,
+            b.latitude,
+            b.longitude,
+          );
+          return distA.compareTo(distB);
+        });
+      setState(() {
+        _nearbyStores = sorted.take(5).toList();
+        _isLoadingStores = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final stores = context
+          .read<PromoProvider>()
+          .stores
+          .where((store) => store.id != 0)
+          .take(5)
+          .toList();
+      setState(() {
+        _nearbyStores = stores;
+        _isLoadingStores = false;
+      });
+    }
+  }
 
-    final promoProvider = context.read<PromoProvider>();
+  double _calculateDistanceKm(
+    double startLatitude,
+    double startLongitude,
+    double? endLatitude,
+    double? endLongitude,
+  ) {
+    if (endLatitude == null || endLongitude == null) return double.infinity;
+    const earthRadiusKm = 6371.0;
+    final dLat = _degreesToRadians(endLatitude - startLatitude);
+    final dLon = _degreesToRadians(endLongitude - startLongitude);
+    final lat1 = _degreesToRadians(startLatitude);
+    final lat2 = _degreesToRadians(endLatitude);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1) *
+            math.cos(lat2) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
+  double _degreesToRadians(double degrees) => degrees * math.pi / 180;
+
+  Future<void> _showEntryDialogsIfNeeded() async {
+    final auth = context.read<AuthProvider>();
     final experience = context.read<DashboardExperienceProvider>();
-    if (promoProvider.isLoading ||
-        promoProvider.errorMessage != null ||
-        promoProvider.popularPromos.isEmpty ||
-        !experience.isReady ||
+    if (!auth.isLoggedIn ||
+        _isShowingEntryDialog ||
         !experience.shouldShowEntryDialogs()) {
       return;
     }
 
-    _isShowingEntryDialogs = true;
-    PromoModel? selectedPromo;
+    _isShowingEntryDialog = true;
+    final claimReward = !experience.hasClaimedToday;
+    final actionLabel = claimReward ? 'Ambil Reward' : 'Lihat Wallet';
 
-    final featuredPromo = promoProvider.popularPromos.first;
-    final wantsToViewPromo = await _showFeaturedPromoDialog(featuredPromo);
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text('Selamat datang kembali'),
+          content: Text(
+            claimReward
+                ? 'Reward harian kamu sudah siap. Ambil sekarang untuk menambah coin.'
+                : 'Coin dan benefit premium kamu bisa dicek dari wallet.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Nanti'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(actionLabel),
+            ),
+          ],
+        );
+      },
+    );
+
     if (!mounted) return;
-    if (wantsToViewPromo == true) {
-      selectedPromo = featuredPromo;
-    }
 
-    if (!experience.isPremium) {
-      final premiumAccepted = await _showPremiumDialog();
-      if (!mounted) return;
-      if (premiumAccepted == true) {
+    if (accepted == true) {
+      if (claimReward) {
+        final result = await experience.claimDailyReward();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Day ${result.day} memberi ${result.coinsEarned} coin.',
+            ),
+          ),
+        );
+      } else {
         Navigator.pushNamed(context, AppRoutes.wallet);
       }
     }
 
-    final claimedDay = await _showDailyRewardDialog();
-    if (!mounted) return;
-    if (claimedDay != null) {
-      final message = claimedDay.day == 7
-          ? 'Day 7 memberi ${claimedDay.coinsEarned} coin. Reward mingguan lengkap.'
-          : 'Day ${claimedDay.day} memberi ${claimedDay.coinsEarned} coin.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    }
-
     await experience.markEntryDialogsShown();
-    _isShowingEntryDialogs = false;
-
-    if (selectedPromo != null && mounted) {
-      Navigator.pushNamed(
-        context,
-        AppRoutes.promoDetail,
-        arguments: selectedPromo,
-      );
-    }
+    _isShowingEntryDialog = false;
   }
 
-  Future<bool?> _showFeaturedPromoDialog(PromoModel promo) {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
-          title: Row(
-            children: [
-              const Expanded(child: Text('Promo Bagus Hari Ini')),
-              IconButton(
-                tooltip: 'Tutup',
-                onPressed: () => Navigator.pop(context, false),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0A8),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  'Diskon ${promo.discountPercent.toStringAsFixed(0)}%',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: const Color(0xFF7C5A00),
-                      ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                promo.productName,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 6),
-              Text('${promo.storeName} • ${promo.categoryName}'),
-              const SizedBox(height: 12),
-              Text(
-                CurrencyFormatter.format(promo.promoPrice),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Hemat ${CurrencyFormatter.format(promo.savingsAmount)} sampai promo berakhir.',
-              ),
-            ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lihat Promo'),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<bool?> _showPremiumDialog() {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
-          title: Row(
-            children: [
-              const Expanded(child: Text('Langganan Member Premium')),
-              IconButton(
-                tooltip: 'Tutup',
-                onPressed: () => Navigator.pop(context, false),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pilih paket premium atau topup coin sesuai kebutuhan berburu promo kamu.',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 14),
-              const _BenefitRow(
-                icon: Icons.bolt_outlined,
-                text: 'Premium Mingguan: Rp9.000 untuk 7 hari',
-              ),
-              const SizedBox(height: 8),
-              const _BenefitRow(
-                icon: Icons.workspace_premium_outlined,
-                text: 'Premium Bulanan: Rp29.000 untuk 30 hari',
-              ),
-              const SizedBox(height: 8),
-              const _BenefitRow(
-                icon: Icons.auto_awesome_outlined,
-                text: 'Premium Semester: Rp99.000 untuk 6 bulan',
-              ),
-            ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lihat Paket'),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<DailyClaimResult?> _showDailyRewardDialog() {
-    final experience = context.read<DashboardExperienceProvider>();
-    return showDialog<DailyClaimResult?>(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        final activeDay = experience.nextDailyDay;
-        final claimedToday = experience.hasClaimedToday;
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
-          title: Row(
-            children: [
-              const Expanded(child: Text('7 Day Daily')),
-              IconButton(
-                tooltip: 'Tutup',
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                claimedToday
-                    ? 'Kamu sudah klaim reward hari ini. Lanjut lagi besok.'
-                    : 'Klaim reward harianmu dan lanjutkan streak sampai 7 hari.',
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: List.generate(7, (index) {
-                  final day = index + 1;
-                  final reached = day <= experience.claimedDaysInCycle;
-                  final highlighted = day == activeDay;
-                  return Container(
-                    width: 44,
-                    height: 44,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: reached
-                          ? const Color(0xFF0F9D58)
-                          : highlighted
-                              ? const Color(0xFFFFF0A8)
-                              : const Color(0xFFEFF4FF),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      '$day',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: reached
-                                ? Colors.white
-                                : highlighted
-                                    ? const Color(0xFF7C5A00)
-                                    : Theme.of(context).colorScheme.secondary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                  );
-                }),
-              ),
-            ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: claimedToday
-                    ? null
-                    : () async {
-                        final result = await experience.claimDailyReward();
-                        if (!context.mounted) return;
-                        Navigator.pop(context, result);
-                      },
-                child: Text(claimedToday ? 'Sudah Diklaim' : 'Claim Hari Ini'),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _openPromo(PromoModel promo) async {
-    final experience = context.read<DashboardExperienceProvider>();
-    if (experience.isPromoLocked(promo.id)) {
-      final unlocked = await _showLockedPromoDialog(promo);
-      if (unlocked != true || !mounted) return;
-    }
+  void _openPromo(PromoModel promo) {
     Navigator.pushNamed(
       context,
       AppRoutes.promoDetail,
@@ -331,724 +207,1473 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<bool?> _showLockedPromoDialog(PromoModel promo) {
-    final pageContext = context;
-    final experience = context.read<DashboardExperienceProvider>();
-    final isMemberOnly = experience.isMemberOnlyPromo(promo.id);
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          titlePadding: const EdgeInsets.fromLTRB(24, 18, 14, 0),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  isMemberOnly ? 'Promo Khusus Member' : 'Promo Early Access',
-                ),
-              ),
-              IconButton(
-                tooltip: 'Tutup',
-                onPressed: () => Navigator.pop(dialogContext, false),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                promo.productName,
-                style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isMemberOnly
-                    ? 'Promo ini hanya bisa dibuka oleh member premium. Upgrade untuk melihat harga dan detail.'
-                    : 'User gratis bisa membuka promo ini setelah ${experience.promoLockLabel(promo.id).toLowerCase()}.',
-              ),
-              const SizedBox(height: 14),
-              _BenefitRow(
-                icon: Icons.monetization_on_outlined,
-                text: isMemberOnly
-                    ? 'Promo member tidak bisa dibuka dengan coin.'
-                    : 'Saldo coin: ${experience.coinBalance}. Butuh ${DashboardExperienceProvider.unlockCost} coin.',
-              ),
-              const SizedBox(height: 8),
-              const _BenefitRow(
-                icon: Icons.workspace_premium_outlined,
-                text: 'Premium membuka semua info promo tanpa menunggu.',
-              ),
-            ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.tonal(
-                    onPressed: experience.canUnlockPromoWithCoins(promo.id)
-                        ? () async {
-                            final ok =
-                                await experience.unlockPromoWithCoins(promo.id);
-                            if (!dialogContext.mounted) return;
-                            Navigator.pop(dialogContext, ok);
-                          }
-                        : null,
-                    child: Text(isMemberOnly ? 'Khusus Member' : 'Pakai Coin'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.pop(dialogContext, false);
-                      Navigator.pushNamed(pageContext, AppRoutes.wallet);
-                    },
-                    child: const Text('Langganan'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TIME-BASED GREETING
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MAIN BUILD
+  // ═══════════════════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final favoriteProvider = context.watch<FavoriteProvider>();
     final promoProvider = context.watch<PromoProvider>();
+    final favoriteProvider = context.watch<FavoriteProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
-    final nearbyStores = promoProvider.sortedStores.take(3).toList();
+    final nearbyStores = _nearbyStores;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              auth.isLoggedIn
-                  ? 'Halo, ${auth.currentUser?.name.split(' ').first ?? 'Teman'}'
-                  : 'Halo, pemburu promo',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Text('PromoHunter', style: Theme.of(context).textTheme.titleLarge),
-          ],
-        ),
-        actions: [
-          IconButton(
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.profile),
-            icon: const Icon(Icons.person_outline_rounded),
+      backgroundColor: const Color(0xFFF8FAFB),
+      body: CustomScrollView(
+        controller: _scrollController,
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // ─ Header / App Bar ──
+          SliverToBoxAdapter(
+            child: _buildHeader(auth),
           ),
-        ],
-      ),
-      body: promoProvider.isLoading
-          ? const LoadingWidget(message: 'Sedang memuat promo pilihan...')
-          : promoProvider.errorMessage != null
-              ? ErrorState(
-                  title: 'Gagal memuat beranda',
-                  message: promoProvider.errorMessage!,
-                  onRetry: () => context.read<PromoProvider>().bootstrap(),
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x10000000),
-                            blurRadius: 24,
-                            offset: Offset(0, 10),
+
+          // ─ Hero Card (Savings Card) ──
+          SliverToBoxAdapter(
+            child: _buildHeroCard(experience, auth, promoProvider),
+          ),
+
+          // ─ Search Bar ──
+          SliverToBoxAdapter(
+            child: _buildSearchBar(promoProvider),
+          ),
+
+          // ── Stats Row ──
+          SliverToBoxAdapter(
+            child: _buildStatsRow(promoProvider, nearbyStores),
+          ),
+
+          // ── Category Section ──
+          SliverToBoxAdapter(
+            child: _buildCategorySection(promoProvider),
+          ),
+
+          // ── Premium Reward Card ──
+          SliverToBoxAdapter(
+            child: _buildPremiumRewardCard(experience, auth),
+          ),
+
+          // ── Paling Banyak Dicari ──
+          if (promoProvider.popularPromos.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+                child: Text(
+                  'Paling Banyak Dicari',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1A1A2E),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildTopSearchCard(
+                  promoProvider.popularPromos.first,
+                  favoriteProvider,
+                  experience,
+                  auth,
+                ),
+              ),
+            ),
+          ],
+
+          // ── Promo Populer (Horizontal) ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Promo Populer',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1A1A2E),
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRoutes.promoList),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Jelajahi',
+                          style: TextStyle(
+                            color: const Color(0xFF0F7B4F),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                           ),
-                        ],
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            size: 18, color: Color(0xFF0F7B4F)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              height: 290,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                clipBehavior: Clip.none,
+                itemCount: promoProvider.popularPromos.length,
+                itemBuilder: (context, index) {
+                  final promo = promoProvider.popularPromos[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      right: index < promoProvider.popularPromos.length - 1
+                          ? 12
+                          : 0,
+                    ),
+                    child: PromoCard(
+                      promo: promo.copyWith(
+                        isFavorite: favoriteProvider.isFavorite(promo.id),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      isLocked: experience.isPromoLocked(promo.id),
+                      lockLabel: experience.promoLockLabel(promo.id),
+                      onTap: () => _openPromo(promo),
+                      onFavoriteTap: () {
+                        if (!auth.isLoggedIn) {
+                          Navigator.pushNamed(context, AppRoutes.login);
+                          return;
+                        }
+                        favoriteProvider.toggleFavorite(
+                            auth.currentUser!.id, promo);
+                      },
+                      variant: PromoCardVariant.grid,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // ── Hampir Berakhir ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Hampir Berakhir ',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1A1A2E),
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRoutes.promoList),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Lihat semua',
+                          style: TextStyle(
+                            color: const Color(0xFF0F7B4F),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            size: 18, color: Color(0xFF0F7B4F)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final promo = promoProvider.endingSoonPromos[index];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: index == 0 ? 0 : 12,
+                  ),
+                  child: PromoCard(
+                    promo: promo.copyWith(
+                      isFavorite: favoriteProvider.isFavorite(promo.id),
+                    ),
+                    isLocked: experience.isPromoLocked(promo.id),
+                    lockLabel: experience.promoLockLabel(promo.id),
+                    onTap: () => _openPromo(promo),
+                    onFavoriteTap: () {
+                      if (!auth.isLoggedIn) {
+                        Navigator.pushNamed(context, AppRoutes.login);
+                        return;
+                      }
+                      favoriteProvider.toggleFavorite(
+                          auth.currentUser!.id, promo);
+                    },
+                    variant: PromoCardVariant.list,
+                  ),
+                );
+              },
+              childCount: promoProvider.endingSoonPromos.take(3).length,
+            ),
+          ),
+
+          // ── Rekomendasi ──
+          if (promoProvider.recommendedPromos.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Rekomendasi Untukmu ✨',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1A1A2E),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, AppRoutes.promoList),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF0A8),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              'Diskon pilihan hari ini',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(
-                                    color: const Color(0xFF7C5A00),
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
                           Text(
-                            'Cari promo apa hari ini?',
-                            style: Theme.of(context).textTheme.headlineMedium,
+                            'Jelajahi',
+                            style: TextStyle(
+                              color: const Color(0xFF0F7B4F),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Pantau diskon, bandingkan harga, dan belanja lebih hemat dari satu dashboard yang rapi.',
-                            style:
-                                Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      color: const Color(0xFF64748B),
-                                    ),
-                          ),
-                          const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEFF4FF),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${promoProvider.popularPromos.length}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primaryContainer,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'promo aktif',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF0F7FF),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${nearbyStores.length}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .secondaryContainer,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'toko siap dikunjungi',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          const Icon(Icons.chevron_right_rounded,
+                              size: 18, color: Color(0xFF0F7B4F)),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final premiumCard = _PremiumCard(
-                          isPremium: experience.isPremium,
-                          coinBalance: experience.coinBalance,
-                          onActivate: experience.isPremium
-                              ? null
-                              : () async => Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.wallet,
-                                  ),
-                        );
-                        final dailyCard = _DailyCard(
-                          currentDay: experience.nextDailyDay,
-                          coinBalance: experience.coinBalance,
-                          claimedToday: experience.hasClaimedToday,
-                          onClaim: experience.hasClaimedToday
-                              ? null
-                              : () async {
-                                  final result =
-                                      await experience.claimDailyReward();
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Day ${result.day} memberi ${result.coinsEarned} coin.',
-                                      ),
-                                    ),
-                                  );
-                                },
-                        );
-
-                        if (constraints.maxWidth < 520) {
-                          return Column(
-                            children: [
-                              premiumCard,
-                              const SizedBox(height: 12),
-                              dailyCard,
-                            ],
-                          );
+                  ],
+                ),
+              ),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final promo = promoProvider.recommendedPromos[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: index == 0 ? 0 : 12,
+                    ),
+                    child: PromoCard(
+                      promo: promo.copyWith(
+                        isFavorite: favoriteProvider.isFavorite(promo.id),
+                      ),
+                      isLocked: experience.isPromoLocked(promo.id),
+                      lockLabel: experience.promoLockLabel(promo.id),
+                      onTap: () => _openPromo(promo),
+                      onFavoriteTap: () {
+                        if (!auth.isLoggedIn) {
+                          Navigator.pushNamed(context, AppRoutes.login);
+                          return;
                         }
+                        favoriteProvider.toggleFavorite(
+                          auth.currentUser!.id,
+                          promo,
+                        );
+                      },
+                      variant: PromoCardVariant.list,
+                    ),
+                  );
+                },
+                childCount: promoProvider.recommendedPromos.take(3).length,
+              ),
+            ),
+          ],
 
-                        return Row(
-                          children: [
-                            Expanded(child: premiumCard),
-                            const SizedBox(width: 12),
-                            Expanded(child: dailyCard),
-                          ],
+          // ── Terakhir Dilihat ──
+          if (promoProvider.recentlyViewedPromos.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Terakhir Dilihat 👀',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1A1A2E),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, AppRoutes.promoList),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Lihat promo',
+                            style: TextStyle(
+                              color: const Color(0xFF0F7B4F),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded,
+                              size: 18, color: Color(0xFF0F7B4F)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final promo = promoProvider.recentlyViewedPromos[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: index == 0 ? 0 : 12,
+                    ),
+                    child: PromoCard(
+                      promo: promo.copyWith(
+                        isFavorite: favoriteProvider.isFavorite(promo.id),
+                      ),
+                      isLocked: experience.isPromoLocked(promo.id),
+                      lockLabel: experience.promoLockLabel(promo.id),
+                      onTap: () => _openPromo(promo),
+                      onFavoriteTap: () {
+                        if (!auth.isLoggedIn) {
+                          Navigator.pushNamed(context, AppRoutes.login);
+                          return;
+                        }
+                        favoriteProvider.toggleFavorite(
+                          auth.currentUser!.id,
+                          promo,
+                        );
+                      },
+                      variant: PromoCardVariant.list,
+                    ),
+                  );
+                },
+                childCount: promoProvider.recentlyViewedPromos.take(3).length,
+              ),
+            ),
+          ],
+
+          // ── Toko Terdekat ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Toko Terdekat',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1A1A2E),
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRoutes.stores),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Lihat toko',
+                          style: TextStyle(
+                            color: const Color(0xFF0F7B4F),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            size: 18, color: Color(0xFF0F7B4F)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              height: 160,
+              child: _isLoadingStores
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      clipBehavior: Clip.none,
+                      itemCount: nearbyStores.length,
+                      itemBuilder: (context, index) {
+                        final store = nearbyStores[index];
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            right: index < nearbyStores.length - 1 ? 12 : 0,
+                          ),
+                          child: StoreCard(
+                            store: store,
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              AppRoutes.storeDetail,
+                              arguments: store,
+                            ),
+                          ),
                         );
                       },
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+            ),
+          ),
+
+          // ─ Bottom Padding ──
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 100),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // HEADER
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildHeader(AuthProvider auth) {
+    final userName = auth.isLoggedIn && auth.currentUser != null
+        ? (auth.currentUser!.name.isNotEmpty
+            ? auth.currentUser!.name
+            : 'Pemburu Promo')
+        : 'Pemburu Promo';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 56, 20, 20),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFF059669),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF059669).withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 14),
+          // Greeting
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Halo, $userName!',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'PromoHunter',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF065F46),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Notification Bell
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, AppRoutes.wallet),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.notifications_outlined,
+                color: Color(0xFF374151),
+                size: 22,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HERO CARD (Savings Card)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildHeroCard(
+    DashboardExperienceProvider experience,
+    AuthProvider auth,
+    PromoProvider promoProvider,
+  ) {
+    final totalSavings = promoProvider.promos
+        .where((promo) => !promo.isExpired)
+        .fold<double>(0, (sum, promo) => sum + promo.savingsAmount);
+    final formattedSavings = CurrencyFormatter.format(totalSavings);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF064E3B),
+              Color(0xFF065F46),
+              Color(0xFF059669),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF065F46).withOpacity(0.35),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Decorative circles
+            Positioned(
+              right: -30,
+              top: -30,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.04),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 20,
+              bottom: -20,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.03),
+                ),
+              ),
+            ),
+            // QR Icon (decorative, top right)
+            Positioned(
+              right: 20,
+              top: 20,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.qr_code_2_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.15),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        OutlinedButton.icon(
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.wallet,
+                        const Text('🔥', style: TextStyle(fontSize: 14)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'HEMAT BULAN INI',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white.withOpacity(0.95),
+                            letterSpacing: 0.8,
                           ),
-                          icon:
-                              const Icon(Icons.account_balance_wallet_outlined),
-                          label: const Text('Topup Coin'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.miniGame,
-                          ),
-                          icon: const Icon(Icons.sports_esports_outlined),
-                          label: const Text('Mini Games'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            await experience.resetEntryDialogs();
-                            if (!context.mounted) return;
-                            await _showEntryDialogsIfNeeded();
-                          },
-                          icon: const Icon(Icons.campaign_outlined),
-                          label: const Text('Tampilkan Popup Promo'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      onChanged: promoProvider.updateSearch,
-                      decoration: const InputDecoration(
-                        hintText: 'Cari minyak, beras, susu...',
-                        prefixIcon: Icon(Icons.search_rounded),
-                      ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Savings amount
+                  Text(
+                    formattedSavings,
+                    style: TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      height: 1.0,
+                      letterSpacing: -1.5,
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 42,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: promoProvider.categories.map((category) {
-                          return CategoryChip(
-                            label: category.name,
-                            selected:
-                                promoProvider.selectedCategory == category.name,
-                            onTap: () => promoProvider
-                                .updateSelectedCategory(category.name),
-                          );
-                        }).toList(),
-                      ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Estimasi penghematan terkumpul',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.7),
+                      fontWeight: FontWeight.w500,
                     ),
-                    const SizedBox(height: 20),
-                    _SectionHeader(
-                      title: 'Promo Populer',
-                      actionLabel: 'Jelajahi',
-                      onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.promoList),
-                    ),
-                    const SizedBox(height: 12),
-                    ...promoProvider.popularPromos.take(3).map(
-                          (promo) => PromoCard(
-                            promo: promo.copyWith(
-                              isFavorite: favoriteProvider.isFavorite(promo.id),
-                            ),
-                            isLocked: experience.isPromoLocked(promo.id),
-                            lockLabel: experience.promoLockLabel(promo.id),
-                            onTap: () => _openPromo(promo),
-                            onFavoriteTap: () {
-                              if (!auth.isLoggedIn) {
-                                Navigator.pushNamed(context, AppRoutes.login);
-                                return;
-                              }
-                              favoriteProvider.toggleFavorite(
-                                  auth.currentUser!.id, promo);
-                            },
-                          ),
-                        ),
-                    const SizedBox(height: 8),
-                    _SectionHeader(
-                      title: 'Promo Hampir Berakhir',
-                      actionLabel: 'Lihat semua',
-                      onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.promoList),
-                    ),
-                    const SizedBox(height: 12),
-                    ...promoProvider.endingSoonPromos.take(3).map(
-                          (promo) => PromoCard(
-                            promo: promo.copyWith(
-                              isFavorite: favoriteProvider.isFavorite(promo.id),
-                            ),
-                            isLocked: experience.isPromoLocked(promo.id),
-                            lockLabel: experience.promoLockLabel(promo.id),
-                            onTap: () => _openPromo(promo),
-                            onFavoriteTap: () {
-                              if (!auth.isLoggedIn) {
-                                Navigator.pushNamed(context, AppRoutes.login);
-                                return;
-                              }
-                              favoriteProvider.toggleFavorite(
-                                  auth.currentUser!.id, promo);
-                            },
-                          ),
-                        ),
-                    if (promoProvider.recommendedPromos.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _SectionHeader(
-                        title: 'Rekomendasi Untuk Kamu',
-                        actionLabel: 'Jelajahi',
-                        onTap: () =>
-                            Navigator.pushNamed(context, AppRoutes.promoList),
-                      ),
-                      const SizedBox(height: 12),
-                      ...promoProvider.recommendedPromos.take(3).map(
-                            (promo) => PromoCard(
-                              promo: promo.copyWith(
-                                isFavorite:
-                                    favoriteProvider.isFavorite(promo.id),
-                              ),
-                              isLocked: experience.isPromoLocked(promo.id),
-                              lockLabel: experience.promoLockLabel(promo.id),
-                              onTap: () => _openPromo(promo),
-                              onFavoriteTap: () {
-                                if (!auth.isLoggedIn) {
-                                  Navigator.pushNamed(context, AppRoutes.login);
-                                  return;
-                                }
-                                favoriteProvider.toggleFavorite(
-                                  auth.currentUser!.id,
-                                  promo,
-                                );
-                              },
-                            ),
-                          ),
-                    ],
-                    if (promoProvider.recentlyViewedPromos.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _SectionHeader(
-                        title: 'Terakhir Dilihat',
-                        actionLabel: 'Lihat promo',
-                        onTap: () =>
-                            Navigator.pushNamed(context, AppRoutes.promoList),
-                      ),
-                      const SizedBox(height: 12),
-                      ...promoProvider.recentlyViewedPromos.take(3).map(
-                            (promo) => PromoCard(
-                              promo: promo.copyWith(
-                                isFavorite:
-                                    favoriteProvider.isFavorite(promo.id),
-                              ),
-                              isLocked: experience.isPromoLocked(promo.id),
-                              lockLabel: experience.promoLockLabel(promo.id),
-                              onTap: () => _openPromo(promo),
-                              onFavoriteTap: () {
-                                if (!auth.isLoggedIn) {
-                                  Navigator.pushNamed(context, AppRoutes.login);
-                                  return;
-                                }
-                                favoriteProvider.toggleFavorite(
-                                  auth.currentUser!.id,
-                                  promo,
-                                );
-                              },
-                            ),
-                          ),
-                    ],
-                    const SizedBox(height: 8),
-                    _SectionHeader(
-                      title: 'Toko Terdekat',
-                      actionLabel: 'Lihat toko',
-                      onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.stores),
-                    ),
-                    const SizedBox(height: 12),
-                    if (nearbyStores.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: const Text(
-                          'Toko terdekat akan muncul setelah data toko tersedia.',
-                        ),
-                      )
-                    else
-                      SizedBox(
-                        height: 230,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: nearbyStores.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 12),
-                          itemBuilder: (context, index) {
-                            final store = nearbyStores[index];
-                            return StoreCard(
-                              store: store,
-                              compact: true,
-                              distanceKm: promoProvider.distanceToStore(store),
-                              onTap: () => Navigator.pushNamed(
-                                context,
-                                AppRoutes.storeDetail,
-                                arguments: store,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
+                  ),
+                  const SizedBox(height: 24),
+                  // Action buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _HeroButton(
+                          icon: Icons.qr_code_scanner_rounded,
+                          label: 'Scan',
                           onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.favorites),
-                          icon: const Icon(Icons.favorite_border_rounded),
-                          label: const Text('Favorit'),
+                              Navigator.pushNamed(context, AppRoutes.coinRush),
+                          variant: _HeroButtonVariant.dark,
                         ),
-                        OutlinedButton.icon(
-                          onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.reminders),
-                          icon: const Icon(Icons.notifications_none_rounded),
-                          label: const Text('Reminder'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => Navigator.pushNamed(
-                              context, AppRoutes.calculator),
-                          icon: const Icon(Icons.calculate_outlined),
-                          label: const Text('Kalkulator'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => Navigator.pushNamed(
-                              context, AppRoutes.shoppingList),
-                          icon: const Icon(Icons.shopping_cart_outlined),
-                          label: const Text('Belanja'),
-                        ),
-                        OutlinedButton.icon(
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _HeroButton(
+                          icon: Icons.near_me_rounded,
+                          label: 'Terdekat',
                           onPressed: () =>
                               Navigator.pushNamed(context, AppRoutes.stores),
-                          icon: const Icon(Icons.store_mall_directory_outlined),
-                          label: const Text('Toko'),
+                          variant: _HeroButtonVariant.light,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SEARCH BAR
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildSearchBar(PromoProvider promoProvider) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Cari promo, merchant...',
+                  hintStyle: TextStyle(
+                    color: const Color(0xFF9CA3AF),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: Color(0xFF9CA3AF),
+                    size: 22,
+                  ),
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: 52,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    promoProvider.updateSearch(value.trim());
+                  }
+                },
+              ),
+            ),
+            // Filter button
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => _showFilterSheet(context, promoProvider),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.tune_rounded,
+                    color: Color(0xFF6B7280),
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATS ROW
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildStatsRow(
+      PromoProvider promoProvider, List<StoreModel> nearbyStores) {
+    final activePromos = promoProvider.promos.where((p) => p.isActive).length;
+    final availableStores = nearbyStores.length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        children: [
+          // Active Promos Card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFFA7F3D0),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD1FAE5),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.confirmation_number_rounded,
+                      color: Color(0xFF059669),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$activePromos',
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF065F46),
+                          height: 1.1,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        'PROMO AKTIF',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF059669),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Available Stores Card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFFBFDBFE),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDBEAFE),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.storefront_rounded,
+                      color: Color(0xFF2563EB),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$availableStores',
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E3A5F),
+                          height: 1.1,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        'TOKO TERSEDIA',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF2563EB),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CATEGORY SECTION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildCategorySection(PromoProvider promoProvider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Kategori Promo',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF1A1A2E),
+                  letterSpacing: -0.3,
+                ),
+              ),
+              TextButton(
+                onPressed: () => _showFilterSheet(context, promoProvider),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Lihat Semua',
+                      style: TextStyle(
+                        color: const Color(0xFF0F7B4F),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded,
+                        size: 18, color: Color(0xFF0F7B4F)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 46,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            padding: const EdgeInsets.only(left: 20, right: 32),
+            children: promoProvider.categories.map((category) {
+              return CategoryChip(
+                label: category.name,
+                icon: _categoryIcons[category.name],
+                selected: promoProvider.selectedCategory == category.name,
+                onTap: () =>
+                    promoProvider.updateSelectedCategory(category.name),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PREMIUM REWARD CARD (Simplified to match target design)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildPremiumRewardCard(
+      DashboardExperienceProvider experience, AuthProvider auth) {
+    final isPremium = auth.isLoggedIn && experience.isPremium;
+    final streak = experience.claimedDaysInCycle;
+    final claimedDays = experience.claimedDaysInCycle;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: const Color(0xFFEEF2FF),
+          border: Border.all(
+            color: const Color(0xFFC7D2FE),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6366F1).withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0E7FF),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      isPremium
+                          ? Icons.workspace_premium_rounded
+                          : Icons.stars_rounded,
+                      color: const Color(0xFF4F46E5),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Premium Reward',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF1E1B4B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Streak indicator
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Current day dot (filled)
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4F46E5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$claimedDays',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      // Next day dot (outline)
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFC7D2FE),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${claimedDays + 1}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Streak Day $streak',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Description
+              Text(
+                'Nikmati akses eksklusif & kumpulkan koin lebih banyak setiap hari.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: const Color(0xFF4B5563),
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Action button
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: isPremium
+                      ? () => Navigator.pushNamed(context, AppRoutes.dailySpin)
+                      : () => Navigator.pushNamed(context, AppRoutes.wallet),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF065F46),
+                          Color(0xFF059669),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF059669).withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      'Aktifkan',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TOP SEARCH CARD (Paling Banyak Dicari)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildTopSearchCard(
+    PromoModel promo,
+    FavoriteProvider favoriteProvider,
+    DashboardExperienceProvider experience,
+    AuthProvider auth,
+  ) {
+    return GestureDetector(
+      onTap: () => _openPromo(promo),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Image
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  color: const Color(0xFFF3F4F6),
+                  child: promo.imageUrl.isNotEmpty
+                      ? Image.network(
+                          promo.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.image_rounded,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.image_rounded,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            promo.storeName.isNotEmpty
+                                ? promo.storeName
+                                : promo.productName,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1A2E),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFFA7F3D0),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            'VERIFIED',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF059669),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Diskon s/d ${promo.discountPercent.toStringAsFixed(0)}% untuk produk harian',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: const Color(0xFF6B7280),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.access_time_rounded,
+                          size: 14,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormatter.short(promo.endDate),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: const Color(0xFF9CA3AF),
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FILTER SHEET
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  void _showFilterSheet(BuildContext context, PromoProvider promoProvider) {
+    final currentCategory = promoProvider.selectedCategory;
+    final categories = promoProvider.categories;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Filter Kategori',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: categories.map((cat) {
+                    final selected = cat.name == currentCategory;
+                    return ChoiceChip(
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_categoryIcons.containsKey(cat.name)) ...[
+                            Text(
+                              '${_categoryIcons[cat.name]} ',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                          Text(cat.name),
+                        ],
+                      ),
+                      selected: selected,
+                      onSelected: (_) {
+                        promoProvider.updateSelectedCategory(cat.name);
+                        Navigator.pop(sheetContext);
+                      },
+                      selectedColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () {
+                      promoProvider.updateSelectedCategory('Semua');
+                      Navigator.pop(sheetContext);
+                    },
+                    child: const Text('Reset Filter'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    required this.actionLabel,
-    required this.onTap,
-  });
+// ═════════════════════════════════════════════════════════════════════════════
+// REUSABLE WIDGETS
+// ═════════════════════════════════════════════════════════════════════════════
 
-  final String title;
-  final String actionLabel;
-  final VoidCallback onTap;
+enum _HeroButtonVariant { dark, light }
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
-        TextButton(onPressed: onTap, child: Text(actionLabel)),
-      ],
-    );
-  }
-}
-
-class _BenefitRow extends StatelessWidget {
-  const _BenefitRow({
+class _HeroButton extends StatelessWidget {
+  const _HeroButton({
     required this.icon,
-    required this.text,
+    required this.label,
+    required this.onPressed,
+    required this.variant,
   });
 
   final IconData icon;
-  final String text;
+  final String label;
+  final VoidCallback onPressed;
+  final _HeroButtonVariant variant;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: Theme.of(context).colorScheme.secondary),
-        const SizedBox(width: 8),
-        Expanded(child: Text(text)),
-      ],
-    );
-  }
-}
-
-class _PremiumCard extends StatelessWidget {
-  const _PremiumCard({
-    required this.isPremium,
-    required this.coinBalance,
-    required this.onActivate,
-  });
-
-  final bool isPremium;
-  final int coinBalance;
-  final Future<void> Function()? onActivate;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isPremium ? const Color(0xFFE8F7EE) : const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            isPremium
-                ? Icons.workspace_premium_rounded
-                : Icons.workspace_premium_outlined,
-            color:
-                isPremium ? const Color(0xFF0F9D58) : const Color(0xFFB45309),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            isPremium ? 'Premium Aktif' : 'Member Premium',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            isPremium
-                ? 'Akun kamu sudah menikmati benefit member.'
-                : 'Akses promo baru tanpa menunggu. Coin kamu: $coinBalance.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          FilledButton.tonal(
-            onPressed: onActivate == null
-                ? null
-                : () async {
-                    await onActivate!();
-                  },
-            child: Text(isPremium ? 'Sudah Aktif' : 'Lihat Harga'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DailyCard extends StatelessWidget {
-  const _DailyCard({
-    required this.currentDay,
-    required this.coinBalance,
-    required this.claimedToday,
-    required this.onClaim,
-  });
-
-  final int currentDay;
-  final int coinBalance;
-  final bool claimedToday;
-  final Future<void> Function()? onClaim;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF4FF),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.calendar_month_outlined,
-            color: Theme.of(context).colorScheme.secondary,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '7 Day Daily',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            claimedToday
-                ? 'Reward hari ini sudah diklaim. Saldo: $coinBalance coin.'
-                : 'Claim Day $currentDay untuk menambah coin unlock promo.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          FilledButton.tonal(
-            onPressed: onClaim == null
-                ? null
-                : () async {
-                    await onClaim!();
-                  },
-            child: Text(claimedToday ? 'Sudah Klaim' : 'Claim Day $currentDay'),
-          ),
-        ],
+    final isDark = variant == _HeroButtonVariant.dark;
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: isDark
+              ? Border.all(color: Colors.white.withOpacity(0.2), width: 1)
+              : null,
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isDark ? Colors.white : const Color(0xFF059669),
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF059669),
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
