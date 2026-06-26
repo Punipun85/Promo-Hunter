@@ -115,7 +115,16 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         selectedIndex: _index,
         onDestinationSelected: (index) => setState(() => _index = index),
         destinations: destinations,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shadowColor: const Color(0xFF059669).withValues(alpha: 0.15),
+        indicatorColor: const Color(0xFF059669),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        animationDuration: const Duration(milliseconds: 500),
       ),
     );
   }
 }
+
+

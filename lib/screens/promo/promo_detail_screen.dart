@@ -55,6 +55,10 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Promo'),
+        backgroundColor: const Color(0xFF059669),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
         actions: [
           IconButton(
             onPressed: () => Share.share(_buildShareText(decoratedPromo)),
@@ -478,3 +482,5 @@ class _LockedInfoRow extends StatelessWidget {
     );
   }
 }
+
+
