@@ -181,20 +181,38 @@ class _CoinTab extends StatelessWidget {
         const SizedBox(height: 12),
         ...DashboardExperienceProvider.voucherCatalog.map(
           (voucher) {
-            final alreadyRedeemedFree = voucher.coinCost == 0 &&
-                experience.hasRedeemedVoucher(voucher.id);
+            final hasUnusedVoucher =
+                experience.hasUnusedRedeemedVoucher(voucher.id);
+            final hasUsedVoucher =
+                experience.hasUsedRedeemedVoucher(voucher.id);
+            final alreadyRedeemedFree =
+                voucher.coinCost == 0 && experience.hasRedeemedVoucher(voucher.id);
             final needsMoreCoins = experience.coinBalance < voucher.coinCost;
+            final statusBadge = hasUnusedVoucher
+                ? 'Sudah diklaim'
+                : hasUsedVoucher
+                    ? 'Sudah dipakai'
+                    : voucher.coinCost == 0
+                        ? 'Gratis'
+                        : 'Voucher';
+            final statusDescription = hasUnusedVoucher
+                ? '${voucher.description} Voucher ini sudah kamu klaim, tapi belum dipakai.'
+                : hasUsedVoucher
+                    ? '${voucher.description} Voucher ini pernah dipakai sebelumnya.'
+                    : voucher.description;
             return _PackageCard(
               title: voucher.title,
-              badge: voucher.coinCost == 0 ? 'Gratis' : 'Voucher',
+              badge: statusBadge,
               value: voucher.coinCost == 0
                   ? 'Tanpa coin'
                   : '${voucher.coinCost} coin',
               price: voucher.benefitLabel,
-              description: voucher.description,
+              description: statusDescription,
               icon: voucher.icon,
               actionLabel: alreadyRedeemedFree
-                  ? 'Sudah Diambil'
+                  ? hasUnusedVoucher
+                      ? 'Sudah Diklaim'
+                      : 'Sudah Dipakai'
                   : needsMoreCoins
                       ? 'Cari Coin'
                       : voucher.coinCost == 0
@@ -508,19 +526,33 @@ Future<_PaymentConfirmation?> _showTransactionDialog(
           'Lanjutkan ke Snap Midtrans untuk memilih kanal transfer atau pembayaran bank yang aktif.',
       paymentCode: 'BCA 1234567890 a.n. PromoHunter',
       midtransPreferredPaymentMethod: 'bank_transfer',
+      midtransEnabledPayments: [
+        'bca_va',
+        'bni_va',
+        'bri_va',
+        'permata_va',
+        'echannel',
+      ],
     ),
   ];
   final invoiceCode =
       'PH-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
   final midtransService = MidtransInvoiceService();
   Uri? buildPaymentResultUrl(String result) {
-    if (!kIsWeb) return null;
-    return Uri.base.replace(
-      path: AppRoutes.paymentResult,
-      queryParameters: {
-        'order_id': invoiceCode,
-        'result': result,
-      },
+    final queryParameters = {
+      'order_id': invoiceCode,
+      'result': result,
+    };
+    if (kIsWeb) {
+      return Uri.base.replace(
+        path: AppRoutes.paymentResult,
+        queryParameters: queryParameters,
+      );
+    }
+    return Uri(
+      scheme: 'promohunter',
+      host: AppRoutes.paymentResult.replaceFirst('/', ''),
+      queryParameters: queryParameters,
     );
   }
 
@@ -628,12 +660,19 @@ Future<_PaymentConfirmation?> _showTransactionDialog(
                             invoiceError = null;
                           });
                           try {
-                            final callbacks = buildPaymentResultUrl('success');
+                            final finishCallback =
+                                buildPaymentResultUrl('success');
+                            final unfinishCallback =
+                                buildPaymentResultUrl('pending');
+                            final errorCallback =
+                                buildPaymentResultUrl('error');
                             final paymentPayload = <String, dynamic>{
                               ...?selectedMethod.midtransPayload,
-                              if (callbacks != null)
+                              if (finishCallback != null)
                                 'callbacks': {
-                                  'finish': callbacks.toString(),
+                                  'finish': finishCallback.toString(),
+                                  'unfinish': unfinishCallback.toString(),
+                                  'error': errorCallback.toString(),
                                 },
                             };
                             final result = await midtransService.createInvoice(
@@ -1292,78 +1331,83 @@ class _PaymentTransactionCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.pushNamed(
+          context,
+          AppRoutes.paymentDetail,
+          arguments: transaction,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(statusIcon, color: statusColor),
                   ),
-                  child: Icon(statusIcon, color: statusColor),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          transaction.itemName,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${transaction.type.label} - ${transaction.benefitLabel}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFF64748B),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        transaction.itemName,
-                        style: Theme.of(context).textTheme.titleMedium,
+                      _StatusBadge(
+                        label: transaction.statusLabel,
+                        color: statusColor,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${transaction.type.label} - ${transaction.benefitLabel}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: const Color(0xFF64748B),
-                            ),
+                      const SizedBox(height: 8),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF94A3B8),
                       ),
                     ],
                   ),
-                ),
-                _StatusBadge(
-                    label: transaction.statusLabel,
-                    color: statusColor,
-                ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _TransactionRow(
+                label: 'Total',
+                value: CurrencyFormatter.format(transaction.price),
+              ),
+              const SizedBox(height: 8),
+              _TransactionRow(label: 'Metode', value: transaction.paymentMethod),
+              if (transaction.paymentReference != null) ...[
+                const SizedBox(height: 8),
+                _TransactionRow(
+                    label: 'Ref', value: transaction.paymentReference!),
               ],
-            ),
-            const SizedBox(height: 14),
-            _TransactionRow(
-              label: 'Total',
-              value: CurrencyFormatter.format(transaction.price),
-            ),
-            const SizedBox(height: 8),
-            _TransactionRow(label: 'Metode', value: transaction.paymentMethod),
-            const SizedBox(height: 8),
-            _TransactionRow(label: 'Bukti', value: transaction.proofFileName),
-            if (transaction.paymentReference != null) ...[
               const SizedBox(height: 8),
               _TransactionRow(
-                  label: 'Ref', value: transaction.paymentReference!),
-            ],
-            if (transaction.paymentUrl != null) ...[
-              const SizedBox(height: 8),
-              _TransactionRow(label: 'Link', value: transaction.paymentUrl!),
-            ],
-            const SizedBox(height: 8),
-            _TransactionRow(
-              label: 'Tanggal',
-              value: DateFormatter.dateTime(transaction.createdAt),
-            ),
-            if (transaction.verifiedAt != null) ...[
-              const SizedBox(height: 8),
-              _TransactionRow(
-                label: 'Verifikasi',
-                value: DateFormatter.dateTime(transaction.verifiedAt!),
+                label: 'Tanggal',
+                value: DateFormatter.dateTime(transaction.createdAt),
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -1697,6 +1741,12 @@ class _RedeemedVoucherCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusLabel = voucher.isUsed ? 'Sudah Dipakai' : 'Belum Dipakai';
+    final statusColor = voucher.isUsed
+        ? const Color(0xFFE8F5E9)
+        : const Color(0xFFFFF8E1);
+    final statusTextColor =
+        voucher.isUsed ? const Color(0xFF2E7D32) : const Color(0xFF8D6E00);
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
       child: ListTile(
@@ -1712,11 +1762,32 @@ class _RedeemedVoucherCard extends StatelessWidget {
             color: Theme.of(context).colorScheme.secondary,
           ),
         ),
-        title: Text(voucher.title),
-        subtitle: Text(
-          '${voucher.benefitLabel}\nKode ${voucher.code}\nDitukar ${DateFormatter.dateTime(voucher.redeemedAt)}',
+        title: Row(
+          children: [
+            Expanded(child: Text(voucher.title)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: statusColor,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                statusLabel,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: statusTextColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+          ],
         ),
-        isThreeLine: true,
+        subtitle: Text(
+          '${voucher.benefitLabel}\n'
+          'Kode ${voucher.code}\n'
+          'Diklaim ${DateFormatter.dateTime(voucher.redeemedAt)}'
+          '${voucher.usedAt != null ? '\nDipakai ${DateFormatter.dateTime(voucher.usedAt!)}' : '\nBelum digunakan'}',
+        ),
+        isThreeLine: voucher.usedAt == null,
       ),
     );
   }

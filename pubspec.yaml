@@ -24,6 +24,7 @@ dependencies:
   google_fonts: ^6.3.1
   shared_preferences: ^2.5.3
   geolocator: ^14.0.2
+  google_maps_flutter: ^2.12.3
   upgrader: ^13.5.0
 
 dev_dependencies:

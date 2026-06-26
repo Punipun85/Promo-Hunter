@@ -25,8 +25,10 @@ import '../screens/shopping_list/shopping_list_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/store/store_list_screen.dart';
 import '../screens/store/store_detail_screen.dart';
+import '../screens/wallet/payment_detail_screen.dart';
 import '../screens/wallet/payment_result_screen.dart';
 import '../screens/wallet/wallet_screen.dart';
+import '../providers/dashboard_experience_provider.dart';
 
 class AppRoutes {
   static const splash = '/';
@@ -51,6 +53,7 @@ class AppRoutes {
   static const profile = '/profile';
   static const wallet = '/wallet';
   static const paymentResult = '/payment-result';
+  static const paymentDetail = '/payment-detail';
   static const miniGame = '/mini-game';
   static const dailySpin = '/daily-spin';
   static const coinRush = '/coin-rush';
@@ -58,7 +61,13 @@ class AppRoutes {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final rawName = settings.name ?? home;
     final uri = Uri.tryParse(rawName);
-    final routeName = uri?.path.isNotEmpty == true ? uri!.path : rawName;
+    final routeName = uri == null
+        ? rawName
+        : uri.path.isNotEmpty
+            ? uri.path
+            : uri.host.isNotEmpty
+                ? '/${uri.host}'
+                : rawName;
 
     switch (routeName) {
       case splash:
@@ -121,6 +130,12 @@ class AppRoutes {
           builder: (_) => PaymentResultScreen(
             orderId: uri?.queryParameters['order_id'] ?? '',
             result: uri?.queryParameters['result'] ?? 'pending',
+          ),
+        );
+      case paymentDetail:
+        return MaterialPageRoute(
+          builder: (_) => PaymentDetailScreen(
+            transaction: settings.arguments as PaymentTransaction,
           ),
         );
       case miniGame:

@@ -747,6 +747,18 @@ class DashboardExperienceProvider extends ChangeNotifier
     return redeemedVouchers.any((voucher) => voucher.voucherId == voucherId);
   }
 
+  bool hasUnusedRedeemedVoucher(String voucherId) {
+    return redeemedVouchers.any(
+      (voucher) => voucher.voucherId == voucherId && !voucher.isUsed,
+    );
+  }
+
+  bool hasUsedRedeemedVoucher(String voucherId) {
+    return redeemedVouchers.any(
+      (voucher) => voucher.voucherId == voucherId && voucher.isUsed,
+    );
+  }
+
   Future<DailySpinResult> spinDailyReward({int? forcedIndex}) async {
     final prefs = await SharedPreferences.getInstance();
     _cachedPrefs = prefs;
@@ -1033,6 +1045,8 @@ class DashboardExperienceProvider extends ChangeNotifier
       coinCost: coinCost ?? voucher.coinCost,
       code: _generateVoucherCode(voucher),
       redeemedAt: DateTime.now(),
+      isUsed: false,
+      usedAt: null,
     );
   }
 }
@@ -1323,6 +1337,8 @@ class RedeemedVoucher {
     required this.coinCost,
     required this.code,
     required this.redeemedAt,
+    required this.isUsed,
+    required this.usedAt,
   });
 
   final String id;
@@ -1332,6 +1348,8 @@ class RedeemedVoucher {
   final int coinCost;
   final String code;
   final DateTime redeemedAt;
+  final bool isUsed;
+  final DateTime? usedAt;
 
   factory RedeemedVoucher.fromJson(Map<String, dynamic> json) {
     return RedeemedVoucher(
@@ -1343,6 +1361,8 @@ class RedeemedVoucher {
       code: json['code'] as String? ?? '',
       redeemedAt: DateTime.tryParse(json['redeemedAt'] as String? ?? '') ??
           DateTime.now(),
+      isUsed: json['isUsed'] as bool? ?? false,
+      usedAt: DateTime.tryParse(json['usedAt'] as String? ?? ''),
     );
   }
 
@@ -1355,6 +1375,8 @@ class RedeemedVoucher {
       'coinCost': coinCost,
       'code': code,
       'redeemedAt': redeemedAt.toIso8601String(),
+      'isUsed': isUsed,
+      'usedAt': usedAt?.toIso8601String(),
     };
   }
 }

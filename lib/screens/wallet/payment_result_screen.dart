@@ -68,8 +68,13 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final experience = context.watch<DashboardExperienceProvider>();
     final normalizedResult = widget.result.toLowerCase();
     final effectiveStatus = _resolvedStatus;
+    final matchingTransaction = experience.paymentTransactions.cast<PaymentTransaction?>().firstWhere(
+          (item) => item?.paymentReference == widget.orderId,
+          orElse: () => null,
+        );
 
     final isSuccess = effectiveStatus == PaymentStatus.approved ||
         (effectiveStatus == null && normalizedResult == 'success');
@@ -160,17 +165,45 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
                         color: const Color(0xFF64748B),
                       ),
                 ),
-                const SizedBox(height: 24),
-                if (!isSuccess)
-                  FilledButton.icon(
-                    onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRoutes.wallet,
-                      (route) => route.settings.name == AppRoutes.home,
-                    ),
-                    icon: const Icon(Icons.account_balance_wallet_outlined),
-                    label: const Text('Kembali ke Topup'),
+                if (matchingTransaction != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    '${matchingTransaction.itemName} • ${matchingTransaction.type.label}',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF475569),
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
+                ],
+                const SizedBox(height: 24),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    if (matchingTransaction != null)
+                      FilledButton.tonalIcon(
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          AppRoutes.paymentDetail,
+                          arguments: matchingTransaction,
+                        ),
+                        icon: const Icon(Icons.receipt_long_rounded),
+                        label: const Text('Lihat Detail Pembayaran'),
+                      ),
+                    if (!isSuccess)
+                      FilledButton.icon(
+                        onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          AppRoutes.wallet,
+                          (route) => route.settings.name == AppRoutes.home,
+                        ),
+                        icon: const Icon(Icons.account_balance_wallet_outlined),
+                        label: const Text('Kembali ke Topup'),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

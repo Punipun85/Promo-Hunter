@@ -100,6 +100,21 @@ class PromoProvider extends ChangeNotifier {
         .toList();
   }
 
+  StoreModel? get nearestStoreWithActivePromos {
+    if (userLocation == null) return null;
+    final candidates = allStoresWithPromoCounts
+        .where(
+          (store) =>
+              store.activePromoCount > 0 &&
+              store.latitude != null &&
+              store.longitude != null,
+        )
+        .toList();
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) => distanceToStore(a).compareTo(distanceToStore(b)));
+    return candidates.first;
+  }
+
   StoreModel _storeWithActivePromoCount(StoreModel store) {
     return store.copyWith(activePromoCount: promosByStore(store.name).length);
   }
@@ -215,10 +230,18 @@ class PromoProvider extends ChangeNotifier {
 
     try {
       userLocation = await _locationService.getCurrentLocation();
-      locationMessage = 'Promo terdekat diurutkan dari lokasi kamu.';
       if (makeNearestDefault && selectedSort == 'Terbaru') {
         selectedSort = 'Terdekat';
       }
+      final nearestStore = nearestStoreWithActivePromos;
+      if (makeNearestDefault &&
+          nearestStore != null &&
+          selectedStore == 'Semua') {
+        selectedStore = nearestStore.name;
+      }
+      locationMessage = nearestStore == null
+          ? 'Promo terdekat diurutkan dari lokasi kamu.'
+          : 'Promo disesuaikan ke toko terdekat: ${nearestStore.name}.';
     } on LocationServiceException catch (error) {
       locationMessage = error.message;
     } catch (_) {
