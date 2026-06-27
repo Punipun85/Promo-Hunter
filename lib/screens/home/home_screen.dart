@@ -29,7 +29,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final LocationService _locationService = LocationService();
+  final LocationService _locationService = const LocationService();
 
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1A1A2E),
+                    color: Color(0xFF1A1A2E),
                     letterSpacing: -0.3,
                   ),
                 ),
@@ -295,30 +295,30 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Promo Populer',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1A1A2E),
+                      color: Color(0xFF1A1A2E),
                       letterSpacing: -0.3,
                     ),
                   ),
                   TextButton(
                     onPressed: () =>
                         Navigator.pushNamed(context, AppRoutes.promoList),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'Jelajahi',
                           style: TextStyle(
-                            color: const Color(0xFF0F7B4F),
+                            color: Color(0xFF0F7B4F),
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded,
+                        Icon(Icons.chevron_right_rounded,
                             size: 18, color: Color(0xFF0F7B4F)),
                       ],
                     ),
@@ -328,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SliverToBoxAdapter(
-            child: Container(
+            child: SizedBox(
               height: 290,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
@@ -373,30 +373,30 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Hampir Berakhir ',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1A1A2E),
+                      color: Color(0xFF1A1A2E),
                       letterSpacing: -0.3,
                     ),
                   ),
                   TextButton(
                     onPressed: () =>
                         Navigator.pushNamed(context, AppRoutes.promoList),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'Lihat semua',
                           style: TextStyle(
-                            color: const Color(0xFF0F7B4F),
+                            color: Color(0xFF0F7B4F),
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded,
+                        Icon(Icons.chevron_right_rounded,
                             size: 18, color: Color(0xFF0F7B4F)),
                       ],
                     ),
@@ -451,25 +451,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1A1A2E),
+                        color: Color(0xFF1A1A2E),
                         letterSpacing: -0.3,
                       ),
                     ),
                     TextButton(
                       onPressed: () =>
                           Navigator.pushNamed(context, AppRoutes.promoList),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'Jelajahi',
                             style: TextStyle(
-                              color: const Color(0xFF0F7B4F),
+                              color: Color(0xFF0F7B4F),
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
                             ),
                           ),
-                          const Icon(Icons.chevron_right_rounded,
+                          Icon(Icons.chevron_right_rounded,
                               size: 18, color: Color(0xFF0F7B4F)),
                         ],
                       ),
@@ -597,30 +597,30 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Toko Terdekat',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1A1A2E),
+                      color: Color(0xFF1A1A2E),
                       letterSpacing: -0.3,
                     ),
                   ),
                   TextButton(
                     onPressed: () =>
                         Navigator.pushNamed(context, AppRoutes.stores),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'Lihat toko',
                           style: TextStyle(
-                            color: const Color(0xFF0F7B4F),
+                            color: Color(0xFF0F7B4F),
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded,
+                        Icon(Icons.chevron_right_rounded,
                             size: 18, color: Color(0xFF0F7B4F)),
                       ],
                     ),
@@ -630,7 +630,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SliverToBoxAdapter(
-            child: Container(
+            child: SizedBox(
               height: 160,
               child: _isLoadingStores
                   ? const Center(child: CircularProgressIndicator())
@@ -692,7 +692,7 @@ class _HomeScreenState extends State<HomeScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF059669).withOpacity(0.3),
+                  color: const Color(0xFF059669).withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -715,7 +715,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF6B7280),
+                    color: Color(0xFF6B7280),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -724,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF065F46),
+                    color: Color(0xFF065F46),
                     letterSpacing: -0.3,
                   ),
                 ),
@@ -742,7 +742,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -790,7 +790,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF065F46).withOpacity(0.35),
+              color: const Color(0xFF065F46).withValues(alpha: 0.35),
               blurRadius: 24,
               offset: const Offset(0, 12),
             ),
@@ -808,7 +808,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.04),
+                  color: Colors.white.withValues(alpha: 0.04),
                 ),
               ),
             ),
@@ -820,7 +820,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.03),
+                  color: Colors.white.withValues(alpha: 0.03),
                 ),
               ),
             ),
@@ -832,7 +832,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -854,10 +854,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
+                      color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         width: 1,
                       ),
                     ),
@@ -871,7 +871,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white.withOpacity(0.95),
+                            color: Colors.white,
                             letterSpacing: 0.8,
                           ),
                         ),
@@ -895,7 +895,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Estimasi penghematan terkumpul',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white70,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -946,7 +946,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -957,23 +957,23 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: TextField(
                 controller: _searchController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'Cari promo, merchant...',
                   hintStyle: TextStyle(
-                    color: const Color(0xFF9CA3AF),
+                    color: Color(0xFF9CA3AF),
                     fontSize: 15,
                     fontWeight: FontWeight.w400,
                   ),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.search_rounded,
                     color: Color(0xFF9CA3AF),
                     size: 22,
                   ),
-                  prefixIconConstraints: const BoxConstraints(
+                  prefixIconConstraints: BoxConstraints(
                     minWidth: 52,
                   ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
+                  contentPadding: EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 16,
                   ),
@@ -1065,12 +1065,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           letterSpacing: -0.5,
                         ),
                       ),
-                      Text(
+                      const Text(
                         'PROMO AKTIF',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF059669),
+                          color: Color(0xFF059669),
                           letterSpacing: 0.8,
                         ),
                       ),
@@ -1122,12 +1122,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           letterSpacing: -0.5,
                         ),
                       ),
-                      Text(
+                      const Text(
                         'TOKO TERSEDIA',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF2563EB),
+                          color: Color(0xFF2563EB),
                           letterSpacing: 0.8,
                         ),
                       ),
@@ -1155,29 +1155,29 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Kategori Promo',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1A1A2E),
+                  color: Color(0xFF1A1A2E),
                   letterSpacing: -0.3,
                 ),
               ),
               TextButton(
                 onPressed: () => _showFilterSheet(context, promoProvider),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'Lihat Semua',
                       style: TextStyle(
-                        color: const Color(0xFF0F7B4F),
+                        color: Color(0xFF0F7B4F),
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded,
+                    Icon(Icons.chevron_right_rounded,
                         size: 18, color: Color(0xFF0F7B4F)),
                   ],
                 ),
@@ -1228,7 +1228,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF6366F1).withOpacity(0.08),
+              color: const Color(0xFF6366F1).withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -1267,7 +1267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1E1B4B),
+                            color: Color(0xFF1E1B4B),
                           ),
                         ),
                       ],
@@ -1281,8 +1281,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       Container(
                         width: 30,
                         height: 30,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF4F46E5),
                           shape: BoxShape.circle,
                         ),
                         child: Center(
@@ -1323,10 +1323,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 10),
                       Text(
                         'Streak Day $streak',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF6B7280),
+                          color: Color(0xFF6B7280),
                         ),
                       ),
                     ],
@@ -1335,11 +1335,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 16),
               // Description
-              Text(
+              const Text(
                 'Nikmati akses eksklusif & kumpulkan koin lebih banyak setiap hari.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: const Color(0xFF4B5563),
+                  color: Color(0xFF4B5563),
                   fontWeight: FontWeight.w500,
                   height: 1.5,
                 ),
@@ -1367,15 +1367,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF059669).withOpacity(0.3),
+                          color: const Color(0xFF059669).withValues(alpha: 0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: Text(
+                    child: const Text(
                       'Aktifkan',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
                         color: Colors.white,
@@ -1409,7 +1409,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -1476,12 +1476,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               width: 1,
                             ),
                           ),
-                          child: Text(
+                          child: const Text(
                             'VERIFIED',
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF059669),
+                              color: Color(0xFF059669),
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -1491,9 +1491,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Diskon s/d ${promo.discountPercent.toStringAsFixed(0)}% untuk produk harian',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
-                        color: const Color(0xFF6B7280),
+                        color: Color(0xFF6B7280),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1509,9 +1509,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 4),
                         Text(
                           DateFormatter.short(promo.endDate),
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
-                            color: const Color(0xFF9CA3AF),
+                            color: Color(0xFF9CA3AF),
                           ),
                         ),
                       ],
@@ -1640,16 +1640,16 @@ class _HeroButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
+          color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: isDark
-              ? Border.all(color: Colors.white.withOpacity(0.2), width: 1)
+              ? Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1)
               : null,
           boxShadow: isDark
               ? null
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
