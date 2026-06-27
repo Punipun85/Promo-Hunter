@@ -14,7 +14,6 @@ class CategoryChip extends StatelessWidget {
   final VoidCallback onTap;
   final String? icon;
 
-  static const Color _primaryGreen = Color(0xFF0F7B4F);
   static const Color _surfaceLight = Color(0xFFF1F5F9);
 
   @override
@@ -49,14 +48,14 @@ class CategoryChip extends StatelessWidget {
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF059669).withOpacity(0.35),
+                      color: const Color(0xFF059669).withValues(alpha: 0.35),
                       blurRadius: 14,
                       offset: const Offset(0, 6),
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),

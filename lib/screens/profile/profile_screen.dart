@@ -628,7 +628,6 @@ class _AccountInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
@@ -1180,29 +1179,29 @@ class _GuestBenefitsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <_GuestBenefit>[
-      _GuestBenefit(
+      const _GuestBenefit(
         icon: Icons.favorite_border_rounded,
         title: 'Favorit',
         subtitle: 'Simpan promo yang ingin kamu incar.',
-        color: const Color(0xFFDC2626),
+        color: Color(0xFFDC2626),
       ),
-      _GuestBenefit(
+      const _GuestBenefit(
         icon: Icons.notifications_none_rounded,
         title: 'Reminder',
         subtitle: 'Pengingat sebelum promo berakhir.',
-        color: const Color(0xFFF59E0B),
+        color: Color(0xFFF59E0B),
       ),
-      _GuestBenefit(
+      const _GuestBenefit(
         icon: Icons.calendar_month_rounded,
         title: 'Daily Coin',
         subtitle: 'Klaim coin harian untuk buka promo.',
-        color: const Color(0xFF2563EB),
+        color: Color(0xFF2563EB),
       ),
-      _GuestBenefit(
+      const _GuestBenefit(
         icon: Icons.lock_open_rounded,
         title: 'Early Access',
         subtitle: 'Buka promo terkunci pakai coin.',
-        color: const Color(0xFF0F9D58),
+        color: Color(0xFF0F9D58),
       ),
     ];
 
