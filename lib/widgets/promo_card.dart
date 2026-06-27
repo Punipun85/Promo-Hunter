@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/promo_model.dart';
@@ -34,7 +34,6 @@ class PromoCard extends StatelessWidget {
     return _buildListCard(context);
   }
 
-  // ── Variant A: Large Grid Card (untuk horizontal scroll) ──
   Widget _buildGridCard(BuildContext context) {
     final muted = promo.isExpired;
     return Opacity(
@@ -60,7 +59,6 @@ class PromoCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image area
               Stack(
                 children: [
                   PromoImage(
@@ -68,7 +66,6 @@ class PromoCard extends StatelessWidget {
                     width: 220,
                     height: 140,
                   ),
-                  // Gradient overlay at bottom of image
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -87,7 +84,6 @@ class PromoCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Discount badge
                   Positioned(
                     top: 10,
                     left: 10,
@@ -108,7 +104,7 @@ class PromoCard extends StatelessWidget {
                         ],
                       ),
                       child: Text(
-                        '-${promo.discountPercent.toStringAsFixed(0)}%',
+                        '-' + promo.discountPercent.toStringAsFixed(0) + '%',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF7C5A00),
@@ -117,7 +113,6 @@ class PromoCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Favorite button
                   Positioned(
                     top: 8,
                     right: 8,
@@ -137,110 +132,102 @@ class PromoCard extends StatelessWidget {
                         onPressed: onFavoriteTap,
                         iconSize: 20,
                         padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(
-                          minWidth: 36,
-                          minHeight: 36,
-                        ),
+                        constraints: const BoxConstraints(),
                         icon: Icon(
                           promo.isFavorite
                               ? Icons.favorite_rounded
                               : Icons.favorite_border_rounded,
-                          color: promo.isFavorite ? Colors.red : null,
-                          size: 20,
+                          color: promo.isFavorite ? Colors.red : Colors.grey,
                         ),
                       ),
                     ),
                   ),
-                  // Lock badge
-                  if (isLocked)
-                    Positioned(
-                      bottom: 10,
-                      left: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEE2E2),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          lockLabel
-                                      ?.toLowerCase()
-                                      .contains('member') ==
-                                  true
-                              ? '🔒 Member'
-                              : '🔒 Terkunci',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF991B1B),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               ),
-              // Info area
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       promo.productName,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0B1C30),
-                        height: 1.3,
-                      ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${promo.brand} • ${promo.storeName}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
+                      '@ ' + promo.storeName,
+                      style: Theme.of(context).textTheme.bodySmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      isLocked
-                          ? 'Harga terkunci'
-                          : CurrencyFormatter.format(promo.promoPrice),
-                      style: const TextStyle(
-                        fontSize: 17,
-                        color: Color(0xFF059669),
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    if (!isLocked) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        CurrencyFormatter.format(promo.normalPrice),
-                        style: const TextStyle(
-                          decoration: TextDecoration.lineThrough,
-                          fontSize: 12,
-                          color: Color(0xFF94A3B8),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              if (isLocked)
+                                _InfoBadge(
+                                  label: 'Terkunci',
+                                  backgroundColor: const Color(0xFFFEE2E2),
+                                  textColor: const Color(0xFF991B1B),
+                                ),
+                              _InfoBadge(
+                                label:
+                                    '-' + promo.discountPercent.toStringAsFixed(0) + '%',
+                                backgroundColor: const Color(0xFFFFF0A8),
+                                textColor: const Color(0xFF7C5A00),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    Text(
-                      isLocked
-                          ? lockLabel ?? 'Buka dengan coin atau premium'
-                          : 'Hemat ${CurrencyFormatter.format(promo.savingsAmount)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF059669),
-                        fontWeight: FontWeight.w700,
-                      ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Hemat ' + CurrencyFormatter.format(promo.savingsAmount),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: const Color(0xFF10B981),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF4FF),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '⏰ ' + DateFormatter.short(promo.endDate),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(fontSize: 11),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -252,31 +239,84 @@ class PromoCard extends StatelessWidget {
     );
   }
 
-  // ── Variant B: Compact List Card (untuk vertikal list) ──
   Widget _buildListCard(BuildContext context) {
     final muted = promo.isExpired;
     return Opacity(
       opacity: muted ? 0.72 : 1,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Image with rounded corners
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: PromoImage(
-                    imageUrl: promo.imageUrl,
-                    width: 88,
-                    height: 88,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    children: [
+                      PromoImage(
+                        imageUrl: promo.imageUrl,
+                        width: 100,
+                        height: 100,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 24,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withOpacity(0.2),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 4,
+                        right: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF0A8),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '-' + promo.discountPercent.toStringAsFixed(0) + '%',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF7C5A00),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,53 +334,39 @@ class PromoCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          IconButton(
-                            onPressed: onFavoriteTap,
-                            iconSize: 22,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 36,
-                              minHeight: 36,
-                            ),
-                            icon: Icon(
+                          GestureDetector(
+                            onTap: onFavoriteTap,
+                            child: Icon(
                               promo.isFavorite
                                   ? Icons.favorite_rounded
                                   : Icons.favorite_border_rounded,
-                              color: promo.isFavorite ? Colors.red : null,
-                              size: 22,
+                              color: promo.isFavorite ? Colors.red : const Color(0xFFC7D2E0),
+                              size: 20,
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 4),
                       Text(
-                        '${promo.brand} • ${promo.storeName}',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        '@ ' + promo.storeName,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: const Color(0xFF64748B)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
-                      // Badges row
+                      const SizedBox(height: 6),
                       Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
+                        spacing: 4,
+                        runSpacing: 4,
                         children: [
                           if (isLocked)
                             _InfoBadge(
-                              label: lockLabel
-                                          ?.toLowerCase()
-                                          .contains('member') ==
-                                      true
-                                  ? '🔒 Member'
-                                  : '🔒 Terkunci',
+                              label: 'Terkunci',
                               backgroundColor: const Color(0xFFFEE2E2),
                               textColor: const Color(0xFF991B1B),
                             ),
-                          _InfoBadge(
-                            label:
-                                '-${promo.discountPercent.toStringAsFixed(0)}%',
-                            backgroundColor: const Color(0xFFFFF0A8),
-                            textColor: const Color(0xFF7C5A00),
-                          ),
                           _InfoBadge(
                             label: promo.statusLabel,
                             backgroundColor: _statusBackground(promo),
@@ -348,101 +374,40 @@ class PromoCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      // Price row
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            isLocked
-                                ? 'Harga terkunci'
-                                : CurrencyFormatter.format(promo.promoPrice),
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  color:
-                                      Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          if (!isLocked)
-                            Text(
-                              CurrencyFormatter.format(promo.normalPrice),
-                              style: const TextStyle(
-                                decoration: TextDecoration.lineThrough,
-                                fontSize: 12,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      // Savings + expiry row
+                      const SizedBox(height: 6),
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              isLocked
-                                  ? lockLabel ??
-                                      'Buka dengan coin atau premium'
-                                  : 'Hemat ${CurrencyFormatter.format(promo.savingsAmount)}',
+                              'Hemat ' + CurrencyFormatter.format(promo.savingsAmount),
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
                                   ?.copyWith(
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                    color: const Color(0xFF10B981),
                                     fontWeight: FontWeight.w700,
                                   ),
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                              horizontal: 6,
+                              vertical: 3,
                             ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFEFF4FF),
-                              borderRadius: BorderRadius.circular(999),
+                              borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              '⏱ ${DateFormatter.short(promo.endDate)}',
+                              '⏰ ' + DateFormatter.short(promo.endDate),
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
-                                  ?.copyWith(fontSize: 11),
+                                  ?.copyWith(fontSize: 10),
                             ),
                           ),
                         ],
                       ),
-                      if (promo.sourceUrl.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
-                            onPressed: isLocked
-                                ? null
-                                : () => _openClaimUrl(promo.sourceUrl),
-                            icon: const Icon(
-                              Icons.open_in_new_rounded,
-                              size: 16,
-                            ),
-                            label: const Text('Claim Promo'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              minimumSize: Size.zero,
-                              tapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -493,17 +458,17 @@ class _InfoBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: textColor,
               fontWeight: FontWeight.w700,
-              fontSize: 10,
+              fontSize: 9,
             ),
       ),
     );
