@@ -121,15 +121,16 @@ class PromoProvider extends ChangeNotifier {
 
   List<PromoModel> get filteredPromos {
     final filtered = promos.where((promo) {
-      final keyword = searchKeyword.toLowerCase();
+      final keyword = _normalizeLabel(searchKeyword);
       final searchMatches = searchKeyword.isEmpty ||
-          promo.productName.toLowerCase().contains(keyword) ||
-          promo.brand.toLowerCase().contains(keyword) ||
-          promo.storeName.toLowerCase().contains(keyword);
-      final categoryMatches =
-          selectedCategory == 'Semua' || promo.categoryName == selectedCategory;
-      final storeMatches =
-          selectedStore == 'Semua' || promo.storeName == selectedStore;
+          _normalizeLabel(promo.productName).contains(keyword) ||
+          _normalizeLabel(promo.brand).contains(keyword) ||
+          _normalizeLabel(promo.storeName).contains(keyword);
+      final categoryMatches = _isAllSelection(selectedCategory) ||
+          _normalizeLabel(promo.categoryName) ==
+              _normalizeLabel(selectedCategory);
+      final storeMatches = _isAllSelection(selectedStore) ||
+          _normalizeLabel(promo.storeName) == _normalizeLabel(selectedStore);
       return !promo.isExpired &&
           searchMatches &&
           categoryMatches &&
@@ -319,12 +320,12 @@ class PromoProvider extends ChangeNotifier {
   }
 
   void updateSelectedCategory(String category) {
-    selectedCategory = category;
+    selectedCategory = category.trim().isEmpty ? 'Semua' : category.trim();
     notifyListeners();
   }
 
   void updateSelectedStore(String store) {
-    selectedStore = store;
+    selectedStore = store.trim().isEmpty ? 'Semua' : store.trim();
     notifyListeners();
   }
 
@@ -536,6 +537,9 @@ class PromoProvider extends ChangeNotifier {
     await _storeService.deleteStore(storeId);
     final target = stores.firstWhere((item) => item.id == storeId);
     stores = stores.where((item) => item.id != storeId).toList();
+    if (_normalizeLabel(selectedStore) == _normalizeLabel(target.name)) {
+      selectedStore = 'Semua';
+    }
     promos = promos.where((item) => item.storeName != target.name).toList();
     notifyListeners();
   }
@@ -567,11 +571,22 @@ class PromoProvider extends ChangeNotifier {
     await _categoryService.deleteCategory(categoryId);
     final target = categories.firstWhere((item) => item.id == categoryId);
     categories = categories.where((item) => item.id != categoryId).toList();
+    if (_normalizeLabel(selectedCategory) == _normalizeLabel(target.name)) {
+      selectedCategory = 'Semua';
+    }
     promos = promos
         .map((item) => item.categoryName == target.name
             ? item.copyWith(categoryName: 'Lainnya')
             : item)
         .toList();
     notifyListeners();
+  }
+
+  bool _isAllSelection(String value) {
+    return _normalizeLabel(value) == 'semua';
+  }
+
+  String _normalizeLabel(String value) {
+    return value.trim().toLowerCase();
   }
 }

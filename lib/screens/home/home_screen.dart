@@ -266,6 +266,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // ── Premium Reward Card ──
           SliverToBoxAdapter(
+            child: _buildCategoryPromoSection(
+              promoProvider,
+              favoriteProvider,
+              experience,
+              auth,
+            ),
+          ),
+
+          SliverToBoxAdapter(
             child: _buildPremiumRewardCard(experience, auth),
           ),
 
@@ -1205,7 +1214,8 @@ class _HomeScreenState extends State<HomeScreen> {
               return CategoryChip(
                 label: category.name,
                 icon: _categoryIcons[category.name],
-                selected: promoProvider.selectedCategory == category.name,
+                selected: _normalizeLabel(promoProvider.selectedCategory) ==
+                    _normalizeLabel(category.name),
                 onTap: () =>
                     promoProvider.updateSelectedCategory(category.name),
               );
@@ -1219,6 +1229,91 @@ class _HomeScreenState extends State<HomeScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // PREMIUM REWARD CARD (Simplified to match target design)
   // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildCategoryPromoSection(
+    PromoProvider promoProvider,
+    FavoriteProvider favoriteProvider,
+    DashboardExperienceProvider experience,
+    AuthProvider auth,
+  ) {
+    final selectedCategory = promoProvider.selectedCategory;
+    final promos = promoProvider.filteredPromos.take(5).toList();
+    if (promos.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final sectionTitle =
+        selectedCategory == 'Semua' ? 'Semua Promo' : 'Promo $selectedCategory';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                sectionTitle,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1A2E),
+                  letterSpacing: -0.3,
+                ),
+              ),
+              Text(
+                '${promos.length} item',
+                style: const TextStyle(
+                  color: Color(0xFF0F7B4F),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 290,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            clipBehavior: Clip.none,
+            itemCount: promos.length,
+            itemBuilder: (context, index) {
+              final promo = promos[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index < promos.length - 1 ? 12 : 0,
+                ),
+                child: PromoCard(
+                  promo: promo.copyWith(
+                    isFavorite: favoriteProvider.isFavorite(promo.id),
+                  ),
+                  isLocked: experience.isPromoLocked(promo.id),
+                  lockLabel: experience.promoLockLabel(promo.id),
+                  onTap: () => _openPromo(promo),
+                  onFavoriteTap: () {
+                    if (!auth.isLoggedIn) {
+                      Navigator.pushNamed(context, AppRoutes.login);
+                      return;
+                    }
+                    favoriteProvider.toggleFavorite(
+                        auth.currentUser!.id, promo);
+                  },
+                  variant: PromoCardVariant.grid,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _normalizeLabel(String value) {
+    return value.trim().toLowerCase();
+  }
 
   Widget _buildPremiumRewardCard(
       DashboardExperienceProvider experience, AuthProvider auth) {
@@ -1579,7 +1674,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   spacing: 10,
                   runSpacing: 10,
                   children: categories.map((cat) {
-                    final selected = cat.name == currentCategory;
+                    final selected = _normalizeLabel(cat.name) ==
+                        _normalizeLabel(currentCategory);
                     return ChoiceChip(
                       label: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1688,6 +1784,3 @@ class _HeroButton extends StatelessWidget {
     );
   }
 }
-
-
-
