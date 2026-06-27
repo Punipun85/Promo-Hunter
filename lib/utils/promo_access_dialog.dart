@@ -46,7 +46,7 @@ Future<void> openPromoWithAccessGuard(
               Text(
                 isMemberOnly
                     ? 'Promo ini khusus member premium. Upgrade akun untuk membuka harga, detail, dan link klaim.'
-                    : 'User gratis perlu ${experience.promoLockLabel(promo.id).toLowerCase()} untuk membuka info promo ini.',
+                    : 'User gratis menunggu maksimal 3 jam setelah promo rilis. Saat ini kamu masih perlu ${experience.promoLockLabel(promo.id).toLowerCase()} untuk membuka info promo ini.',
               ),
               const SizedBox(height: 14),
               _AccessLine(
@@ -58,7 +58,7 @@ Future<void> openPromoWithAccessGuard(
               const SizedBox(height: 8),
               const _AccessLine(
                 icon: Icons.workspace_premium_outlined,
-                text: 'Langganan membuka semua promo tanpa menunggu.',
+                text: 'Langganan membuka semua promo secara instan saat promo rilis.',
               ),
             ],
           ),

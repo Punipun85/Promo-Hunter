@@ -415,7 +415,7 @@ class _LockedPromoDetail extends StatelessWidget {
               Text(
                 isMemberOnly
                     ? 'Promo ini hanya bisa dibuka oleh member premium. Upgrade akun untuk melihat harga, detail, dan link klaim.'
-                    : 'User gratis perlu $waitLabel untuk melihat harga dan detail promo ini.',
+                    : 'User gratis menunggu maksimal 3 jam setelah promo rilis. Saat ini kamu masih perlu $waitLabel untuk melihat harga dan detail promo ini.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 16),

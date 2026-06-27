@@ -30,6 +30,12 @@ class PromoListScreen extends StatelessWidget {
     final favoriteProvider = context.watch<FavoriteProvider>();
     final provider = context.watch<PromoProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      context
+          .read<DashboardExperienceProvider>()
+          .registerPromos(provider.promos.map((promo) => promo.id));
+    });
     return Scaffold(
       appBar: AppBar(
         title: const Text('Daftar Promo'),

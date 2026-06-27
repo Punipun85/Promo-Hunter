@@ -29,6 +29,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+enum _EntrySheetAction {
+  dismiss,
+  claimReward,
+  openWallet,
+  openPromos,
+  openPremium,
+}
+
 class _HomeScreenState extends State<HomeScreen> {
   final LocationService _locationService = const LocationService();
 
@@ -57,6 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final promoIds = context.read<PromoProvider>().promos.map((promo) => promo.id);
+      context.read<DashboardExperienceProvider>().registerPromos(promoIds);
       _loadNearbyStores();
       _showEntryDialogsIfNeeded();
     });
@@ -97,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return distA.compareTo(distB);
         });
       setState(() {
-        _nearbyStores = sorted.take(5).toList();
+        _nearbyStores = sorted.take(10).toList();
         _isLoadingStores = false;
       });
     } catch (e) {
@@ -106,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
           .read<PromoProvider>()
           .stores
           .where((store) => store.id != 0)
-          .take(5)
+          .take(10)
           .toList();
       setState(() {
         _nearbyStores = stores;
@@ -138,9 +148,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   double _degreesToRadians(double degrees) => degrees * math.pi / 180;
 
+  PromoModel? _pickFeaturedPromo(List<PromoModel> promos) {
+    if (promos.isEmpty) return null;
+    final sorted = List<PromoModel>.from(promos)
+      ..sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
+    return sorted.first;
+  }
+
   Future<void> _showEntryDialogsIfNeeded() async {
     final auth = context.read<AuthProvider>();
     final experience = context.read<DashboardExperienceProvider>();
+    final promoProvider = context.read<PromoProvider>();
     if (!auth.isLoggedIn ||
         _isShowingEntryDialog ||
         !experience.shouldShowEntryDialogs()) {
@@ -149,39 +167,132 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _isShowingEntryDialog = true;
     final claimReward = !experience.hasClaimedToday;
-    final actionLabel = claimReward ? 'Ambil Reward' : 'Lihat Wallet';
+    final featuredPromo = _pickFeaturedPromo(promoProvider.promos);
+    final recommendedPlan = DashboardExperienceProvider.subscriptionPlans
+        .where((plan) => plan.isRecommended)
+        .cast<SubscriptionPlan?>()
+        .firstWhere(
+          (plan) => plan != null,
+          orElse: () =>
+              DashboardExperienceProvider.subscriptionPlans.isNotEmpty
+                  ? DashboardExperienceProvider.subscriptionPlans.first
+                  : null,
+        );
 
-    final accepted = await showDialog<bool>(
+    final action = await showModalBottomSheet<_EntrySheetAction>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text('Selamat datang kembali'),
-          content: Text(
-            claimReward
-                ? 'Reward harian kamu sudah siap. Ambil sekarang untuk menambah coin.'
-                : 'Coin dan benefit premium kamu bisa dicek dari wallet.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Nanti'),
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFB),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(actionLabel),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Selamat datang kembali',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    claimReward
+                        ? 'Ada reward login, promo unggulan, dan ringkasan benefit premium yang siap kamu lihat sekarang.'
+                        : 'Cek progres reward mingguan, promo terbaik hari ini, dan benefit premium sebelum mulai berburu promo.',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF475569),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildEntryCard(
+                    accent: const Color(0xFFFEF3C7),
+                    icon: Icons.redeem_rounded,
+                    title: 'Hadiah login mingguan',
+                    subtitle: claimReward
+                        ? 'Hari ke-${experience.nextDailyDay}/7 siap diambil sekarang.'
+                        : 'Reward hari ini sudah diambil. Besok lanjut lagi ke hari ${experience.nextDailyDay}/7.',
+                    detail:
+                        'Streak saat ini ${experience.claimedDaysInCycle}/7. Hari ke-7 memberi bonus 50 coin.',
+                    actionLabel:
+                        claimReward ? 'Ambil reward' : 'Lihat wallet',
+                    onPressed: () => Navigator.pop(
+                      sheetContext,
+                      claimReward
+                          ? _EntrySheetAction.claimReward
+                          : _EntrySheetAction.openWallet,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildEntryCard(
+                    accent: const Color(0xFFDCFCE7),
+                    icon: Icons.local_fire_department_rounded,
+                    title: 'Promo yang lagi bagus',
+                    subtitle: featuredPromo == null
+                        ? 'Belum ada promo unggulan yang siap ditampilkan.'
+                        : '${featuredPromo.productName} di ${featuredPromo.storeName}',
+                    detail: featuredPromo == null
+                        ? 'Sinkronkan promo atau buka daftar promo untuk melihat update terbaru.'
+                        : 'Diskon ${featuredPromo.discountPercent.toStringAsFixed(0)}% • ${CurrencyFormatter.format(featuredPromo.promoPrice)}',
+                    actionLabel: 'Lihat promo',
+                    onPressed: () => Navigator.pop(
+                      sheetContext,
+                      _EntrySheetAction.openPromos,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildEntryCard(
+                    accent: const Color(0xFFEDE9FE),
+                    icon: Icons.workspace_premium_rounded,
+                    title: 'Langganan premium',
+                    subtitle: recommendedPlan == null
+                        ? 'Benefit premium belum tersedia.'
+                        : '${recommendedPlan.name} mulai ${CurrencyFormatter.format(recommendedPlan.price)}',
+                    detail: experience.isPremium
+                        ? experience.premiumStatusText
+                        : 'Benefit: akses promo instan tanpa tunggu 3 jam, tanpa coin, dan lebih cepat tahu promo baru.',
+                    actionLabel: experience.isPremium
+                        ? 'Lihat premium'
+                        : 'Lihat paket',
+                    onPressed: () => Navigator.pop(
+                      sheetContext,
+                      _EntrySheetAction.openPremium,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(
+                        sheetContext,
+                        _EntrySheetAction.dismiss,
+                      ),
+                      child: const Text('Tutup dulu'),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         );
       },
     );
 
     if (!mounted) return;
 
-    if (accepted == true) {
-      if (claimReward) {
+    switch (action) {
+      case _EntrySheetAction.claimReward:
         final result = await experience.claimDailyReward();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -191,13 +302,103 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         );
-      } else {
+        break;
+      case _EntrySheetAction.openWallet:
+      case _EntrySheetAction.openPremium:
         Navigator.pushNamed(context, AppRoutes.wallet);
-      }
+        break;
+      case _EntrySheetAction.openPromos:
+        Navigator.pushNamed(context, AppRoutes.promoList);
+        break;
+      case _EntrySheetAction.dismiss:
+      case null:
+        break;
     }
 
     await experience.markEntryDialogsShown();
     _isShowingEntryDialog = false;
+  }
+
+  Widget _buildEntryCard({
+    required Color accent,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String detail,
+    required String actionLabel,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: const Color(0xFF0F172A)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1E293B),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF64748B),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonal(
+              onPressed: onPressed,
+              child: Text(actionLabel),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _openPromo(PromoModel promo) {
@@ -641,7 +842,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 160,
+              height: 240,
               child: _isLoadingStores
                   ? const Center(child: CircularProgressIndicator())
                   : ListView.builder(
@@ -657,6 +858,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           child: StoreCard(
                             store: store,
+                            compact: true,
                             onTap: () => Navigator.pushNamed(
                               context,
                               AppRoutes.storeDetail,
@@ -743,7 +945,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           // Notification Bell
           GestureDetector(
-            onTap: () => Navigator.pushNamed(context, AppRoutes.wallet),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.notifications),
             child: Container(
               width: 44,
               height: 44,

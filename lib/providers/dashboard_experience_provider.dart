@@ -23,7 +23,7 @@ class DashboardExperienceProvider extends ChangeNotifier
   static const _dailySpinDateKey = 'dashboard_daily_spin_date';
   static const _redeemedVouchersKey = 'dashboard_redeemed_vouchers';
   static const _paymentTransactionsKey = 'dashboard_payment_transactions';
-  static const freeAccessDelay = Duration(hours: 6);
+  static const freeAccessDelay = Duration(hours: 3);
   static const miniGameDailyLimit = 3;
   static const miniGameRounds = 5;
   static const unlockCost = 30;
@@ -141,7 +141,7 @@ class DashboardExperienceProvider extends ChangeNotifier
       price: 29000,
       durationLabel: '30 hari',
       durationDays: 30,
-      description: 'Akses semua promo tanpa delay selama sebulan.',
+        description: 'Akses semua promo langsung saat rilis selama sebulan.',
       isRecommended: true,
     ),
     SubscriptionPlan(
@@ -158,7 +158,7 @@ class DashboardExperienceProvider extends ChangeNotifier
       price: 179000,
       durationLabel: '1 tahun',
       durationDays: 365,
-      description: 'Akses promo premium setahun penuh dengan harga terbaik.',
+        description: 'Akses promo instan setahun penuh dengan harga terbaik.',
     ),
   ];
   static const voucherCatalog = <VoucherReward>[
@@ -379,7 +379,7 @@ class DashboardExperienceProvider extends ChangeNotifier
 
   String get premiumStatusText {
     if (!isPremium) {
-      return 'Paket mulai Rp9.000. Premium membuka semua info promo baru tanpa delay dan tanpa coin.';
+      return 'Paket mulai Rp9.000. User gratis menunggu 3 jam setelah promo rilis, sementara premium membuka semua info promo baru secara instan tanpa coin.';
     }
     final expiry = premiumExpiresAt == null
         ? ''
@@ -987,10 +987,8 @@ class DashboardExperienceProvider extends ChangeNotifier
     _lockCountdownTimer = Timer.periodic(const Duration(minutes: 1), (_) async {
       if (!isReady) return;
       final prefs = _cachedPrefs ?? await SharedPreferences.getInstance();
-      final changed = await _refreshPremiumStatus(prefs);
-      if (isPremium || changed) {
-        notifyListeners();
-      }
+      await _refreshPremiumStatus(prefs);
+      notifyListeners();
     });
   }
 

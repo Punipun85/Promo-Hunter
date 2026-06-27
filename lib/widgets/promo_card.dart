@@ -26,6 +26,80 @@ class PromoCard extends StatelessWidget {
   final String? lockLabel;
   final PromoCardVariant variant;
 
+  bool get _isMemberOnlyLock =>
+      isLocked && (lockLabel?.toLowerCase().contains('member') ?? false);
+
+  bool get _isTimedLock =>
+      isLocked && (lockLabel?.toLowerCase().contains('tunggu') ?? false);
+
+  Duration? get _timedLockRemaining {
+    if (!_isTimedLock || lockLabel == null) return null;
+    final text = lockLabel!.toLowerCase();
+    final hoursMatch = RegExp(r'(\d+)j').firstMatch(text);
+    final minutesMatch = RegExp(r'(\d+)m').firstMatch(text);
+    final hours = hoursMatch != null ? int.tryParse(hoursMatch.group(1)!) : 0;
+    final minutes =
+        minutesMatch != null ? int.tryParse(minutesMatch.group(1)!) : 0;
+    return Duration(hours: hours ?? 0, minutes: minutes ?? 0);
+  }
+
+  Color get _lockBackgroundColor {
+    if (_isMemberOnlyLock) return const Color(0xFFEDE9FE);
+    final remaining = _timedLockRemaining;
+    if (remaining != null) {
+      if (remaining.inMinutes <= 30) return const Color(0xFFFEE2E2);
+      if (remaining.inHours <= 1) return const Color(0xFFFFEDD5);
+      return const Color(0xFFFEF3C7);
+    }
+    return const Color(0xFFFEE2E2);
+  }
+
+  Color get _lockTextColor {
+    if (_isMemberOnlyLock) return const Color(0xFF5B21B6);
+    final remaining = _timedLockRemaining;
+    if (remaining != null) {
+      if (remaining.inMinutes <= 30) return const Color(0xFF991B1B);
+      if (remaining.inHours <= 1) return const Color(0xFF9A3412);
+      return const Color(0xFF854D0E);
+    }
+    return const Color(0xFF991B1B);
+  }
+
+  String get _lockBadgeLabel {
+    if (_isMemberOnlyLock) return 'Premium only';
+    if (_isTimedLock && lockLabel != null) {
+      final badgeLabel = lockLabel!.replaceFirst('Tunggu', 'Gratis dalam');
+      return badgeLabel;
+    }
+    return 'Terkunci';
+  }
+
+  String get _lockDescription {
+    if (_isMemberOnlyLock) return 'Premium: akses instan';
+    if (_isTimedLock && lockLabel != null) {
+      return '${lockLabel!.replaceFirst('Tunggu', 'Gratis dalam')} | Premium instan';
+    }
+    return lockLabel ?? 'Buka dengan coin atau premium';
+  }
+
+  String get _gridLockBadgeLabel {
+    if (_isMemberOnlyLock) return 'Premium';
+    final remaining = _timedLockRemaining;
+    if (remaining != null) {
+      final hours = remaining.inHours;
+      final minutes = remaining.inMinutes.remainder(60);
+      if (hours > 0) return '${hours}j ${minutes}m lagi';
+      return '${minutes}m lagi';
+    }
+    return 'Terkunci';
+  }
+
+  String get _gridLockDescription {
+    if (_isMemberOnlyLock) return 'Premium instan';
+    if (_isTimedLock) return 'Gratis nanti, premium instan';
+    return 'Buka dengan coin';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (variant == PromoCardVariant.grid) {
@@ -34,7 +108,6 @@ class PromoCard extends StatelessWidget {
     return _buildListCard(context);
   }
 
-  // ── Variant A: Large Grid Card (untuk horizontal scroll) ──
   Widget _buildGridCard(BuildContext context) {
     final muted = promo.isExpired;
     return Opacity(
@@ -60,7 +133,6 @@ class PromoCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image area
               Stack(
                 children: [
                   PromoImage(
@@ -68,7 +140,6 @@ class PromoCard extends StatelessWidget {
                     width: 220,
                     height: 140,
                   ),
-                  // Gradient overlay at bottom of image
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -87,7 +158,6 @@ class PromoCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Discount badge
                   Positioned(
                     top: 10,
                     left: 10,
@@ -117,7 +187,6 @@ class PromoCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Favorite button
                   Positioned(
                     top: 8,
                     right: 8,
@@ -151,7 +220,6 @@ class PromoCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Lock badge
                   if (isLocked)
                     Positioned(
                       bottom: 10,
@@ -162,19 +230,14 @@ class PromoCard extends StatelessWidget {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEE2E2),
+                          color: _lockBackgroundColor,
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          lockLabel
-                                      ?.toLowerCase()
-                                      .contains('member') ==
-                                  true
-                              ? '🔒 Member'
-                              : '🔒 Terkunci',
-                          style: const TextStyle(
+                          _gridLockBadgeLabel,
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Color(0xFF991B1B),
+                            color: _lockTextColor,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -182,7 +245,6 @@ class PromoCard extends StatelessWidget {
                     ),
                 ],
               ),
-              // Info area
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
                 child: Column(
@@ -201,7 +263,7 @@ class PromoCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${promo.brand} • ${promo.storeName}',
+                      '${promo.brand} - ${promo.storeName}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF64748B),
@@ -234,13 +296,16 @@ class PromoCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       isLocked
-                          ? lockLabel ?? 'Buka dengan coin atau premium'
+                          ? _gridLockDescription
                           : 'Hemat ${CurrencyFormatter.format(promo.savingsAmount)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF059669),
+                        color:
+                            isLocked ? _lockTextColor : const Color(0xFF059669),
                         fontWeight: FontWeight.w700,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -252,7 +317,6 @@ class PromoCard extends StatelessWidget {
     );
   }
 
-  // ── Variant B: Compact List Card (untuk vertikal list) ──
   Widget _buildListCard(BuildContext context) {
     final muted = promo.isExpired;
     return Opacity(
@@ -267,7 +331,6 @@ class PromoCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Image with rounded corners
                 ClipRRect(
                   borderRadius: BorderRadius.circular(18),
                   child: PromoImage(
@@ -313,27 +376,27 @@ class PromoCard extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        '${promo.brand} • ${promo.storeName}',
+                        '${promo.brand} - ${promo.storeName}',
                         style: Theme.of(context).textTheme.bodySmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
-                      // Badges row
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
                         children: [
                           if (isLocked)
                             _InfoBadge(
-                              label: lockLabel
-                                          ?.toLowerCase()
-                                          .contains('member') ==
-                                      true
-                                  ? '🔒 Member'
-                                  : '🔒 Terkunci',
-                              backgroundColor: const Color(0xFFFEE2E2),
-                              textColor: const Color(0xFF991B1B),
+                              label: _lockBadgeLabel,
+                              backgroundColor: _lockBackgroundColor,
+                              textColor: _lockTextColor,
+                            ),
+                          if (isLocked && !_isMemberOnlyLock)
+                            const _InfoBadge(
+                              label: 'Premium instan',
+                              backgroundColor: Color(0xFFE8F7EE),
+                              textColor: Color(0xFF166534),
                             ),
                           _InfoBadge(
                             label:
@@ -349,7 +412,6 @@ class PromoCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      // Price row
                       Wrap(
                         spacing: 8,
                         runSpacing: 4,
@@ -380,21 +442,22 @@ class PromoCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      // Savings + expiry row
                       Row(
                         children: [
                           Expanded(
                             child: Text(
                               isLocked
-                                  ? lockLabel ??
-                                      'Buka dengan coin atau premium'
+                                  ? _lockDescription
                                   : 'Hemat ${CurrencyFormatter.format(promo.savingsAmount)}',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
                                   ?.copyWith(
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                    color: isLocked
+                                        ? _lockTextColor
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
                                     fontWeight: FontWeight.w700,
                                   ),
                             ),
@@ -409,7 +472,7 @@ class PromoCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              '⏱ ${DateFormatter.short(promo.endDate)}',
+                              'Ends ${DateFormatter.short(promo.endDate)}',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall

@@ -1336,7 +1336,7 @@ class _PremiumUpsellCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Gratis pakai coin, Premium tanpa menunggu',
+                  'Gratis menunggu 3 jam atau pakai coin, Premium instan',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF7C2D12),
