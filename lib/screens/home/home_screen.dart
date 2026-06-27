@@ -16,6 +16,7 @@ import '../../utils/date_formatter.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/promo_card.dart';
 import '../../widgets/store_card.dart';
+import '../../widgets/coin_banner_card.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Home Screen — PromoHunter v2 (Modern Startup UI — Target Design Match)
@@ -234,9 +235,18 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _buildHeader(auth),
           ),
 
-          // ─ Hero Card (Savings Card) ──
+          // Reward Balance Card
           SliverToBoxAdapter(
-            child: _buildHeroCard(experience, auth, promoProvider),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: CoinBannerCard(
+                coinBalance: experience.coinBalance,
+                onPlayGamesPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.miniGame),
+                onViewRewardsPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.wallet),
+              ),
+            ),
           ),
 
           // ─ Search Bar ──
@@ -1678,3 +1688,6 @@ class _HeroButton extends StatelessWidget {
     );
   }
 }
+
+
+

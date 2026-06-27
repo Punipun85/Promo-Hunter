@@ -31,7 +31,13 @@ class PromoListScreen extends StatelessWidget {
     final provider = context.watch<PromoProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Daftar Promo')),
+      appBar: AppBar(
+        title: const Text('Daftar Promo'),
+        backgroundColor: const Color(0xFF059669),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+      ),
       body: provider.isLoading
           ? const LoadingWidget(message: 'Sedang memuat katalog promo...')
           : provider.errorMessage != null
@@ -41,7 +47,7 @@ class PromoListScreen extends StatelessWidget {
                   onRetry: () => context.read<PromoProvider>().bootstrap(),
                 )
               : ListView(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                   children: [
                     TextField(
                       onChanged: provider.updateSearch,
@@ -263,3 +269,5 @@ class _FilterDropdown extends StatelessWidget {
     );
   }
 }
+
+

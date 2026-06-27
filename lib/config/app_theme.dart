@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primary = Color(0xFF22C55E);
-  static const Color primaryDeep = Color(0xFF006E2F);
+  static const Color primary = Color(0xFF10B981);
+  static const Color primaryDeep = Color(0xFF059669);
   static const Color secondary = Color(0xFF2170E4);
   static const Color secondaryDeep = Color(0xFF0058BE);
   static const Color accent = Color(0xFFFACC15);
-  static const Color surface = Color(0xFFF8F9FF);
+  static const Color surface = Color(0xFFFAFAFA);
   static const Color surfaceHigh = Color(0xFFEFF4FF);
   static const Color surfaceHighest = Color(0xFFDCE9FF);
   static const Color outline = Color(0xFFBCCBB9);
@@ -189,3 +189,4 @@ class AppTheme {
     );
   }
 }
+
