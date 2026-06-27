@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
+import '../../models/category_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/favorite_provider.dart';
@@ -12,9 +13,16 @@ import '../../widgets/error_state.dart';
 import '../../widgets/loading_widget.dart';
 import '../../widgets/promo_card.dart';
 
-class PromoListScreen extends StatelessWidget {
+class PromoListScreen extends StatefulWidget {
   const PromoListScreen({super.key});
 
+  @override
+  State<PromoListScreen> createState() => _PromoListScreenState();
+}
+
+class _PromoListScreenState extends State<PromoListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  
   static const List<String> _sortOptions = [
     'Terbaru',
     'Diskon terbesar',
@@ -25,15 +33,23 @@ class PromoListScreen extends StatelessWidget {
   ];
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final favoriteProvider = context.watch<FavoriteProvider>();
     final provider = context.watch<PromoProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
+    
     return Scaffold(
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         title: const Text('Daftar Promo'),
-        backgroundColor: const Color(0xFF059669),
+        backgroundColor: const Color(0xFF10B981),
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
@@ -47,177 +63,250 @@ class PromoListScreen extends StatelessWidget {
                   onRetry: () => context.read<PromoProvider>().bootstrap(),
                 )
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  padding: const EdgeInsets.all(0),
                   children: [
-                    TextField(
-                      onChanged: provider.updateSearch,
-                      decoration: const InputDecoration(
-                        hintText: 'Cari produk, brand, atau toko...',
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final storeDropdown = _FilterDropdown(
-                          label: 'Toko',
-                          value: provider.selectedStore,
-                          options: provider.stores.map((item) => item.name),
-                          onChanged: (value) =>
-                              provider.updateSelectedStore(value ?? 'Semua'),
-                        );
-                        final categoryDropdown = _FilterDropdown(
-                          label: 'Kategori',
-                          value: provider.selectedCategory,
-                          options:
-                              provider.categories.map((item) => item.name),
-                          onChanged: (value) => provider
-                              .updateSelectedCategory(value ?? 'Semua'),
-                        );
-
-                        if (constraints.maxWidth < 430) {
-                          return Column(
-                            children: [
-                              storeDropdown,
-                              const SizedBox(height: 12),
-                              categoryDropdown,
-                            ],
-                          );
-                        }
-
-                        return Row(
-                          children: [
-                            Expanded(child: storeDropdown),
-                            const SizedBox(width: 12),
-                            Expanded(child: categoryDropdown),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${provider.filteredPromos.length} promo ditemukan',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: provider.resetFilters,
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Reset'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: provider.isLoadingLocation
-                          ? null
-                          : () async {
-                              await provider.refreshUserLocation(
-                                makeNearestDefault: true,
-                              );
-                              if (!context.mounted ||
-                                  provider.locationMessage == null) {
-                                return;
-                              }
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(provider.locationMessage!),
-                                ),
-                              );
-                            },
-                      icon: provider.isLoadingLocation
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.my_location_rounded),
-                      label: Text(
-                        provider.hasUserLocation
-                            ? 'Lokasi aktif, prioritaskan terdekat'
-                            : 'Gunakan lokasi saya',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Urutkan promo',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 42,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _sortOptions.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final option = _sortOptions[index];
-                          final selected = provider.selectedSort == option;
-                          return ChoiceChip(
-                            label: Text(option),
-                            selected: selected,
-                            onSelected: (_) => provider.updateSort(option),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    // Search Bar Section
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
+                      color: Colors.white,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: provider.updateSearch,
+                        decoration: InputDecoration(
+                          hintText: 'Cari produk, brand, atau toko...',
+                          prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(18),
+                    ),
+                    
+                    // Category Filter Chips
+                    Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: SizedBox(
+                        height: 36,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: provider.categories.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final category = provider.categories[index];
+                            final selected = provider.selectedCategory == category.name;
+                            return _CategoryChip(
+                              label: category.name,
+                              selected: selected,
+                              onTap: () => provider.updateSelectedCategory(category.name),
+                            );
+                          },
+                        ),
                       ),
-                      child: Row(
+                    ),
+                    
+                    // Divider
+                    Container(
+                      color: Colors.white,
+                      child: const Divider(height: 0.5, color: Color(0xFFE2E8F0)),
+                    ),
+                    
+                    // Filters & Info Section
+                    Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.tune_rounded, size: 18),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Menampilkan promo dengan urutan ${provider.selectedSort.toLowerCase()}.',
-                              style: Theme.of(context).textTheme.bodyMedium,
+                          // Filter Dropdowns Row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _FilterDropdown(
+                                  label: 'Semua Toko',
+                                  value: provider.selectedStore,
+                                  options: provider.stores.map((item) => item.name),
+                                  onChanged: (value) =>
+                                      provider.updateSelectedStore(value ?? 'Semua'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _FilterDropdown(
+                                  label: 'Urutan',
+                                  value: provider.selectedSort,
+                                  options: _sortOptions,
+                                  onChanged: (value) =>
+                                      provider.updateSort(value ?? 'Terbaru'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: provider.resetFilters,
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 20,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 12),
+                          
+                          // Promo Count & Location Info
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '\ promo ditemukan',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF0B1C30),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 8),
+                          
+                          // Location Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF4FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFD7E3FF)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 16,
+                                  color: Color(0xFF2170E4),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Lokasi aktif, prioritaskan terdekat',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xFF2170E4),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    
+                    const SizedBox(height: 8),
+                    
+                    // Promo List
                     if (provider.filteredPromos.isEmpty)
-                      const EmptyState(
-                        title: 'Promo tidak ditemukan',
-                        subtitle: 'Coba kata kunci, toko, kategori, atau urutan lain.',
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: const EmptyState(
+                          title: 'Promo tidak ditemukan',
+                          subtitle: 'Coba kata kunci, toko, kategori, atau urutan lain.',
+                        ),
                       )
                     else
-                      ...provider.filteredPromos.map(
-                        (promo) => PromoCard(
-                          promo: promo.copyWith(
-                            isFavorite: favoriteProvider.isFavorite(promo.id),
+                      Container(
+                        color: Colors.white,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: provider.filteredPromos.map((promo) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: PromoCard(
+                                  promo: promo.copyWith(
+                                    isFavorite: favoriteProvider.isFavorite(promo.id),
+                                  ),
+                                  isLocked: experience.isPromoLocked(promo.id),
+                                  lockLabel: experience.promoLockLabel(promo.id),
+                                  onTap: () => openPromoWithAccessGuard(context, promo),
+                                  onFavoriteTap: () {
+                                    if (!auth.isLoggedIn) {
+                                      Navigator.pushNamed(context, AppRoutes.login);
+                                      return;
+                                    }
+                                    favoriteProvider.toggleFavorite(
+                                      auth.currentUser!.id,
+                                      promo,
+                                    );
+                                  },
+                                  variant: PromoCardVariant.list,
+                                ),
+                              );
+                            }).toList(),
                           ),
-                          isLocked: experience.isPromoLocked(promo.id),
-                          lockLabel: experience.promoLockLabel(promo.id),
-                          onTap: () => openPromoWithAccessGuard(context, promo),
-                          onFavoriteTap: () {
-                            if (!auth.isLoggedIn) {
-                              Navigator.pushNamed(context, AppRoutes.login);
-                              return;
-                            }
-                            favoriteProvider.toggleFavorite(
-                              auth.currentUser!.id,
-                              promo,
-                            );
-                          },
                         ),
                       ),
+                    
+                    const SizedBox(height: 20),
                   ],
                 ),
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF10B981) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : const Color(0xFF64748B),
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -243,13 +332,39 @@ class _FilterDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: safeValue,
       isExpanded: true,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(
+          color: Color(0xFF64748B),
+          fontSize: 13,
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF8FAFC),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+        ),
+      ),
       selectedItemBuilder: (context) => uniqueOptions
           .map(
             (item) => Text(
               item,
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0B1C30),
+              ),
             ),
           )
           .toList(),
@@ -269,5 +384,3 @@ class _FilterDropdown extends StatelessWidget {
     );
   }
 }
-
-
