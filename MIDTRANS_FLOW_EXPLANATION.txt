@@ -1,0 +1,343 @@
+﻿# FLOW PEMBAYARAN MIDTRANS - PromoHunter
+
+## Overview
+Flow pembayaran Midtrans di PromoHunter adalah sistem Sandbox Demo yang menggunakan Activepieces sebagai webhook proxy. User tidak perlu membayar tunai, tapi sistem mencatat transaksi dan mensimulasikan pembayaran.
+
+---
+
+## FLOW LENGKAP: TOPUP COIN SAMPAI SELESAI
+
+### STAGE 1: USER MEMILIH PAKET COIN (di Wallet Screen)
+
+User membuka Wallet Screen
+  ↓
+Lihat daftar Coin Packages:
+  - Coba Dulu: 30 coin (Rp3.000)
+  - Starter: 60 coin (Rp5.000)
+  - Daily Hunter: 100 coin (Rp9.000)
+  - Smart Saver: 150 coin (Rp12.000) RECOMMENDED
+  - Family Saver: 250 coin (Rp19.000)
+  - Promo Hunter: 350 coin (Rp25.000)
+  - Ultimate Hemat: 600 coin (Rp39.000)
+  ↓
+User klik tombol Topup pada paket pilihan
+  ↓
+CHECK: Apakah user sudah login?
+  - Jika TIDAK → Tampilkan dialog Login Required
+  - Jika YA → Lanjut ke STAGE 2
+
+---
+
+### STAGE 2: KONFIRMASI & DIALOG TRANSAKSI
+
+File: lib/screens/wallet/wallet_screen.dart (method _showTransactionDialog)
+
+Dialog muncul dengan:
+  ✓ Title: Konfirmasi Topup Coin
+  ✓ Item Name: (nama paket, misal Smart Saver)
+  ✓ Value: 150 coin
+  ✓ Price: Rp12.000
+  ✓ Description: Coin akan masuk ke saldo akun setelah transaksi demo ini dikonfirmasi
+  ✓ Customer Name: (ambil dari auth.currentUser.name)
+  ✓ Customer Email: (ambil dari auth.currentUser.email)
+  ↓
+Dialog tanyakan METODE PEMBAYARAN:
+  - Transfer Bank
+  - E-Wallet (GCash, OVO, Dana)
+  - Kartu Kredit
+  - QRIS
+  - Lainnya
+  ↓
+User pilih metode pembayaran
+  ↓
+System generate Payment Reference (misal: MID-2026062701234567)
+
+---
+
+### STAGE 3: BUAT TRANSACTION & HUBUNGI MIDTRANS
+
+File: lib/providers/dashboard_experience_provider.dart → createCoinTopUpTransaction()
+
+System membuat Transaction object:
+  {
+    id: txn_abc123def456,
+    userId: user_id_from_auth,
+    userName: John Doe,
+    userEmail: john@example.com,
+    type: PaymentTransactionType.coinTopup,
+    status: PaymentStatus.pending,    STATUS AWAL: PENDING
+    itemId: smart,
+    itemName: Smart Saver,
+    benefitLabel: 150 coin,
+    price: 12000,
+    paymentMethod: transfer_bank,
+    paymentReference: MID-2026062701234567,
+    paymentUrl: null,
+    proofFileName: proof_abc123.jpg,
+  }
+  ↓
+Simpan transaction ke LOCAL STATE (SharedPreferences)
+  ↓
+HUBUNGI MIDTRANS via ACTIVEPIECES WEBHOOK:
+  
+  MidtransInvoiceService.createInvoice({
+    transactionId: txn_abc123def456,
+    itemName: Smart Saver,
+    amount: 12000,
+    customerName: John Doe,
+    customerEmail: john@example.com,
+    transactionType: coin_topup,
+    enabledPayments: [transfer_bank, gopay, ovo],
+  })
+  ↓
+  POST ke Activepieces Webhook URL:
+  https://cloud.activepieces.com/api/v1/webhooks/ePoMYrgGmamOoidUOxRDe/sync
+
+---
+
+### STAGE 4: ACTIVEPIECES WORKFLOW PROCESS
+
+Flow di Activepieces (Backend Automation):
+
+Webhook menerima payload
+  ↓
+Validasi data (optional di Activepieces workflow)
+  ↓
+BUAT INVOICE DI MIDTRANS via API:
+  POST https://api.sandbox.midtrans.com/v1/invoices
+  ↓
+Midtrans RESPOND dengan:
+  {
+    invoice_url: https://app.sandbox.midtrans.com/invoice/...,
+    simulator_url: https://simulator.sandbox.midtrans.com/...,
+    qr_code_url: (optional),
+    id: INV-1234567890,
+    order_id: txn_abc123def456
+  }
+  ↓
+Activepieces MENYIMPAN status pembayaran ke Supabase table:
+  TABLE: midtrans_payment_statuses
+  {
+    order_id: txn_abc123def456,
+    paid: false,              Initially false
+    failed: false,
+    transaction_status: pending,
+    fraud_status: null,
+    payment_type: null,
+    signature_verified: false
+  }
+  ↓
+Return invoice_url ke Flutter app
+
+---
+
+### STAGE 5: TAMPILKAN PAYMENT PAGE KE USER
+
+File: lib/screens/wallet/wallet_screen.dart → _showTransactionDialog()
+
+Dialog ditutup
+  ↓
+App MEMBUKA payment page (invoice URL) via browser:
+  
+  launchUrl(invoiceUrl)
+  ↓
+  User akan melihat MIDTRANS PAYMENT PAGE dengan:
+    ✓ Order Details (Smart Saver, Rp12.000)
+    ✓ Payment Methods (Transfer, GCash, OVO, etc)
+    ✓ Customer Info (John Doe, john@example.com)
+    ✓ QR Code (jika ada)
+    ✓ Countdown Timer (usually 15 menit)
+
+---
+
+### STAGE 6: USER MELAKUKAN PEMBAYARAN
+
+Di Midtrans Simulator (Sandbox):
+
+User pilih metode pembayaran (misal: Transfer Bank)
+  ↓
+Midtrans tampilkan virtual account number:
+  1001234567890123456
+  ↓
+Di SIMULATOR, user bisa:
+  A. Klik BAYAR untuk simulasi pembayaran sukses
+  B. Klik BATALKAN untuk simulasi pembayaran gagal
+  ↓
+User klik BAYAR (simulasi pembayaran berhasil)
+  ↓
+Midtrans trigger WEBHOOK notification ke Activepieces:
+  (Webhook: Midtrans notifies payment settlement)
+  ↓
+Activepieces RECEIVE webhook dengan:
+  {
+    transaction_status: settlement,   Status berubah
+    fraud_status: accept,
+    payment_type: transfer_bank,
+    order_id: txn_abc123def456,
+  }
+  ↓
+Activepieces UPDATE Supabase table:
+  UPDATE midtrans_payment_statuses SET
+    paid = true,
+    transaction_status = settlement,
+    fraud_status = accept,
+    payment_type = transfer_bank,
+    signature_verified = true
+  WHERE order_id = txn_abc123def456
+
+---
+
+### STAGE 7: APP MENDETEKSI PEMBAYARAN SELESAI
+
+File: lib/providers/dashboard_experience_provider.dart
+
+POLLING MECHANISM (setiap 3 detik via Timer):
+
+  syncSettledMidtransPayments() dipanggil setiap:
+    - App di-resume (foreground)
+    - Setiap 3 detik (Timer periodic di wallet screen)
+    ↓
+  Untuk setiap pending transaction:
+    ↓
+    QUERY Supabase:
+      SELECT * FROM midtrans_payment_statuses
+      WHERE order_id = txn_abc123def456
+    ↓
+    MidtransPaymentStatusService.getStatus(orderId)
+      ↓
+      Jika TIDAK ada record → return null
+      Jika ADA record & paid = true → return MidtransPaymentStatus
+    ↓
+    CHECK status.paid:
+      ✓ Jika TRUE → approvePaymentTransaction()
+      ✓ Jika FALSE → keep waiting
+      ✓ Jika failed = true → rejectPaymentTransaction()
+
+---
+
+### STAGE 8: APPROVE TRANSACTION & CREDIT COIN
+
+File: lib/providers/dashboard_experience_provider.dart → approvePaymentTransaction()
+
+Transaction ditemukan dengan status paid = true
+  ↓
+UPDATE transaction status:
+  OLD: PaymentStatus.pending
+  NEW: PaymentStatus.approved
+  ↓
+TAMBAHKAN COIN KE WALLET:
+  
+  BACA: paymentTransactions[index]
+    ↓
+    AMBIL: package.coins (misal: 150)
+    ↓
+    UPDATE: coinBalance += 150
+      (dari 100 menjadi 250 coin)
+    ↓
+  Simpan ke SharedPreferences (lokal cache)
+    ↓
+  Trigger notifyListeners() → UI rebuild
+    ↓
+TAMPILKAN SNACKBAR/NOTIFICATION:
+  Pembayaran berhasil. Coin sudah masuk ke wallet.
+    ↓
+SEND NOTIFICATION:
+  NotificationService.showPaymentCompleted(
+    title: Pembayaran berhasil,
+    body: Smart Saver sudah aktif untuk John Doe.
+  )
+
+---
+
+### STAGE 9: WAIT FOR SETTLEMENT (Blocking Call)
+
+File: lib/screens/wallet/wallet_screen.dart
+
+Setelah createCoinTopUpTransaction() selesai:
+    ↓
+PANGGIL: waitForMidtransSettlement(transactionId)
+    ↓
+LOOP hingga 30x percobaan (dengan delay 2 detik per attempt):
+  
+  for attempt in 0...30:
+    ↓
+    syncSettledMidtransPayments()  Check status
+    ↓
+    CEK transaction status == PaymentStatus.approved:
+      ✓ JIKA YA → return true (SELESAI)
+      ✓ JIKA TIDAK → wait 2 detik, coba lagi
+    ↓
+  Jika setelah 30x masih pending:
+    → return false (TIMEOUT)
+
+---
+
+## KEY POINTS RINGKAS
+
+Stage 1: User pilih paket → MANUAL
+Stage 2: Dialog konfirmasi → MANUAL
+Stage 3: Buat transaction & invoice → PENDING (1-2 detik)
+Stage 4: Activepieces process → PENDING
+Stage 5: Show payment page → PENDING (user bayar manual)
+Stage 6: User bayar di Midtrans → SETTLEMENT
+Stage 7: App polling status → SETTLEMENT (setiap 2 detik)
+Stage 8: Approve & credit coin → APPROVED
+Stage 9: Selesai → SUCCESS
+
+---
+
+## KEY DATA STRUCTURES
+
+PaymentTransaction:
+  - id: Unique transaction ID
+  - userId: User ID
+  - userName: User name
+  - userEmail: User email
+  - type: coinTopUp atau premiumSubscription
+  - status: pending, approved, atau rejected
+  - itemId: Package ID
+  - itemName: Package name
+  - benefitLabel: 150 coin atau 30 hari Premium
+  - price: Amount in IDR
+  - paymentMethod: transfer_bank, gopay, etc
+  - paymentReference: Midtrans order_id
+  - paymentUrl: Invoice URL
+  - proofFileName: Proof of payment (manual upload)
+  - verifiedAt: When payment verified
+
+MidtransPaymentStatus (dari Supabase):
+  - orderId: Same as paymentReference
+  - paid: KEY → true when settled
+  - failed: false or true
+  - transactionStatus: pending, settlement, deny
+  - fraudStatus: accept, challenge, deny
+  - paymentType: transfer_bank, gopay, etc
+  - signatureVerified: true or false
+
+---
+
+## WORKFLOW SUMMARY
+
+TOPUP COIN FLOW:
+
+User Select Package
+  ↓
+Confirm Payment Method
+  ↓
+Create Transaction (PENDING) + Invoice
+  ↓
+Open Midtrans Payment Page
+  ↓
+User Simulate Payment (SETTLEMENT)
+  ↓
+App Polls Supabase (every 2s)
+  ↓
+Status Change: paid = true
+  ↓
+Approve Transaction (APPROVED)
+  ↓
+Add Coin to Wallet
+  ↓
+Show Success Notification
+  ↓
+COMPLETE
