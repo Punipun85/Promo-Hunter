@@ -32,6 +32,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
 
+dependency_overrides:
+  google_maps_flutter_android: 2.19.10
+  image_picker_android: ^0.8.13+19
+  shared_preferences_android: ^2.4.26
+  url_launcher_android: ^6.3.32
+
 flutter:
   uses-material-design: true
   fonts:
