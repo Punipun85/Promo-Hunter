@@ -16,20 +16,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _slides = [
     (
       title: 'Temukan Promo Terdekat',
-      body: 'Lihat promo dari banyak supermarket dan minimarket dalam satu aplikasi.',
+      body:
+          'Lihat promo dari banyak supermarket dan minimarket dalam satu aplikasi.',
       icon: Icons.storefront_rounded,
       color: Color(0xFF2170E4),
     ),
     (
       title: 'Simpan dan Diingatkan',
-      body: 'Favoritkan promo penting dan dapatkan pengingat sebelum masa berlaku habis.',
+      body:
+          'Favoritkan promo penting dan dapatkan pengingat sebelum masa berlaku habis.',
       icon: Icons.notifications_active_rounded,
       color: Color(0xFF22C55E),
     ),
     (
-      title: 'Bandingkan Harga Satuan',
-      body: 'Hitung harga per gram, ml, liter, atau pcs agar belanja makin hemat.',
-      icon: Icons.calculate_rounded,
+      title: 'Topup Coin & Premium',
+      body:
+          'Isi coin, buka akses promo, main Mini Games, atau aktifkan premium dari satu halaman.',
+      icon: Icons.account_balance_wallet_rounded,
       color: Color(0xFFFACC15),
     ),
   ];

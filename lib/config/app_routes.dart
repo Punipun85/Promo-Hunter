@@ -10,7 +10,6 @@ import '../screens/admin/payment_verification_screen.dart';
 import '../screens/admin/promo_form_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
-import '../screens/calculator/price_calculator_screen.dart';
 import '../screens/favorite/favorite_screen.dart';
 import '../screens/home/home_shell_screen.dart';
 import '../screens/mini_game/mini_game_screen.dart';
@@ -94,7 +93,7 @@ class AppRoutes {
       case shoppingList:
         return MaterialPageRoute(builder: (_) => const ShoppingListScreen());
       case calculator:
-        return MaterialPageRoute(builder: (_) => const PriceCalculatorScreen());
+        return MaterialPageRoute(builder: (_) => const WalletScreen());
       case stores:
         return MaterialPageRoute(builder: (_) => const StoreListScreen());
       case storeDetail:

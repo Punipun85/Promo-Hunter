@@ -11,7 +11,7 @@ Project ini sudah memiliki fondasi MVP yang bisa dijalankan:
 - model, provider, dan service layer
 - Supabase auth dan inisialisasi app
 - fallback data lokal untuk mode demo
-- halaman home, promo list/detail, favorit, reminder, shopping list, kalkulator, toko, admin, dan profil
+- halaman home, promo list/detail, favorit, reminder, shopping list, topup, toko, admin, dan profil
 - schema SQL Supabase untuk setup backend
 
 ## Catatan penting
