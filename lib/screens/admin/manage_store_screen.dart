@@ -68,10 +68,12 @@ class ManageStoreScreen extends StatelessWidget {
     StoreModel? initialStore,
   }) async {
     final provider = context.read<PromoProvider>();
-    final nameController = TextEditingController(text: initialStore?.name ?? '');
+    final nameController =
+        TextEditingController(text: initialStore?.name ?? '');
     final addressController =
         TextEditingController(text: initialStore?.address ?? '');
-    final cityController = TextEditingController(text: initialStore?.city ?? '');
+    final cityController =
+        TextEditingController(text: initialStore?.city ?? '');
     final mapsController =
         TextEditingController(text: initialStore?.googleMapsUrl ?? '');
     final hoursController =
@@ -88,80 +90,100 @@ class ManageStoreScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  initialStore == null ? 'Tambah Toko' : 'Edit Toko',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-                _field(nameController, 'Nama toko'),
-                const SizedBox(height: 12),
-                _field(addressController, 'Alamat'),
-                const SizedBox(height: 12),
-                _field(cityController, 'Kota'),
-                const SizedBox(height: 12),
-                _field(mapsController, 'Google Maps URL'),
-                const SizedBox(height: 12),
-                _field(hoursController, 'Jam buka'),
-                const SizedBox(height: 12),
-                _field(
-                  latitudeController,
-                  'Latitude',
-                  isRequired: false,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    signed: true,
-                    decimal: true,
+        final mediaQuery = MediaQuery.of(context);
+        return SafeArea(
+          child: AnimatedPadding(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: mediaQuery.viewInsets.bottom + 20,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: mediaQuery.size.height * 0.9,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        initialStore == null ? 'Tambah Toko' : 'Edit Toko',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      _field(nameController, 'Nama toko'),
+                      const SizedBox(height: 12),
+                      _field(addressController, 'Alamat'),
+                      const SizedBox(height: 12),
+                      _field(cityController, 'Kota'),
+                      const SizedBox(height: 12),
+                      _field(mapsController, 'Google Maps URL'),
+                      const SizedBox(height: 12),
+                      _field(hoursController, 'Jam buka'),
+                      const SizedBox(height: 12),
+                      _field(
+                        latitudeController,
+                        'Latitude',
+                        isRequired: false,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          signed: true,
+                          decimal: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _field(
+                        longitudeController,
+                        'Longitude',
+                        isRequired: false,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          signed: true,
+                          decimal: true,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () async {
+                            if (!formKey.currentState!.validate()) return;
+                            final latitude =
+                                _parseCoordinate(latitudeController.text);
+                            final longitude =
+                                _parseCoordinate(longitudeController.text);
+                            final store = StoreModel(
+                              id: initialStore?.id ?? 0,
+                              name: nameController.text.trim(),
+                              address: addressController.text.trim(),
+                              city: cityController.text.trim(),
+                              googleMapsUrl: mapsController.text.trim(),
+                              openingHours: hoursController.text.trim(),
+                              latitude: latitude,
+                              longitude: longitude,
+                              activePromoCount:
+                                  initialStore?.activePromoCount ?? 0,
+                            );
+                            if (initialStore == null) {
+                              await provider.createStore(store);
+                            } else {
+                              await provider.updateStore(store);
+                            }
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
+                          },
+                          child: Text(
+                            initialStore == null ? 'Tambah' : 'Simpan',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                _field(
-                  longitudeController,
-                  'Longitude',
-                  isRequired: false,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    signed: true,
-                    decimal: true,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    final latitude = _parseCoordinate(latitudeController.text);
-                    final longitude = _parseCoordinate(longitudeController.text);
-                    final store = StoreModel(
-                      id: initialStore?.id ?? 0,
-                      name: nameController.text.trim(),
-                      address: addressController.text.trim(),
-                      city: cityController.text.trim(),
-                      googleMapsUrl: mapsController.text.trim(),
-                      openingHours: hoursController.text.trim(),
-                      latitude: latitude,
-                      longitude: longitude,
-                      activePromoCount: initialStore?.activePromoCount ?? 0,
-                    );
-                    if (initialStore == null) {
-                      await provider.createStore(store);
-                    } else {
-                      await provider.updateStore(store);
-                    }
-                    if (!context.mounted) return;
-                    Navigator.pop(context);
-                  },
-                  child: Text(initialStore == null ? 'Tambah' : 'Simpan'),
-                ),
-              ],
+              ),
             ),
           ),
         );

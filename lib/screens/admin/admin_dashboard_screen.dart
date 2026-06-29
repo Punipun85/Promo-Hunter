@@ -138,39 +138,44 @@ class AdminDashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          GridView.count(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            crossAxisCount: 2,
-            childAspectRatio: 1.2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            children: [
-              _StatCard(
-                label: 'Promo Aktif',
-                value: activePromos.length.toString(),
-                icon: Icons.check_circle_outline,
-                color: const Color(0xFF0F9D58),
-              ),
-              _StatCard(
-                label: 'Promo Expired',
-                value: expiredPromos.length.toString(),
-                icon: Icons.history_toggle_off_rounded,
-                color: const Color(0xFFDC2626),
-              ),
-              _StatCard(
-                label: 'Hampir Berakhir',
-                value: endingSoonPromos.length.toString(),
-                icon: Icons.timer_outlined,
-                color: const Color(0xFFF59E0B),
-              ),
-              _StatCard(
-                label: 'Total Kategori',
-                value: totalCategories.toString(),
-                icon: Icons.category_outlined,
-                color: const Color(0xFF2563EB),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 360;
+              return GridView.count(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                crossAxisCount: 2,
+                childAspectRatio: isCompact ? 0.95 : 1.2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                children: [
+                  _StatCard(
+                    label: 'Promo Aktif',
+                    value: activePromos.length.toString(),
+                    icon: Icons.check_circle_outline,
+                    color: const Color(0xFF0F9D58),
+                  ),
+                  _StatCard(
+                    label: 'Promo Expired',
+                    value: expiredPromos.length.toString(),
+                    icon: Icons.history_toggle_off_rounded,
+                    color: const Color(0xFFDC2626),
+                  ),
+                  _StatCard(
+                    label: 'Hampir Berakhir',
+                    value: endingSoonPromos.length.toString(),
+                    icon: Icons.timer_outlined,
+                    color: const Color(0xFFF59E0B),
+                  ),
+                  _StatCard(
+                    label: 'Total Kategori',
+                    value: totalCategories.toString(),
+                    icon: Icons.category_outlined,
+                    color: const Color(0xFF2563EB),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
           _PromoMonitorSection(
@@ -227,30 +232,58 @@ class AdminDashboardScreen extends StatelessWidget {
                 Navigator.pushNamed(context, AppRoutes.manageCategories),
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _InsightCard(
-                  title: 'Toko Teramai',
-                  value: topStore?.key ?? 'Belum ada',
-                  subtitle: topStore == null
-                      ? 'Tambahkan promo untuk melihat insight.'
-                      : '${topStore.value} promo aktif saat ini',
-                  icon: Icons.store_mall_directory_outlined,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _InsightCard(
-                  title: 'Kategori Populer',
-                  value: topCategory?.key ?? 'Belum ada',
-                  subtitle: topCategory == null
-                      ? 'Belum ada kategori aktif.'
-                      : '${topCategory.value} promo aktif saat ini',
-                  icon: Icons.sell_outlined,
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 360;
+              if (isCompact) {
+                return Column(
+                  children: [
+                    _InsightCard(
+                      title: 'Toko Teramai',
+                      value: topStore?.key ?? 'Belum ada',
+                      subtitle: topStore == null
+                          ? 'Tambahkan promo untuk melihat insight.'
+                          : '${topStore.value} promo aktif saat ini',
+                      icon: Icons.store_mall_directory_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    _InsightCard(
+                      title: 'Kategori Populer',
+                      value: topCategory?.key ?? 'Belum ada',
+                      subtitle: topCategory == null
+                          ? 'Belum ada kategori aktif.'
+                          : '${topCategory.value} promo aktif saat ini',
+                      icon: Icons.sell_outlined,
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: _InsightCard(
+                      title: 'Toko Teramai',
+                      value: topStore?.key ?? 'Belum ada',
+                      subtitle: topStore == null
+                          ? 'Tambahkan promo untuk melihat insight.'
+                          : '${topStore.value} promo aktif saat ini',
+                      icon: Icons.store_mall_directory_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _InsightCard(
+                      title: 'Kategori Populer',
+                      value: topCategory?.key ?? 'Belum ada',
+                      subtitle: topCategory == null
+                          ? 'Belum ada kategori aktif.'
+                          : '${topCategory.value} promo aktif saat ini',
+                      icon: Icons.sell_outlined,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
           if (bestDiscountPromos.isNotEmpty)
@@ -279,57 +312,72 @@ class AdminDashboardScreen extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.managePromos),
-            icon: const Icon(Icons.local_offer_outlined),
-            label: const Text('Kelola Promo'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.managePromos),
+              icon: const Icon(Icons.local_offer_outlined),
+              label: const Text('Kelola Promo'),
+            ),
           ),
           const SizedBox(height: 12),
-          FilledButton.tonalIcon(
-            onPressed: () => Share.share(
-              _buildAdminReport(
-                totalPromos: totalPromos,
-                activePromos: activePromos.length,
-                expiredPromos: expiredPromos.length,
-                endingSoonPromos: endingSoonPromos.length,
-                totalStores: realStores.length,
-                totalCategories: totalCategories,
-                pendingPayments: pendingPayments,
-                approvedPayments: approvedPayments,
-                rejectedPayments: rejectedPayments,
-                approvedRevenue: approvedRevenue,
-                topStore: topStore,
-                topCategory: topCategory,
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => Share.share(
+                _buildAdminReport(
+                  totalPromos: totalPromos,
+                  activePromos: activePromos.length,
+                  expiredPromos: expiredPromos.length,
+                  endingSoonPromos: endingSoonPromos.length,
+                  totalStores: realStores.length,
+                  totalCategories: totalCategories,
+                  pendingPayments: pendingPayments,
+                  approvedPayments: approvedPayments,
+                  rejectedPayments: rejectedPayments,
+                  approvedRevenue: approvedRevenue,
+                  topStore: topStore,
+                  topCategory: topCategory,
+                ),
+              ),
+              icon: const Icon(Icons.ios_share_outlined),
+              label: const Text('Export Laporan Admin'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.paymentVerification),
+              icon: const Icon(Icons.fact_check_outlined),
+              label: Text(
+                pendingPayments == 0
+                    ? 'Verifikasi Pembayaran'
+                    : 'Verifikasi Pembayaran ($pendingPayments)',
               ),
             ),
-            icon: const Icon(Icons.ios_share_outlined),
-            label: const Text('Export Laporan Admin'),
           ),
           const SizedBox(height: 12),
-          FilledButton.tonalIcon(
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.paymentVerification),
-            icon: const Icon(Icons.fact_check_outlined),
-            label: Text(
-              pendingPayments == 0
-                  ? 'Verifikasi Pembayaran'
-                  : 'Verifikasi Pembayaran ($pendingPayments)',
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.manageStores),
+              icon: const Icon(Icons.storefront_outlined),
+              label: const Text('Kelola Toko'),
             ),
           ),
           const SizedBox(height: 12),
-          FilledButton.tonalIcon(
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.manageStores),
-            icon: const Icon(Icons.storefront_outlined),
-            label: const Text('Kelola Toko'),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.tonalIcon(
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.manageCategories),
-            icon: const Icon(Icons.category_outlined),
-            label: const Text('Kelola Kategori'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.manageCategories),
+              icon: const Icon(Icons.category_outlined),
+              label: const Text('Kelola Kategori'),
+            ),
           ),
         ],
       ),
@@ -396,46 +444,81 @@ class _PaymentSummarySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFFDE68A)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 360;
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBEB),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFFDE68A)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.receipt_long_outlined, color: Color(0xFFB45309)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Ringkasan Pembayaran',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+              if (isCompact) ...[
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.receipt_long_outlined,
+                      color: Color(0xFFB45309),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Ringkasan Pembayaran',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 8),
+                TextButton(onPressed: onOpen, child: const Text('Verifikasi')),
+              ] else
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.receipt_long_outlined,
+                      color: Color(0xFFB45309),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Ringkasan Pembayaran',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: onOpen,
+                      child: const Text('Verifikasi'),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _MiniBadge(label: '$pending pending'),
+                  _MiniBadge(label: '$approved berhasil'),
+                  _MiniBadge(label: '$rejected ditolak'),
+                  _MiniBadge(
+                    label:
+                        'Revenue ${CurrencyFormatter.format(approvedRevenue)}',
+                  ),
+                ],
               ),
-              TextButton(onPressed: onOpen, child: const Text('Verifikasi')),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _MiniBadge(label: '$pending pending'),
-              _MiniBadge(label: '$approved berhasil'),
-              _MiniBadge(label: '$rejected ditolak'),
-              _MiniBadge(
-                label: 'Revenue ${CurrencyFormatter.format(approvedRevenue)}',
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -463,26 +546,27 @@ class _PromoMonitorSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final visiblePromos = promos.take(5).toList();
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 18,
-            offset: Offset(0, 8),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 360;
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x10000000),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
+              if (isCompact) ...[
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -498,46 +582,77 @@ class _PromoMonitorSection extends StatelessWidget {
                             color: const Color(0xFF64748B),
                           ),
                     ),
+                    const SizedBox(height: 10),
+                    _CountBadge(
+                      value: promos.length.toString(),
+                      color: badgeColor,
+                    ),
                   ],
                 ),
-              ),
-              _CountBadge(
-                value: promos.length.toString(),
-                color: badgeColor,
+              ] else
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: const Color(0xFF64748B),
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _CountBadge(
+                      value: promos.length.toString(),
+                      color: badgeColor,
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 14),
+              if (visiblePromos.isEmpty)
+                Text(
+                  emptyText,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF64748B),
+                      ),
+                )
+              else
+                ...visiblePromos.map(
+                  (promo) => _AdminPromoTile(
+                    promo: promo,
+                    color: badgeColor,
+                    onEdit: () => onEdit(promo),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onManage,
+                  icon: const Icon(Icons.manage_search_outlined),
+                  label: Text(
+                    promos.length > visiblePromos.length
+                        ? 'Lihat semua ${promos.length} promo'
+                        : 'Buka kelola promo',
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          if (visiblePromos.isEmpty)
-            Text(
-              emptyText,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF64748B),
-                  ),
-            )
-          else
-            ...visiblePromos.map(
-              (promo) => _AdminPromoTile(
-                promo: promo,
-                color: badgeColor,
-                onEdit: () => onEdit(promo),
-              ),
-            ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onManage,
-              icon: const Icon(Icons.manage_search_outlined),
-              label: Text(
-                promos.length > visiblePromos.length
-                    ? 'Lihat semua ${promos.length} promo'
-                    : 'Buka kelola promo',
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -555,64 +670,150 @@ class _AdminPromoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(Icons.local_offer_outlined, color: color, size: 20),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 360;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(18),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  promo.productName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+          child: isCompact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            Icons.local_offer_outlined,
+                            color: color,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                promo.productName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '${promo.storeName} - ${promo.categoryName}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: const Color(0xFF64748B),
+                                    ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Sampai ${DateFormatter.short(promo.endDate)}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: color,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        tooltip: 'Edit promo',
+                        onPressed: onEdit,
+                        icon: const Icon(Icons.edit_outlined),
                       ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${promo.storeName} - ${promo.categoryName}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF64748B),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'Sampai ${DateFormatter.short(promo.endDate)}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      child: Icon(
+                        Icons.local_offer_outlined,
                         color: color,
-                        fontWeight: FontWeight.w800,
+                        size: 20,
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            promo.productName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${promo.storeName} - ${promo.categoryName}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: const Color(0xFF64748B),
+                                    ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Sampai ${DateFormatter.short(promo.endDate)}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color: color,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Edit promo',
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Edit promo',
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit_outlined),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -735,24 +936,31 @@ class _HeroPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Colors.white,
-                ),
-          ),
-        ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 220),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Colors.white,
+                    ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -942,17 +1150,22 @@ class _MiniBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF4FF),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: Theme.of(context).colorScheme.secondary,
-            ),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 220),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF4FF),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+        ),
       ),
     );
   }

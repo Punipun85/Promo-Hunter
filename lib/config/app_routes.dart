@@ -15,6 +15,7 @@ import '../screens/home/home_shell_screen.dart';
 import '../screens/mini_game/mini_game_screen.dart';
 import '../screens/mini_game/daily_spin_screen.dart';
 import '../screens/mini_game/coin_rush_screen.dart';
+import '../screens/notification/notification_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/promo/promo_detail_screen.dart';
@@ -51,6 +52,7 @@ class AppRoutes {
   static const promoForm = '/admin/promo-form';
   static const profile = '/profile';
   static const wallet = '/wallet';
+  static const notifications = '/notifications';
   static const paymentResult = '/payment-result';
   static const paymentDetail = '/payment-detail';
   static const miniGame = '/mini-game';
@@ -124,6 +126,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
       case wallet:
         return MaterialPageRoute(builder: (_) => const WalletScreen());
+      case notifications:
+        return MaterialPageRoute(builder: (_) => const NotificationScreen());
       case paymentResult:
         return MaterialPageRoute(
           builder: (_) => PaymentResultScreen(

@@ -26,8 +26,11 @@ class StoreDetailScreen extends StatelessWidget {
     final experience = context.watch<DashboardExperienceProvider>();
     final favoriteProvider = context.watch<FavoriteProvider>();
     final promos = promoProvider.promosByStore(store.name);
-    final bestDiscount =
-        promos.isEmpty ? 0.0 : promos.map((promo) => promo.discountPercent).reduce((a, b) => a > b ? a : b);
+    final bestDiscount = promos.isEmpty
+        ? 0.0
+        : promos
+            .map((promo) => promo.discountPercent)
+            .reduce((a, b) => a > b ? a : b);
     final totalPotentialSavings = promos.fold<double>(
       0,
       (total, promo) => total + promo.savingsAmount,
@@ -90,7 +93,10 @@ class StoreDetailScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             store.city,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
                                   color: const Color(0xFF64748B),
                                 ),
                           ),
@@ -121,7 +127,8 @@ class StoreDetailScreen extends StatelessWidget {
                     if (bestDiscount > 0)
                       _InfoPill(
                         icon: Icons.percent_rounded,
-                        label: 'Diskon hingga ${bestDiscount.toStringAsFixed(0)}%',
+                        label:
+                            'Diskon hingga ${bestDiscount.toStringAsFixed(0)}%',
                       ),
                   ],
                 ),
@@ -146,32 +153,72 @@ class StoreDetailScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: promos.isEmpty
-                            ? null
-                            : () {
-                                promoProvider.updateSelectedStore(store.name);
-                                Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.promoList,
-                                );
-                              },
-                        icon: const Icon(Icons.local_offer_outlined),
-                        label: const Text('Lihat Katalog'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openMaps(context),
-                        icon: const Icon(Icons.map_outlined),
-                        label: const Text('Buka Google Maps'),
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 360;
+                    if (isCompact) {
+                      return Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: promos.isEmpty
+                                  ? null
+                                  : () {
+                                      promoProvider.updateSelectedStore(
+                                        store.name,
+                                      );
+                                      Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.promoList,
+                                      );
+                                    },
+                              icon: const Icon(Icons.local_offer_outlined),
+                              label: const Text('Lihat Katalog'),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _openMaps(context),
+                              icon: const Icon(Icons.map_outlined),
+                              label: const Text('Buka Google Maps'),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: promos.isEmpty
+                                ? null
+                                : () {
+                                    promoProvider.updateSelectedStore(
+                                      store.name,
+                                    );
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.promoList,
+                                    );
+                                  },
+                            icon: const Icon(Icons.local_offer_outlined),
+                            label: const Text('Lihat Katalog'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _openMaps(context),
+                            icon: const Icon(Icons.map_outlined),
+                            label: const Text('Buka Google Maps'),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 if (store.latitude != null && store.longitude != null) ...[
                   const SizedBox(height: 18),
@@ -184,7 +231,8 @@ class StoreDetailScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Promo Aktif', style: Theme.of(context).textTheme.titleLarge),
+              Text('Promo Aktif',
+                  style: Theme.of(context).textTheme.titleLarge),
               Text(
                 '${promos.length} item',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -304,24 +352,32 @@ class _InfoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF4FF),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Theme.of(context).colorScheme.secondary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.secondary,
-                ),
-          ),
-        ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 240),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF4FF),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 16, color: Theme.of(context).colorScheme.secondary),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
