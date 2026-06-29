@@ -5,11 +5,11 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/reminder_provider.dart';
 import '../../providers/shopping_list_provider.dart';
-import '../calculator/price_calculator_screen.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../favorite/favorite_screen.dart';
 import '../profile/profile_screen.dart';
 import '../promo/promo_list_screen.dart';
+import '../wallet/wallet_screen.dart';
 import 'home_screen.dart';
 
 class HomeShellScreen extends StatefulWidget {
@@ -67,7 +67,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       const HomeScreen(),
       const PromoListScreen(),
       const FavoriteScreen(),
-      const PriceCalculatorScreen(),
+      const WalletScreen(),
       if (isAdmin) const AdminDashboardScreen(),
       const ProfileScreen(),
     ];
@@ -88,9 +88,9 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         label: 'Favorit',
       ),
       const NavigationDestination(
-        icon: Icon(Icons.calculate_outlined),
-        selectedIcon: Icon(Icons.calculate),
-        label: 'Kalkulator',
+        icon: Icon(Icons.account_balance_wallet_outlined),
+        selectedIcon: Icon(Icons.account_balance_wallet),
+        label: 'Topup',
       ),
       if (isAdmin)
         const NavigationDestination(
@@ -126,5 +126,3 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     );
   }
 }
-
-

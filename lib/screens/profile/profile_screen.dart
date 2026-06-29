@@ -259,8 +259,7 @@ class _ProfileHeaderSliver extends StatelessWidget {
                               user.name as String,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style:
-                                  theme.textTheme.headlineSmall?.copyWith(
+                              style: theme.textTheme.headlineSmall?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -522,8 +521,8 @@ class _QuickActionsGrid extends StatelessWidget {
         onTap: () => Navigator.pushNamed(context, AppRoutes.shoppingList),
       ),
       _QuickActionItem(
-        icon: Icons.calculate_outlined,
-        label: 'Kalkulator',
+        icon: Icons.account_balance_wallet_outlined,
+        label: 'Topup Coin',
         color: const Color(0xFF2170E4),
         onTap: () => Navigator.pushNamed(context, AppRoutes.calculator),
       ),
@@ -1358,8 +1357,7 @@ class _PremiumUpsellCard extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: () =>
-                  Navigator.pushNamed(context, AppRoutes.wallet),
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.wallet),
               icon: const Icon(
                 Icons.account_balance_wallet_outlined,
                 size: 18,
