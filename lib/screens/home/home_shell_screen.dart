@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
@@ -109,20 +110,62 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       _index = pages.length - 1;
     }
 
-    return Scaffold(
-      body: IndexedStack(index: _index, children: pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (index) => setState(() => _index = index),
-        destinations: destinations,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 8,
-        shadowColor: const Color(0xFF059669).withValues(alpha: 0.15),
-        indicatorColor: const Color(0xFF059669),
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        animationDuration: const Duration(milliseconds: 500),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldExit = await _showExitConfirmation(context);
+        if (shouldExit && context.mounted) {
+          await SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(index: _index, children: pages),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (index) => setState(() => _index = index),
+          destinations: destinations,
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          elevation: 8,
+          shadowColor: const Color(0xFF059669).withValues(alpha: 0.15),
+          indicatorColor: const Color(0xFF059669),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          animationDuration: const Duration(milliseconds: 500),
+        ),
       ),
     );
+  }
+
+  Future<bool> _showExitConfirmation(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Keluar aplikasi?'),
+          content: const Text(
+            'Apakah Anda ingin keluar dari aplikasi PromoHunter?',
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonal(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Keluar'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
   }
 }

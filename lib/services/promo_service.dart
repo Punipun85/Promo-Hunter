@@ -13,7 +13,8 @@ class PromoService {
       try {
         final response = await client
             .from('promos')
-            .select('*, stores(name,address,latitude,longitude), categories(name)')
+            .select(
+                '*, stores(name,address,latitude,longitude), categories(name)')
             .eq('is_active', true)
             .order('end_date');
         return (response as List)
@@ -171,9 +172,12 @@ class PromoService {
       try {
         final storeId = await _findOrCreateStoreId(promo);
         final categoryId = await _findOrCreateCategoryId(promo.categoryName);
-        await client.from('promos').insert(
-              promo.toInsertMap(storeId: storeId, categoryId: categoryId),
-            );
+        final promoId = await _nextTableId('promos');
+        await client.from('promos').insert({
+          'id': promoId,
+          ...promo.toInsertMap(storeId: storeId, categoryId: categoryId),
+        });
+        return promo.copyWith(id: promoId);
       } catch (error) {
         throw PromoPersistenceException(
           'Promo gagal disimpan ke Supabase: $error',
@@ -237,6 +241,7 @@ class PromoService {
     final inserted = await client
         .from('stores')
         .insert({
+          'id': await _nextTableId('stores'),
           'name': promo.storeName,
           ...storeDefaults,
         })
@@ -374,10 +379,30 @@ class PromoService {
 
     final inserted = await client
         .from('categories')
-        .insert({'name': normalized, 'icon': 'category'})
+        .insert({
+          'id': await _nextTableId('categories'),
+          'name': normalized,
+          'icon': 'category',
+        })
         .select('id')
         .single();
     return (inserted['id'] as num).toInt();
+  }
+
+  Future<int> _nextTableId(String table) async {
+    final client = _supabaseService.clientOrNull;
+    if (client == null) return 1;
+
+    final response = await client
+        .from(table)
+        .select('id')
+        .order('id', ascending: false)
+        .limit(1);
+    final rows = response as List;
+    if (rows.isNotEmpty) {
+      return (((rows.first as Map)['id']) as num).toInt() + 1;
+    }
+    return 1;
   }
 }
 

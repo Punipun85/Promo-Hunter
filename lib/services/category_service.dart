@@ -14,8 +14,8 @@ class CategoryService {
         final response = await client.from('categories').select().order('name');
         return [
           const CategoryModel(id: 1, name: 'Semua', icon: 'all'),
-          ...(response as List)
-              .map((item) => CategoryModel.fromMap(item as Map<String, dynamic>)),
+          ...(response as List).map(
+              (item) => CategoryModel.fromMap(item as Map<String, dynamic>)),
         ];
       } catch (_) {
         // Fallback to local categories.
@@ -39,12 +39,29 @@ class CategoryService {
     if (client != null) {
       try {
         await client.from('categories').insert({
+          'id': await _nextCategoryId(),
           'name': category.name,
           'icon': category.icon,
         });
       } catch (_) {}
     }
     return category;
+  }
+
+  Future<int> _nextCategoryId() async {
+    final client = _supabaseService.clientOrNull;
+    if (client == null) return 1;
+
+    final response = await client
+        .from('categories')
+        .select('id')
+        .order('id', ascending: false)
+        .limit(1);
+    final rows = response as List;
+    if (rows.isNotEmpty) {
+      return (((rows.first as Map)['id']) as num).toInt() + 1;
+    }
+    return 1;
   }
 
   Future<CategoryModel> updateCategory(CategoryModel category) async {

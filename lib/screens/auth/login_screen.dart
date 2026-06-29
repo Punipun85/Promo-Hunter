@@ -80,6 +80,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       TextFormField(
                         controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        textCapitalization: TextCapitalization.none,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        autofillHints: const [AutofillHints.username],
                         decoration: const InputDecoration(labelText: 'Email'),
                         validator: Validators.email,
                       ),
@@ -87,14 +93,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextFormField(
                         controller: _passwordController,
                         obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Password'),
+                        textInputAction: TextInputAction.done,
+                        textCapitalization: TextCapitalization.none,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        autofillHints: const [AutofillHints.password],
+                        decoration:
+                            const InputDecoration(labelText: 'Password'),
                         validator: Validators.password,
                       ),
                       const SizedBox(height: 20),
                       if (auth.errorMessage != null) ...[
                         Text(
                           auth.errorMessage!,
-                          style: TextStyle(color: Theme.of(context).colorScheme.error),
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error),
                         ),
                         const SizedBox(height: 12),
                       ],
@@ -104,7 +117,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: auth.isLoading
                               ? null
                               : () async {
-                                  if (!_formKey.currentState!.validate()) return;
+                                  if (!_formKey.currentState!.validate()) {
+                                    return;
+                                  }
                                   final ok = await auth.login(
                                     _emailController.text.trim(),
                                     _passwordController.text,
@@ -119,9 +134,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                           context.read<ReminderProvider>();
                                       final shoppingListProvider =
                                           context.read<ShoppingListProvider>();
-                                      await favoriteProvider.bootstrapForUser(userId);
-                                      await reminderProvider.bootstrapForUser(userId);
-                                      await shoppingListProvider.bootstrap(userId);
+                                      await favoriteProvider
+                                          .bootstrapForUser(userId);
+                                      await reminderProvider
+                                          .bootstrapForUser(userId);
+                                      await shoppingListProvider
+                                          .bootstrap(userId);
                                       if (!context.mounted) return;
                                     }
                                     Navigator.pushNamedAndRemoveUntil(
@@ -139,7 +157,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     );
                                   }
                                 },
-                          child: Text(auth.isLoading ? 'Memproses...' : 'Masuk'),
+                          child:
+                              Text(auth.isLoading ? 'Memproses...' : 'Masuk'),
                         ),
                       ),
                     ],
@@ -148,7 +167,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => Navigator.pushNamed(context, AppRoutes.register),
+                onPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.register),
                 child: const Text('Belum punya akun? Daftar'),
               ),
             ],
