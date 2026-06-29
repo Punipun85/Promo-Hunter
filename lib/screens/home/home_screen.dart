@@ -65,7 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final promoIds = context.read<PromoProvider>().promos.map((promo) => promo.id);
+      final promoIds =
+          context.read<PromoProvider>().promos.map((promo) => promo.id);
       context.read<DashboardExperienceProvider>().registerPromos(promoIds);
       _loadNearbyStores();
       _showEntryDialogsIfNeeded();
@@ -173,10 +174,9 @@ class _HomeScreenState extends State<HomeScreen> {
         .cast<SubscriptionPlan?>()
         .firstWhere(
           (plan) => plan != null,
-          orElse: () =>
-              DashboardExperienceProvider.subscriptionPlans.isNotEmpty
-                  ? DashboardExperienceProvider.subscriptionPlans.first
-                  : null,
+          orElse: () => DashboardExperienceProvider.subscriptionPlans.isNotEmpty
+              ? DashboardExperienceProvider.subscriptionPlans.first
+              : null,
         );
 
     final action = await showModalBottomSheet<_EntrySheetAction>(
@@ -185,106 +185,11 @@ class _HomeScreenState extends State<HomeScreen> {
       showDragHandle: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        return SafeArea(
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFB),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Selamat datang kembali',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    claimReward
-                        ? 'Ada reward login, promo unggulan, dan ringkasan benefit premium yang siap kamu lihat sekarang.'
-                        : 'Cek progres reward mingguan, promo terbaik hari ini, dan benefit premium sebelum mulai berburu promo.',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF475569),
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildEntryCard(
-                    accent: const Color(0xFFFEF3C7),
-                    icon: Icons.redeem_rounded,
-                    title: 'Hadiah login mingguan',
-                    subtitle: claimReward
-                        ? 'Hari ke-${experience.nextDailyDay}/7 siap diambil sekarang.'
-                        : 'Reward hari ini sudah diambil. Besok lanjut lagi ke hari ${experience.nextDailyDay}/7.',
-                    detail:
-                        'Streak saat ini ${experience.claimedDaysInCycle}/7. Hari ke-7 memberi bonus 50 coin.',
-                    actionLabel:
-                        claimReward ? 'Ambil reward' : 'Lihat wallet',
-                    onPressed: () => Navigator.pop(
-                      sheetContext,
-                      claimReward
-                          ? _EntrySheetAction.claimReward
-                          : _EntrySheetAction.openWallet,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _buildEntryCard(
-                    accent: const Color(0xFFDCFCE7),
-                    icon: Icons.local_fire_department_rounded,
-                    title: 'Promo yang lagi bagus',
-                    subtitle: featuredPromo == null
-                        ? 'Belum ada promo unggulan yang siap ditampilkan.'
-                        : '${featuredPromo.productName} di ${featuredPromo.storeName}',
-                    detail: featuredPromo == null
-                        ? 'Sinkronkan promo atau buka daftar promo untuk melihat update terbaru.'
-                        : 'Diskon ${featuredPromo.discountPercent.toStringAsFixed(0)}% • ${CurrencyFormatter.format(featuredPromo.promoPrice)}',
-                    actionLabel: 'Lihat promo',
-                    onPressed: () => Navigator.pop(
-                      sheetContext,
-                      _EntrySheetAction.openPromos,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _buildEntryCard(
-                    accent: const Color(0xFFEDE9FE),
-                    icon: Icons.workspace_premium_rounded,
-                    title: 'Langganan premium',
-                    subtitle: recommendedPlan == null
-                        ? 'Benefit premium belum tersedia.'
-                        : '${recommendedPlan.name} mulai ${CurrencyFormatter.format(recommendedPlan.price)}',
-                    detail: experience.isPremium
-                        ? experience.premiumStatusText
-                        : 'Benefit: akses promo instan tanpa tunggu 3 jam, tanpa coin, dan lebih cepat tahu promo baru.',
-                    actionLabel: experience.isPremium
-                        ? 'Lihat premium'
-                        : 'Lihat paket',
-                    onPressed: () => Navigator.pop(
-                      sheetContext,
-                      _EntrySheetAction.openPremium,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(
-                        sheetContext,
-                        _EntrySheetAction.dismiss,
-                      ),
-                      child: const Text('Tutup dulu'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        return _EntryOnboardingSheet(
+          claimReward: claimReward,
+          experience: experience,
+          featuredPromo: featuredPromo,
+          recommendedPlan: recommendedPlan,
         );
       },
     );
@@ -319,88 +224,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _isShowingEntryDialog = false;
   }
 
-  Widget _buildEntryCard({
-    required Color accent,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String detail,
-    required String actionLabel,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: const Color(0xFF0F172A)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1E293B),
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            detail,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF64748B),
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonal(
-              onPressed: onPressed,
-              child: Text(actionLabel),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _openPromo(PromoModel promo) {
     Navigator.pushNamed(
       context,
@@ -423,7 +246,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final promoProvider = context.watch<PromoProvider>();
     final favoriteProvider = context.watch<FavoriteProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
-    final nearbyStores = _nearbyStores;
+    final providerStores =
+        promoProvider.allStoresWithPromoCounts.take(10).toList();
+    final nearbyStores =
+        _nearbyStores.isNotEmpty ? _nearbyStores : providerStores;
+
+    if (!_isLoadingStores &&
+        _nearbyStores.isEmpty &&
+        providerStores.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isLoadingStores && _nearbyStores.isEmpty) {
+          _loadNearbyStores();
+        }
+      });
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFB),
@@ -481,9 +317,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // ── Paling Banyak Dicari ──
           if (promoProvider.popularPromos.isNotEmpty) ...[
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+                padding: EdgeInsets.fromLTRB(20, 28, 20, 14),
                 child: Text(
                   'Paling Banyak Dicari',
                   style: TextStyle(
@@ -666,7 +502,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'Rekomendasi Untukmu ✨',
                       style: TextStyle(
                         fontSize: 18,
@@ -742,30 +578,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'Terakhir Dilihat 👀',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1A1A2E),
+                        color: Color(0xFF1A1A2E),
                         letterSpacing: -0.3,
                       ),
                     ),
                     TextButton(
                       onPressed: () =>
                           Navigator.pushNamed(context, AppRoutes.promoList),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'Lihat promo',
                             style: TextStyle(
-                              color: const Color(0xFF0F7B4F),
+                              color: Color(0xFF0F7B4F),
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
                             ),
                           ),
-                          const Icon(Icons.chevron_right_rounded,
+                          Icon(Icons.chevron_right_rounded,
                               size: 18, color: Color(0xFF0F7B4F)),
                         ],
                       ),
@@ -904,52 +740,62 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.fromLTRB(20, 56, 20, 20),
       child: Row(
         children: [
-          // Avatar
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFF059669),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF059669).withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: Colors.white,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: 14),
-          // Greeting
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Halo, $userName!',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF6B7280),
+            child: GestureDetector(
+              onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF059669),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF059669).withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.person_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'PromoHunter',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF065F46),
-                    letterSpacing: -0.3,
+                  const SizedBox(width: 14),
+                  // Greeting
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Halo, $userName!',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'PromoHunter',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF065F46),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           // Notification Bell
@@ -985,6 +831,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // HERO CARD (Savings Card)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // ignore: unused_element
   Widget _buildHeroCard(
     DashboardExperienceProvider experience,
     AuthProvider auth,
@@ -1082,11 +929,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: 1,
                       ),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('🔥', style: TextStyle(fontSize: 14)),
-                        const SizedBox(width: 6),
+                        Text('🔥', style: TextStyle(fontSize: 14)),
+                        SizedBox(width: 6),
                         Text(
                           'HEMAT BULAN INI',
                           style: TextStyle(
@@ -1103,7 +950,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Savings amount
                   Text(
                     formattedSavings,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 42,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
@@ -1112,7 +959,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  const Text(
                     'Estimasi penghematan terkumpul',
                     style: TextStyle(
                       fontSize: 14,
@@ -1248,7 +1095,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Active Promos Card
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
               decoration: BoxDecoration(
                 color: const Color(0xFFECFDF5),
                 borderRadius: BorderRadius.circular(20),
@@ -1260,8 +1107,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 children: [
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       color: const Color(0xFFD1FAE5),
                       borderRadius: BorderRadius.circular(14),
@@ -1272,30 +1119,32 @@ class _HomeScreenState extends State<HomeScreen> {
                       size: 24,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$activePromos',
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF065F46),
-                          height: 1.1,
-                          letterSpacing: -0.5,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$activePromos',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF065F46),
+                            height: 1.1,
+                          ),
                         ),
-                      ),
-                      const Text(
-                        'PROMO AKTIF',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF059669),
-                          letterSpacing: 0.8,
+                        const Text(
+                          'PROMO AKTIF',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF059669),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1305,7 +1154,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Available Stores Card
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
               decoration: BoxDecoration(
                 color: const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(20),
@@ -1317,8 +1166,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 children: [
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       color: const Color(0xFFDBEAFE),
                       borderRadius: BorderRadius.circular(14),
@@ -1329,30 +1178,32 @@ class _HomeScreenState extends State<HomeScreen> {
                       size: 24,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$availableStores',
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E3A5F),
-                          height: 1.1,
-                          letterSpacing: -0.5,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$availableStores',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1E3A5F),
+                            height: 1.1,
+                          ),
                         ),
-                      ),
-                      const Text(
-                        'TOKO TERSEDIA',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF2563EB),
-                          letterSpacing: 0.8,
+                        const Text(
+                          'TOKO TERSEDIA',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2563EB),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1374,15 +1225,17 @@ class _HomeScreenState extends State<HomeScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Kategori Promo',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A2E),
-                  letterSpacing: -0.3,
+              const Expanded(
+                child: Text(
+                  'Kategori Promo',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A1A2E),
+                  ),
                 ),
               ),
               TextButton(
@@ -1565,7 +1418,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1924,6 +1777,384 @@ class _HomeScreenState extends State<HomeScreen> {
 // ═════════════════════════════════════════════════════════════════════════════
 // REUSABLE WIDGETS
 // ═════════════════════════════════════════════════════════════════════════════
+
+class _EntryOnboardingSheet extends StatefulWidget {
+  const _EntryOnboardingSheet({
+    required this.claimReward,
+    required this.experience,
+    required this.featuredPromo,
+    required this.recommendedPlan,
+  });
+
+  final bool claimReward;
+  final DashboardExperienceProvider experience;
+  final PromoModel? featuredPromo;
+  final SubscriptionPlan? recommendedPlan;
+
+  @override
+  State<_EntryOnboardingSheet> createState() => _EntryOnboardingSheetState();
+}
+
+class _EntryOnboardingSheetState extends State<_EntryOnboardingSheet> {
+  late final PageController _pageController;
+  int _pageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.92);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = <Widget>[
+      _EntrySheetCard(
+        accent: const Color(0xFFFFE6D8),
+        icon: Icons.redeem_rounded,
+        title: 'Hadiah login mingguan',
+        badgeLabel: 'Bonus harian',
+        subtitle: widget.claimReward
+            ? 'Hari ke-${widget.experience.nextDailyDay}/7 siap diambil sekarang.'
+            : 'Reward hari ini sudah diambil. Besok lanjut lagi ke hari ${widget.experience.nextDailyDay}/7.',
+        detail:
+            'Streak saat ini ${widget.experience.claimedDaysInCycle}/7. Hari ke-7 memberi bonus 50 coin.',
+        actionLabel: widget.claimReward ? 'Ambil reward' : 'Lihat wallet',
+        onPressed: () => Navigator.pop(
+          context,
+          widget.claimReward
+              ? _EntrySheetAction.claimReward
+              : _EntrySheetAction.openWallet,
+        ),
+      ),
+      _EntrySheetCard(
+        accent: const Color(0xFFFFE9CC),
+        icon: Icons.local_fire_department_rounded,
+        title: 'Promo yang lagi bagus',
+        badgeLabel: 'Flash info',
+        subtitle: widget.featuredPromo == null
+            ? 'Belum ada promo unggulan yang siap ditampilkan.'
+            : '${widget.featuredPromo!.productName} di ${widget.featuredPromo!.storeName}',
+        detail: widget.featuredPromo == null
+            ? 'Sinkronkan promo atau buka daftar promo untuk melihat update terbaru.'
+            : 'Diskon ${widget.featuredPromo!.discountPercent.toStringAsFixed(0)}% • ${CurrencyFormatter.format(widget.featuredPromo!.promoPrice)}',
+        actionLabel: 'Lihat promo',
+        onPressed: () => Navigator.pop(context, _EntrySheetAction.openPromos),
+      ),
+      _EntrySheetCard(
+        accent: const Color(0xFFFFD9C7),
+        icon: Icons.workspace_premium_rounded,
+        title: 'Langganan premium',
+        badgeLabel: 'Paling worth it',
+        highlighted: true,
+        subtitle: widget.recommendedPlan == null
+            ? 'Benefit premium belum tersedia.'
+            : '${widget.recommendedPlan!.name} mulai ${CurrencyFormatter.format(widget.recommendedPlan!.price)}',
+        detail: widget.experience.isPremium
+            ? widget.experience.premiumStatusText
+            : 'Akses promo instan tanpa tunggu 3 jam, tanpa coin, dan jadi yang pertama tahu promo baru setiap hari.',
+        actionLabel: widget.experience.isPremium
+            ? 'Lihat premium'
+            : 'Buka premium sekarang',
+        onPressed: () => Navigator.pop(context, _EntrySheetAction.openPremium),
+      ),
+    ];
+
+    return SafeArea(
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFF7A00),
+              Color(0xFFFF9F4A),
+            ],
+          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Selamat datang kembali',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.claimReward
+                    ? 'Ada reward login, promo unggulan, dan ringkasan benefit premium yang siap kamu lihat sekarang.'
+                    : 'Cek progres reward mingguan, promo terbaik hari ini, dan benefit premium sebelum mulai berburu promo.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.white,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: List.generate(
+                  pages.length,
+                  (index) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: EdgeInsets.only(
+                      right: index == pages.length - 1 ? 0 : 8,
+                    ),
+                    width: _pageIndex == index ? 22 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color:
+                          _pageIndex == index ? Colors.white : Colors.white54,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 255,
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: pages.length,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _pageIndex = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    return AnimatedBuilder(
+                      animation: _pageController,
+                      builder: (context, child) {
+                        double delta = 1;
+                        if (_pageController.hasClients &&
+                            _pageController.position.hasContentDimensions) {
+                          final page =
+                              _pageController.page ?? _pageIndex.toDouble();
+                          delta = (page - index).abs().clamp(0.0, 1.0);
+                        }
+                        final scale = 1 - (delta * 0.06);
+                        final opacity = 1 - (delta * 0.18);
+                        return Transform.scale(
+                          scale: scale,
+                          child: Opacity(opacity: opacity, child: child),
+                        );
+                      },
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: index == pages.length - 1 ? 0 : 12,
+                        ),
+                        child: pages[index],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pop(context, _EntrySheetAction.dismiss),
+                    child: const Text('Tutup dulu'),
+                  ),
+                  const Spacer(),
+                  if (_pageIndex < pages.length - 1)
+                    FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFFE85D04),
+                        minimumSize: const Size(0, 52),
+                      ),
+                      onPressed: () {
+                        _pageController.nextPage(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: Text('Lanjut ${_pageIndex + 2}/${pages.length}'),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EntrySheetCard extends StatelessWidget {
+  const _EntrySheetCard({
+    required this.accent,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.detail,
+    required this.actionLabel,
+    required this.onPressed,
+    this.badgeLabel,
+    this.highlighted = false,
+  });
+
+  final Color accent;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String detail;
+  final String actionLabel;
+  final VoidCallback onPressed;
+  final String? badgeLabel;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleColor = highlighted ? Colors.white : const Color(0xFF7C2D12);
+    final subtitleColor = highlighted ? Colors.white : const Color(0xFF9A3412);
+    final detailColor = highlighted
+        ? Colors.white.withValues(alpha: 0.82)
+        : const Color(0xFF9A3412);
+    final borderColor =
+        highlighted ? Colors.transparent : const Color(0xFFFFD9C7);
+    final buttonStyle = highlighted
+        ? FilledButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFFE85D04),
+          )
+        : FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFFF6A00),
+            foregroundColor: Colors.white,
+          );
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: highlighted ? null : const Color(0xFFFFFBF8),
+        gradient: highlighted
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFF6A00),
+                  Color(0xFFFF9350),
+                ],
+              )
+            : null,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: highlighted
+                ? const Color(0xFF4338CA).withValues(alpha: 0.18)
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: highlighted ? 18 : 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              width: 82,
+              height: 82,
+              decoration: BoxDecoration(
+                color:
+                    highlighted ? Colors.white.withValues(alpha: 0.16) : accent,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: titleColor,
+                size: 42,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: titleColor,
+                  ),
+                ),
+              ),
+              if (badgeLabel != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: highlighted
+                        ? Colors.white.withValues(alpha: 0.18)
+                        : accent,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    badgeLabel!,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: titleColor,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: subtitleColor,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: Text(
+              detail,
+              style: TextStyle(
+                fontSize: 13,
+                color: detailColor,
+                height: 1.45,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonal(
+              style: buttonStyle,
+              onPressed: onPressed,
+              child: Text(actionLabel),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 enum _HeroButtonVariant { dark, light }
 

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/promo_model.dart';
@@ -37,10 +37,12 @@ class PromoCard extends StatelessWidget {
     final text = lockLabel!.toLowerCase();
     final hoursMatch = RegExp(r'(\d+)j').firstMatch(text);
     final minutesMatch = RegExp(r'(\d+)m').firstMatch(text);
-    final hours = hoursMatch != null ? int.tryParse(hoursMatch.group(1)!) : 0;
-    final minutes =
-        minutesMatch != null ? int.tryParse(minutesMatch.group(1)!) : 0;
-    return Duration(hours: hours ?? 0, minutes: minutes ?? 0);
+    final hours =
+        hoursMatch != null ? int.tryParse(hoursMatch.group(1) ?? '') ?? 0 : 0;
+    final minutes = minutesMatch != null
+        ? int.tryParse(minutesMatch.group(1) ?? '') ?? 0
+        : 0;
+    return Duration(hours: hours, minutes: minutes);
   }
 
   Color get _lockBackgroundColor {
@@ -68,8 +70,7 @@ class PromoCard extends StatelessWidget {
   String get _lockBadgeLabel {
     if (_isMemberOnlyLock) return 'Premium only';
     if (_isTimedLock && lockLabel != null) {
-      final badgeLabel = lockLabel!.replaceFirst('Tunggu', 'Gratis dalam');
-      return badgeLabel;
+      return lockLabel!.replaceFirst('Tunggu', 'Gratis dalam');
     }
     return 'Terkunci';
   }
@@ -178,7 +179,7 @@ class PromoCard extends StatelessWidget {
                         ],
                       ),
                       child: Text(
-                        '-' + promo.discountPercent.toStringAsFixed(0) + '%',
+                        '-${promo.discountPercent.toStringAsFixed(0)}%',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF7C5A00),
@@ -206,17 +207,20 @@ class PromoCard extends StatelessWidget {
                         onPressed: onFavoriteTap,
                         iconSize: 20,
                         padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(),
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
                         icon: Icon(
                           promo.isFavorite
                               ? Icons.favorite_rounded
                               : Icons.favorite_border_rounded,
-                          color: promo.isFavorite ? Colors.red : Colors.grey,
+                          color: promo.isFavorite ? Colors.red : null,
+                          size: 20,
                         ),
                       ),
                     ),
                   ),
-<<<<<<< HEAD
                   if (isLocked)
                     Positioned(
                       bottom: 10,
@@ -240,8 +244,6 @@ class PromoCard extends StatelessWidget {
                         ),
                       ),
                     ),
-=======
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
                 ],
               ),
               Padding(
@@ -260,45 +262,32 @@ class PromoCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-<<<<<<< HEAD
                       '${promo.brand} - ${promo.storeName}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF64748B),
                       ),
-=======
-                      '@ ' + promo.storeName,
-                      style: Theme.of(context).textTheme.bodySmall,
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    Row(
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
                       children: [
-                        Expanded(
-                          child: Wrap(
-                            spacing: 4,
-                            runSpacing: 4,
-                            children: [
-                              if (isLocked)
-                                _InfoBadge(
-                                  label: 'Terkunci',
-                                  backgroundColor: const Color(0xFFFEE2E2),
-                                  textColor: const Color(0xFF991B1B),
-                                ),
-                              _InfoBadge(
-                                label:
-                                    '-' + promo.discountPercent.toStringAsFixed(0) + '%',
-                                backgroundColor: const Color(0xFFFFF0A8),
-                                textColor: const Color(0xFF7C5A00),
-                              ),
-                            ],
+                        if (isLocked)
+                          _InfoBadge(
+                            label: _gridLockBadgeLabel,
+                            backgroundColor: _lockBackgroundColor,
+                            textColor: _lockTextColor,
                           ),
+                        _InfoBadge(
+                          label: '-${promo.discountPercent.toStringAsFixed(0)}%',
+                          backgroundColor: const Color(0xFFFFF0A8),
+                          textColor: const Color(0xFF7C5A00),
                         ),
-<<<<<<< HEAD
-                      ),
-                    ],
+                      ],
+                    ),
                     const SizedBox(height: 6),
                     Text(
                       isLocked
@@ -312,48 +301,6 @@ class PromoCard extends StatelessWidget {
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-=======
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Hemat ' + CurrencyFormatter.format(promo.savingsAmount),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: const Color(0xFF10B981),
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF4FF),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '⏰ ' + DateFormatter.short(promo.endDate),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(fontSize: 11),
-                          ),
-                        ),
-                      ],
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
                     ),
                   ],
                 ),
@@ -376,7 +323,7 @@ class PromoCard extends StatelessWidget {
           border: Border.all(color: const Color(0xFFE2E8F0), width: 0.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -411,7 +358,7 @@ class PromoCard extends StatelessWidget {
                               end: Alignment.bottomCenter,
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withOpacity(0.2),
+                                Colors.black.withValues(alpha: 0.2),
                               ],
                             ),
                           ),
@@ -430,7 +377,7 @@ class PromoCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '-' + promo.discountPercent.toStringAsFixed(0) + '%',
+                            '-${promo.discountPercent.toStringAsFixed(0)}%',
                             style: const TextStyle(
                               fontSize: 10,
                               color: Color(0xFF7C5A00),
@@ -466,7 +413,9 @@ class PromoCard extends StatelessWidget {
                               promo.isFavorite
                                   ? Icons.favorite_rounded
                                   : Icons.favorite_border_rounded,
-                              color: promo.isFavorite ? Colors.red : const Color(0xFFC7D2E0),
+                              color: promo.isFavorite
+                                  ? Colors.red
+                                  : const Color(0xFFC7D2E0),
                               size: 20,
                             ),
                           ),
@@ -474,31 +423,18 @@ class PromoCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-<<<<<<< HEAD
                         '${promo.brand} - ${promo.storeName}',
                         style: Theme.of(context).textTheme.bodySmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
-=======
-                        '@ ' + promo.storeName,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: const Color(0xFF64748B)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
                       Wrap(
                         spacing: 4,
                         runSpacing: 4,
                         children: [
                           if (isLocked)
                             _InfoBadge(
-<<<<<<< HEAD
                               label: _lockBadgeLabel,
                               backgroundColor: _lockBackgroundColor,
                               textColor: _lockTextColor,
@@ -508,11 +444,6 @@ class PromoCard extends StatelessWidget {
                               label: 'Premium instan',
                               backgroundColor: Color(0xFFE8F7EE),
                               textColor: Color(0xFF166534),
-=======
-                              label: 'Terkunci',
-                              backgroundColor: const Color(0xFFFEE2E2),
-                              textColor: const Color(0xFF991B1B),
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
                             ),
                           _InfoBadge(
                             label: promo.statusLabel,
@@ -521,7 +452,6 @@ class PromoCard extends StatelessWidget {
                           ),
                         ],
                       ),
-<<<<<<< HEAD
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
@@ -553,33 +483,22 @@ class PromoCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-=======
-                      const SizedBox(height: 6),
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-<<<<<<< HEAD
                               isLocked
                                   ? _lockDescription
                                   : 'Hemat ${CurrencyFormatter.format(promo.savingsAmount)}',
-=======
-                              'Hemat ' + CurrencyFormatter.format(promo.savingsAmount),
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
                                   ?.copyWith(
-<<<<<<< HEAD
                                     color: isLocked
                                         ? _lockTextColor
                                         : Theme.of(
                                             context,
                                           ).colorScheme.primary,
-=======
-                                    color: const Color(0xFF10B981),
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
                                     fontWeight: FontWeight.w700,
                                   ),
                             ),
@@ -594,11 +513,7 @@ class PromoCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-<<<<<<< HEAD
                               'Ends ${DateFormatter.short(promo.endDate)}',
-=======
-                              '⏰ ' + DateFormatter.short(promo.endDate),
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
@@ -607,6 +522,31 @@ class PromoCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (promo.sourceUrl.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: isLocked
+                                ? null
+                                : () => _openClaimUrl(promo.sourceUrl),
+                            icon: const Icon(
+                              Icons.open_in_new_rounded,
+                              size: 16,
+                            ),
+                            label: const Text('Claim Promo'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

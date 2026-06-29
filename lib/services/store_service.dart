@@ -124,9 +124,10 @@ class StoreService {
     if (client != null) {
       try {
         final response = await client.from('stores').select().order('name');
-        return (response as List)
+        final stores = (response as List)
             .map((item) => StoreModel.fromMap(item as Map<String, dynamic>))
             .toList();
+        if (stores.isNotEmpty) return stores;
       } catch (_) {
         // Fallback to local demo data below.
       }
@@ -140,6 +141,7 @@ class StoreService {
     if (client != null) {
       try {
         await client.from('stores').insert({
+          'id': await _nextStoreId(),
           'name': store.name,
           'address': store.address,
           'city': store.city,
@@ -151,6 +153,22 @@ class StoreService {
       } catch (_) {}
     }
     return store;
+  }
+
+  Future<int> _nextStoreId() async {
+    final client = _supabaseService.clientOrNull;
+    if (client == null) return 1;
+
+    final response = await client
+        .from('stores')
+        .select('id')
+        .order('id', ascending: false)
+        .limit(1);
+    final rows = response as List;
+    if (rows.isNotEmpty) {
+      return (((rows.first as Map)['id']) as num).toInt() + 1;
+    }
+    return 1;
   }
 
   Future<StoreModel> updateStore(StoreModel store) async {

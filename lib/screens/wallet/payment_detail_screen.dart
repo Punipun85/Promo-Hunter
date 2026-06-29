@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -18,26 +21,59 @@ class PaymentDetailScreen extends StatefulWidget {
   State<PaymentDetailScreen> createState() => _PaymentDetailScreenState();
 }
 
-class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
+class _PaymentDetailScreenState extends State<PaymentDetailScreen>
+    with WidgetsBindingObserver {
   var _isCheckingStatus = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final reference = widget.transaction.paymentReference;
+    if (state != AppLifecycleState.resumed ||
+        reference == null ||
+        reference.trim().isEmpty) {
+      return;
+    }
+    unawaited(_checkStatusInternal(showPendingMessage: false));
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   Future<void> _checkStatus() async {
+    await _checkStatusInternal(showPendingMessage: true);
+  }
+
+  Future<void> _checkStatusInternal({required bool showPendingMessage}) async {
     final reference = widget.transaction.paymentReference;
     if (reference == null || reference.trim().isEmpty) return;
 
     setState(() => _isCheckingStatus = true);
     try {
       final provider = context.read<DashboardExperienceProvider>();
-      final status = await provider.syncMidtransTransactionByReference(reference);
+      final status =
+          await provider.syncMidtransTransactionByReference(reference);
       if (!mounted) return;
       final message = switch (status) {
         PaymentStatus.approved =>
           'Pembayaran sudah dikonfirmasi Midtrans dan transaksi berhasil.',
-        PaymentStatus.rejected =>
-          'Pembayaran ditandai gagal atau ditolak.',
-        PaymentStatus.pending || null =>
+        PaymentStatus.rejected => 'Pembayaran ditandai gagal atau ditolak.',
+        PaymentStatus.pending ||
+        null =>
           'Status pembayaran masih menunggu konfirmasi Midtrans.',
       };
+      if (!showPendingMessage &&
+          (status == PaymentStatus.pending || status == null)) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
@@ -54,6 +90,24 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
     final uri = Uri.tryParse(paymentUrl);
     if (uri == null) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _copyPaymentLink() async {
+    final paymentUrl = widget.transaction.paymentUrl;
+    if (paymentUrl == null || paymentUrl.trim().isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: paymentUrl));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Link pembayaran disalin.')),
+    );
+  }
+
+  Future<void> _openQrisSimulator() async {
+    const simulatorUrl = 'https://simulator.sandbox.midtrans.com/v2/qris/index';
+    await launchUrl(
+      Uri.parse(simulatorUrl),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   @override
@@ -111,10 +165,12 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                         children: [
                           Text(
                             transaction.itemName,
-                            style:
-                                Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -170,9 +226,11 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
             children: [
               _DetailRow(label: 'Transaction ID', value: transaction.id),
               if (transaction.paymentReference != null)
-                _DetailRow(label: 'Order / Ref', value: transaction.paymentReference!),
+                _DetailRow(
+                    label: 'Order / Ref', value: transaction.paymentReference!),
               if (transaction.paymentUrl != null)
-                _DetailRow(label: 'Link Pembayaran', value: transaction.paymentUrl!),
+                _DetailRow(
+                    label: 'Link Pembayaran', value: transaction.paymentUrl!),
               _DetailRow(label: 'User', value: transaction.userName),
               _DetailRow(label: 'Email', value: transaction.userEmail),
             ],
@@ -187,6 +245,18 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                   onPressed: _openPaymentLink,
                   icon: const Icon(Icons.open_in_new_rounded),
                   label: const Text('Buka Halaman Bayar'),
+                ),
+              if (transaction.paymentUrl != null)
+                OutlinedButton.icon(
+                  onPressed: _copyPaymentLink,
+                  icon: const Icon(Icons.copy_rounded),
+                  label: const Text('Salin Link'),
+                ),
+              if (transaction.paymentMethod.toLowerCase().contains('qris'))
+                OutlinedButton.icon(
+                  onPressed: _openQrisSimulator,
+                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  label: const Text('Buka Simulator QRIS'),
                 ),
               if (transaction.paymentReference != null)
                 FilledButton.icon(

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-
-import '../config/app_routes.dart';
 import '../utils/currency_formatter.dart';
 
 class CoinBannerCard extends StatelessWidget {
@@ -27,12 +25,12 @@ class CoinBannerCard extends StatelessWidget {
           colors: [Color(0xFF064E3B), Color(0xFF065F46), Color(0xFF059669)],
         ),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF065F46).withOpacity(0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF065F46).withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
         ],
       ),
       child: Column(
@@ -50,7 +48,7 @@ class CoinBannerCard extends StatelessWidget {
               Text(
                 'Your Coins',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
@@ -74,7 +72,7 @@ class CoinBannerCard extends StatelessWidget {
           Text(
             'Unlock exclusive promos',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 13,
             ),
           ),

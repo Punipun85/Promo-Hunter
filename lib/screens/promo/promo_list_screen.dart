@@ -1,8 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
-import '../../models/category_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/favorite_provider.dart';
@@ -44,16 +43,12 @@ class _PromoListScreenState extends State<PromoListScreen> {
     final favoriteProvider = context.watch<FavoriteProvider>();
     final provider = context.watch<PromoProvider>();
     final experience = context.watch<DashboardExperienceProvider>();
-<<<<<<< HEAD
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!context.mounted) return;
       context
           .read<DashboardExperienceProvider>()
           .registerPromos(provider.promos.map((promo) => promo.id));
     });
-=======
-    
->>>>>>> c79b79db2ffa0c9149cf2f73e3d15f4f8f7239a3
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
@@ -188,7 +183,7 @@ class _PromoListScreenState extends State<PromoListScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  '\ promo ditemukan',
+                                  '${provider.filteredPromos.length} promo ditemukan',
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: const Color(0xFF0B1C30),
@@ -235,9 +230,9 @@ class _PromoListScreenState extends State<PromoListScreen> {
                     
                     // Promo List
                     if (provider.filteredPromos.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: const EmptyState(
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: EmptyState(
                           title: 'Promo tidak ditemukan',
                           subtitle: 'Coba kata kunci, toko, kategori, atau urutan lain.',
                         ),

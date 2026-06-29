@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
@@ -75,7 +78,7 @@ class _SignedInProfileView extends StatelessWidget {
                 // ---------- Quick Actions ----------
                 const _SectionLabel('Aksi Cepat'),
                 const SizedBox(height: 12),
-                _QuickActionsGrid(),
+                const _QuickActionsGrid(),
 
                 const SizedBox(height: 24),
                 // ---------- Account details ----------
@@ -188,9 +191,6 @@ class _ProfileHeaderSliver extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isAdmin = auth.isAdmin;
-    final initials = (user.name as String).isNotEmpty
-        ? (user.name as String).trim().substring(0, 1).toUpperCase()
-        : '?';
 
     return SliverAppBar(
       pinned: true,
@@ -230,24 +230,15 @@ class _ProfileHeaderSliver extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.45),
-                            width: 2,
-                          ),
-                        ),
-                        child: Text(
-                          initials,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
+                      _ProfileAvatar(
+                        name: user.name as String,
+                        avatarPath: user.avatarPath as String?,
+                        radius: 32,
+                        borderColor: Colors.white.withValues(alpha: 0.45),
+                        backgroundColor: Colors.white.withValues(alpha: 0.22),
+                        textStyle: theme.textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -259,8 +250,7 @@ class _ProfileHeaderSliver extends StatelessWidget {
                               user.name as String,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style:
-                                  theme.textTheme.headlineSmall?.copyWith(
+                              style: theme.textTheme.headlineSmall?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -385,6 +375,7 @@ class _StatGrid extends StatelessWidget {
                 value: favoriteProvider.favoriteIds.length.toString(),
                 icon: Icons.favorite_rounded,
                 color: const Color(0xFFDC2626),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.favorites),
               ),
             ),
             SizedBox(
@@ -394,6 +385,7 @@ class _StatGrid extends StatelessWidget {
                 value: reminderProvider.reminders.length.toString(),
                 icon: Icons.notifications_active_rounded,
                 color: const Color(0xFFF59E0B),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.reminders),
               ),
             ),
             SizedBox(
@@ -403,6 +395,8 @@ class _StatGrid extends StatelessWidget {
                 value: shoppingListProvider.items.length.toString(),
                 icon: Icons.shopping_cart_rounded,
                 color: const Color(0xFF0F9D58),
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.shoppingList),
               ),
             ),
             SizedBox(
@@ -412,6 +406,7 @@ class _StatGrid extends StatelessWidget {
                 value: '${experience.coinBalance}',
                 icon: Icons.toll_rounded,
                 color: const Color(0xFF2563EB),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.wallet),
               ),
             ),
           ],
@@ -427,70 +422,76 @@ class _StatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    required this.onTap,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, size: 20, color: color),
                 ),
-                child: Icon(icon, size: 20, color: color),
-              ),
-              Icon(
-                Icons.trending_up_rounded,
-                size: 16,
-                color: Colors.green.shade400,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: color,
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF64748B),
-              fontWeight: FontWeight.w600,
+            const SizedBox(height: 14),
+            Text(
+              value,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -500,9 +501,17 @@ class _StatCard extends StatelessWidget {
 // QUICK ACTIONS
 // ============================================================
 class _QuickActionsGrid extends StatelessWidget {
+  const _QuickActionsGrid();
+
   @override
   Widget build(BuildContext context) {
     final actions = <_QuickActionItem>[
+      _QuickActionItem(
+        icon: Icons.edit_outlined,
+        label: 'Edit Profil',
+        color: const Color(0xFF0F766E),
+        onTap: () => _showEditProfileSheet(context),
+      ),
       _QuickActionItem(
         icon: Icons.favorite_border_rounded,
         label: 'Favorit',
@@ -539,23 +548,26 @@ class _QuickActionsGrid extends StatelessWidget {
         color: const Color(0xFF0EA5E9),
         onTap: () => Navigator.pushNamed(context, AppRoutes.wallet),
       ),
+      _QuickActionItem(
+        icon: Icons.notifications_active_outlined,
+        label: 'Notif',
+        color: const Color(0xFF8B5CF6),
+        onTap: () => Navigator.pushNamed(context, AppRoutes.notifications),
+      ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = (constraints.maxWidth - 24) / 4;
-        return Wrap(
-          spacing: 12,
-          runSpacing: 14,
-          children: actions
-              .map(
-                (action) => SizedBox(
-                  width: width,
-                  child: _QuickActionTile(item: action),
-                ),
-              )
-              .toList(),
-        );
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: actions.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 14,
+        childAspectRatio: 0.82,
+      ),
+      itemBuilder: (context, index) {
+        return _QuickActionTile(item: actions[index]);
       },
     );
   }
@@ -644,6 +656,30 @@ class _AccountInfoCard extends StatelessWidget {
       ),
       child: Column(
         children: [
+          Material(
+            color: Colors.transparent,
+            child: ListTile(
+              leading: _ProfileAvatar(
+                name: user.name as String,
+                avatarPath: user.avatarPath as String?,
+                radius: 24,
+                backgroundColor:
+                    Theme.of(context).colorScheme.primaryContainer.withValues(
+                          alpha: 0.18,
+                        ),
+                borderColor: Colors.transparent,
+                textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+              ),
+              title: const Text('Edit profil'),
+              subtitle: const Text('Ganti nickname, email, dan foto profil'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => _showEditProfileSheet(context),
+            ),
+          ),
+          const Divider(height: 1, indent: 56, endIndent: 20),
           _AccountRow(
             icon: Icons.badge_outlined,
             title: 'Role akun',
@@ -729,6 +765,327 @@ class _AccountRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
+    required this.name,
+    required this.avatarPath,
+    required this.radius,
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.textStyle,
+  });
+
+  final String name;
+  final String? avatarPath;
+  final double radius;
+  final Color backgroundColor;
+  final Color borderColor;
+  final TextStyle? textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = name.trim().isNotEmpty
+        ? name.trim().substring(0, 1).toUpperCase()
+        : '?';
+    final imageFile = avatarPath == null ? null : File(avatarPath!);
+    final hasImage = imageFile != null && imageFile.existsSync();
+
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        shape: BoxShape.circle,
+        border: Border.all(color: borderColor, width: 2),
+        image: hasImage
+            ? DecorationImage(image: FileImage(imageFile), fit: BoxFit.cover)
+            : null,
+      ),
+      child: hasImage ? null : Text(initials, style: textStyle),
+    );
+  }
+}
+
+Future<void> _showEditProfileSheet(BuildContext context) async {
+  final auth = context.read<AuthProvider>();
+  final user = auth.currentUser;
+  if (user == null) return;
+
+  final nameController = TextEditingController(text: user.name);
+  final emailController = TextEditingController(text: user.email);
+  final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+  final picker = ImagePicker();
+  String? avatarPath = user.avatarPath;
+  bool isSaving = false;
+  String? errorMessage;
+  bool obscureNewPassword = true;
+  bool obscureConfirmPassword = true;
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          final mediaQuery = MediaQuery.of(context);
+          return SafeArea(
+            child: AnimatedPadding(
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                mediaQuery.viewInsets.bottom + 20,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: mediaQuery.size.height * 0.9,
+                ),
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Edit Profil',
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                        ),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: Column(
+                            children: [
+                              _ProfileAvatar(
+                                name: nameController.text,
+                                avatarPath: avatarPath,
+                                radius: 34,
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                    .withValues(alpha: 0.18),
+                                borderColor: Colors.transparent,
+                                textStyle: Theme.of(context)
+                                    .textTheme
+                                    .headlineSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                              ),
+                              const SizedBox(height: 10),
+                              OutlinedButton.icon(
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        final picked = await picker.pickImage(
+                                          source: ImageSource.gallery,
+                                          imageQuality: 85,
+                                        );
+                                        if (picked == null) return;
+                                        setState(() {
+                                          avatarPath = picked.path;
+                                        });
+                                      },
+                                icon: const Icon(Icons.photo_camera_outlined),
+                                label: const Text('Ganti Foto Profil'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: nameController,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Nickname / Nama',
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Nickname wajib diisi';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.none,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          decoration: const InputDecoration(labelText: 'Email'),
+                          validator: (value) {
+                            final trimmed = value?.trim() ?? '';
+                            if (trimmed.isEmpty) return 'Email wajib diisi';
+                            final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+                            if (!regex.hasMatch(trimmed)) {
+                              return 'Format email tidak valid';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: passwordController,
+                          obscureText: obscureNewPassword,
+                          textInputAction: TextInputAction.next,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          decoration: InputDecoration(
+                            labelText: 'Password Baru',
+                            hintText: 'Kosongkan jika tidak ingin mengubah',
+                            helperText: 'Minimal 8 karakter',
+                            suffixIcon: IconButton(
+                              tooltip: obscureNewPassword
+                                  ? 'Lihat password'
+                                  : 'Sembunyikan password',
+                              onPressed: () {
+                                setState(() {
+                                  obscureNewPassword = !obscureNewPassword;
+                                });
+                              },
+                              icon: Icon(
+                                obscureNewPassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                            ),
+                          ),
+                          validator: (value) {
+                            final trimmed = value?.trim() ?? '';
+                            if (trimmed.isEmpty) return null;
+                            if (trimmed.length < 8) {
+                              return 'Password minimal 8 karakter';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: confirmPasswordController,
+                          obscureText: obscureConfirmPassword,
+                          textInputAction: TextInputAction.done,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          decoration: InputDecoration(
+                            labelText: 'Konfirmasi Password Baru',
+                            helperText: 'Ulangi password baru yang sama',
+                            suffixIcon: IconButton(
+                              tooltip: obscureConfirmPassword
+                                  ? 'Lihat password'
+                                  : 'Sembunyikan password',
+                              onPressed: () {
+                                setState(() {
+                                  obscureConfirmPassword =
+                                      !obscureConfirmPassword;
+                                });
+                              },
+                              icon: Icon(
+                                obscureConfirmPassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                            ),
+                          ),
+                          validator: (value) {
+                            final password = passwordController.text.trim();
+                            final confirm = value?.trim() ?? '';
+                            if (password.isEmpty && confirm.isEmpty) {
+                              return null;
+                            }
+                            if (confirm.isEmpty) {
+                              return 'Konfirmasi password wajib diisi';
+                            }
+                            if (password != confirm) {
+                              return 'Konfirmasi password tidak sama';
+                            }
+                            return null;
+                          },
+                        ),
+                        if (errorMessage != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            errorMessage!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: isSaving
+                                ? null
+                                : () async {
+                                    if (!formKey.currentState!.validate()) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      isSaving = true;
+                                      errorMessage = null;
+                                    });
+                                    final ok = await auth.updateProfile(
+                                      name: nameController.text,
+                                      email: emailController.text,
+                                      avatarPath: avatarPath,
+                                      newPassword:
+                                          passwordController.text.trim(),
+                                    );
+                                    if (!context.mounted) return;
+                                    if (ok) {
+                                      Navigator.pop(sheetContext);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Profil berhasil diperbarui.',
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      setState(() {
+                                        isSaving = false;
+                                        errorMessage = auth.errorMessage ??
+                                            'Profil gagal diperbarui';
+                                      });
+                                    }
+                                  },
+                            child: Text(
+                              isSaving ? 'Menyimpan...' : 'Simpan Perubahan',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+
+  nameController.dispose();
+  emailController.dispose();
+  passwordController.dispose();
+  confirmPasswordController.dispose();
 }
 
 // ============================================================
@@ -1117,18 +1474,18 @@ class _GuestHeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _HeroPill(
                 icon: Icons.local_offer_rounded,
                 label: '$promoCount promo',
               ),
-              const SizedBox(width: 8),
               _HeroPill(
                 icon: Icons.storefront_rounded,
                 label: '$storeCount toko',
               ),
-              const SizedBox(width: 8),
               _HeroPill(
                 icon: Icons.toll_rounded,
                 label: '$coinBalance coin',
@@ -1358,8 +1715,7 @@ class _PremiumUpsellCard extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: () =>
-                  Navigator.pushNamed(context, AppRoutes.wallet),
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.wallet),
               icon: const Icon(
                 Icons.account_balance_wallet_outlined,
                 size: 18,
