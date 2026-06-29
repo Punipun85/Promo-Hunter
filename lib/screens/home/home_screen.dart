@@ -161,6 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final experience = context.read<DashboardExperienceProvider>();
     final promoProvider = context.read<PromoProvider>();
     if (!auth.isLoggedIn ||
+        auth.isAdmin ||
         _isShowingEntryDialog ||
         !experience.shouldShowEntryDialogs()) {
       return;

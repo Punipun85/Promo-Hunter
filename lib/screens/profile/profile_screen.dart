@@ -230,15 +230,22 @@ class _ProfileHeaderSliver extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      _ProfileAvatar(
-                        name: user.name as String,
-                        avatarPath: user.avatarPath as String?,
-                        radius: 32,
-                        borderColor: Colors.white.withValues(alpha: 0.45),
-                        backgroundColor: Colors.white.withValues(alpha: 0.22),
-                        textStyle: theme.textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                      GestureDetector(
+                        onTap: () => _showProfileImagePreview(
+                          context,
+                          name: user.name as String,
+                          avatarPath: user.avatarPath as String?,
+                        ),
+                        child: _ProfileAvatar(
+                          name: user.name as String,
+                          avatarPath: user.avatarPath as String?,
+                          radius: 32,
+                          borderColor: Colors.white.withValues(alpha: 0.45),
+                          backgroundColor: Colors.white.withValues(alpha: 0.22),
+                          textStyle: theme.textTheme.headlineSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -809,6 +816,93 @@ class _ProfileAvatar extends StatelessWidget {
   }
 }
 
+Future<void> _showProfileImagePreview(
+  BuildContext context, {
+  required String name,
+  required String? avatarPath,
+}) async {
+  final imageFile = avatarPath == null ? null : File(avatarPath);
+  final hasImage = imageFile != null && imageFile.existsSync();
+
+  await showDialog<void>(
+    context: context,
+    barrierColor: Colors.black87,
+    builder: (dialogContext) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111827),
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: hasImage
+                          ? InteractiveViewer(
+                              minScale: 1,
+                              maxScale: 4,
+                              child: Image.file(
+                                imageFile,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Container(
+                              color: const Color(0xFF1F2937),
+                              alignment: Alignment.center,
+                              child: Text(
+                                name.trim().isNotEmpty
+                                    ? name.trim().substring(0, 1).toUpperCase()
+                                    : '?',
+                                style: Theme.of(dialogContext)
+                                    .textTheme
+                                    .displaySmall
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        Theme.of(dialogContext).textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: IconButton.filledTonal(
+                onPressed: () => Navigator.pop(dialogContext),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 Future<void> _showEditProfileSheet(BuildContext context) async {
   final auth = context.read<AuthProvider>();
   final user = auth.currentUser;
@@ -1298,6 +1392,8 @@ class _LogoutButton extends StatelessWidget {
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: () async {
+          final shouldLogout = await _showLogoutConfirmation(context);
+          if (!shouldLogout) return;
           await onLogout();
         },
         icon: const Icon(Icons.logout_rounded, size: 18),
@@ -1315,6 +1411,38 @@ class _LogoutButton extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<bool> _showLogoutConfirmation(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Keluar dari akun?'),
+          content: const Text(
+            'Apakah Anda ingin keluar dari akun ini?',
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonal(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Keluar'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
   }
 }
 

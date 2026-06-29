@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 import '../../models/category_model.dart';
 import '../../models/promo_model.dart';
-import '../../models/store_model.dart';
 import '../../providers/promo_provider.dart';
 import '../../services/storage_service.dart';
 import '../../utils/validators.dart';
@@ -30,11 +29,11 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
   late final TextEditingController _imageController;
   late final TextEditingController _normalPriceController;
   late final TextEditingController _promoPriceController;
+  late final TextEditingController _storeController;
   late final TextEditingController _unitSizeController;
   late final TextEditingController _termsController;
 
   String _unitType = 'pcs';
-  StoreModel? _selectedStore;
   CategoryModel? _selectedCategory;
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now().add(const Duration(days: 3));
@@ -56,6 +55,7 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
     _promoPriceController = TextEditingController(
       text: promo == null ? '' : promo.promoPrice.toStringAsFixed(0),
     );
+    _storeController = TextEditingController(text: promo?.storeName ?? '');
     _unitSizeController = TextEditingController(
       text: promo == null ? '' : promo.unitSize.toString(),
     );
@@ -72,6 +72,7 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
     _imageController.dispose();
     _normalPriceController.dispose();
     _promoPriceController.dispose();
+    _storeController.dispose();
     _unitSizeController.dispose();
     _termsController.dispose();
     super.dispose();
@@ -88,14 +89,13 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
         .where((item) => item.name != 'Semua')
         .toList(growable: false);
 
-    _selectedStore ??= _resolveInitialStore(availableStores, promo);
     _selectedCategory ??= _resolveInitialCategory(availableCategories, promo);
 
     return Scaffold(
       appBar: AppBar(title: Text(isEdit ? 'Edit Promo' : 'Tambah Promo')),
-      body: availableStores.isEmpty || availableCategories.isEmpty
+      body: availableCategories.isEmpty
           ? _MissingMasterData(
-              hasStores: availableStores.isNotEmpty,
+              hasStores: true,
               hasCategories: availableCategories.isNotEmpty,
             )
           : Form(
@@ -161,21 +161,36 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
                     onChanged: (value) => setState(() => _unitType = value!),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<StoreModel>(
-                    initialValue: _selectedStore,
-                    decoration: const InputDecoration(labelText: 'Toko'),
-                    items: availableStores
-                        .map(
-                          (item) => DropdownMenuItem(
-                            value: item,
-                            child: Text(item.name),
-                          ),
-                        )
-                        .toList(),
+                  TextFormField(
+                    controller: _storeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Toko',
+                      helperText:
+                          'Bisa diketik manual. Jika cocok dengan toko yang sudah ada, datanya akan dipakai otomatis.',
+                    ),
                     validator: (value) =>
-                        value == null ? 'Toko wajib dipilih' : null,
-                    onChanged: (value) => setState(() => _selectedStore = value),
+                        Validators.requiredField(value, label: 'Toko'),
                   ),
+                  if (availableStores.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: availableStores.take(8).map((item) {
+                        final isSelected = item.name.trim().toLowerCase() ==
+                            _storeController.text.trim().toLowerCase();
+                        return ChoiceChip(
+                          label: Text(item.name),
+                          selected: isSelected,
+                          onSelected: (_) {
+                            setState(() {
+                              _storeController.text = item.name;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<CategoryModel>(
                     initialValue: _selectedCategory,
@@ -216,7 +231,8 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
                     const SizedBox(height: 12),
                     Text(
                       _formError!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      style:
+                          TextStyle(color: Theme.of(context).colorScheme.error),
                     ),
                   ],
                   const SizedBox(height: 20),
@@ -227,12 +243,20 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
                             setState(() => _formError = null);
                             if (!_formKey.currentState!.validate()) return;
 
-                            final normalPrice =
-                                double.parse(_normalPriceController.text.trim());
+                            final normalPrice = double.parse(
+                                _normalPriceController.text.trim());
                             final promoPrice =
                                 double.parse(_promoPriceController.text.trim());
                             final unitSize =
                                 double.parse(_unitSizeController.text.trim());
+                            final storeName = _storeController.text.trim();
+                            final matchingStore = availableStores
+                                .where(
+                                  (item) =>
+                                      item.name.trim().toLowerCase() ==
+                                      storeName.toLowerCase(),
+                                )
+                                .firstOrNull;
 
                             if (promoPrice > normalPrice) {
                               setState(() {
@@ -259,8 +283,10 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
                               promoPrice: promoPrice,
                               unitSize: unitSize,
                               unitType: _unitType,
-                              storeName: _selectedStore!.name,
-                              storeAddress: _selectedStore!.address,
+                              storeName: storeName,
+                              storeAddress: matchingStore?.address ??
+                                  promo?.storeAddress ??
+                                  'Gerai $storeName terdekat',
                               categoryName: _selectedCategory!.name,
                               startDate: _startDate,
                               endDate: _endDate,
@@ -338,20 +364,15 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
     }
   }
 
-  StoreModel? _resolveInitialStore(List<StoreModel> stores, PromoModel? promo) {
-    if (stores.isEmpty) return null;
-    if (promo == null) return stores.first;
-    return stores.where((item) => item.name == promo.storeName).firstOrNull ??
-        stores.first;
-  }
-
   CategoryModel? _resolveInitialCategory(
     List<CategoryModel> categories,
     PromoModel? promo,
   ) {
     if (categories.isEmpty) return null;
     if (promo == null) return categories.first;
-    return categories.where((item) => item.name == promo.categoryName).firstOrNull ??
+    return categories
+            .where((item) => item.name == promo.categoryName)
+            .firstOrNull ??
         categories.first;
   }
 
@@ -453,20 +474,26 @@ class _ImageSection extends StatelessWidget {
                       ? Image.network(
                           safeNetworkImageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const _ImagePlaceholder(),
+                          errorBuilder: (_, __, ___) =>
+                              const _ImagePlaceholder(),
                         )
                       : const _ImagePlaceholder(),
             ),
           ),
           const SizedBox(height: 12),
           Text(
-            imageName ?? (hasNetworkImage ? 'Gambar sudah tersedia.' : 'Belum ada gambar dipilih.'),
+            imageName ??
+                (hasNetworkImage
+                    ? 'Gambar sudah tersedia.'
+                    : 'Belum ada gambar dipilih.'),
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
           FilledButton.tonalIcon(
             onPressed: isUploading ? null : onPickImage,
-            icon: Icon(isUploading ? Icons.cloud_upload : Icons.photo_library_outlined),
+            icon: Icon(isUploading
+                ? Icons.cloud_upload
+                : Icons.photo_library_outlined),
             label: Text(isUploading ? 'Mengunggah...' : 'Upload dari Galeri'),
           ),
           const SizedBox(height: 8),
