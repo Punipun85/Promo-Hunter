@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -21,30 +22,57 @@ class WalletScreen extends StatefulWidget {
   State<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends State<WalletScreen> {
+class _WalletScreenState extends State<WalletScreen>
+    with WidgetsBindingObserver {
   Timer? _midtransSyncTimer;
+  bool _isResumeSyncing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(
-        context.read<DashboardExperienceProvider>().syncSettledMidtransPayments(),
-      );
+      unawaited(_syncMidtransPayments(showFeedback: false));
     });
     _midtransSyncTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!mounted) return;
-      unawaited(
-        context
-            .read<DashboardExperienceProvider>()
-            .syncSettledMidtransPayments(),
-      );
+      unawaited(_syncMidtransPayments(showFeedback: false));
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_syncMidtransPayments(showFeedback: true));
+    }
+  }
+
+  Future<void> _syncMidtransPayments({required bool showFeedback}) async {
+    if (_isResumeSyncing) return;
+    _isResumeSyncing = true;
+    try {
+      final approved = await context
+          .read<DashboardExperienceProvider>()
+          .syncSettledMidtransPayments();
+      if (!mounted || !showFeedback || !approved) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Status pembayaran Midtrans sudah diperbarui setelah kembali ke aplikasi.',
+            ),
+          ),
+        );
+    } finally {
+      _isResumeSyncing = false;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _midtransSyncTimer?.cancel();
     super.dispose();
   }
@@ -185,8 +213,8 @@ class _CoinTab extends StatelessWidget {
                 experience.hasUnusedRedeemedVoucher(voucher.id);
             final hasUsedVoucher =
                 experience.hasUsedRedeemedVoucher(voucher.id);
-            final alreadyRedeemedFree =
-                voucher.coinCost == 0 && experience.hasRedeemedVoucher(voucher.id);
+            final alreadyRedeemedFree = voucher.coinCost == 0 &&
+                experience.hasRedeemedVoucher(voucher.id);
             final needsMoreCoins = experience.coinBalance < voucher.coinCost;
             final statusBadge = hasUnusedVoucher
                 ? 'Sudah diklaim'
@@ -308,7 +336,8 @@ class _PremiumTab extends StatelessWidget {
                 transactionType: 'subscription',
               );
               if (paid == null || auth.currentUser == null) return;
-              final transaction = await experience.createSubscriptionTransaction(
+              final transaction =
+                  await experience.createSubscriptionTransaction(
                 plan: plan,
                 userId: auth.currentUser!.id,
                 userName: auth.currentUser!.name,
@@ -520,7 +549,8 @@ Future<_PaymentConfirmation?> _showTransactionDialog(
     _PaymentMethod(
       id: 'transfer',
       name: 'Transfer Bank',
-      description: 'Masuk ke Snap Midtrans untuk opsi transfer/bank yang aktif.',
+      description:
+          'Masuk ke Snap Midtrans untuk opsi transfer/bank yang aktif.',
       icon: Icons.payments_outlined,
       instruction:
           'Lanjutkan ke Snap Midtrans untuk memilih kanal transfer atau pembayaran bank yang aktif.',
@@ -556,12 +586,22 @@ Future<_PaymentConfirmation?> _showTransactionDialog(
     );
   }
 
-  Future<void> openPaymentUrl(Uri uri) {
-    return launchUrl(
-      uri,
-      mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
-      webOnlyWindowName: kIsWeb ? '_blank' : null,
-    );
+  Future<bool> openPaymentUrl(Uri uri) async {
+    try {
+      return await launchUrl(
+        uri,
+        mode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
+        webOnlyWindowName: kIsWeb ? '_blank' : null,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> copyPaymentUrl(String url) async {
+    await Clipboard.setData(ClipboardData(text: url));
   }
 
   return showDialog<_PaymentConfirmation>(
@@ -692,29 +732,49 @@ Future<_PaymentConfirmation?> _showTransactionDialog(
                             final confirmation = _PaymentConfirmation(
                               paymentMethod:
                                   '${selectedMethod.name} via Midtrans Sandbox',
-                              proofFileName:
-                                  result.qrCodeUrl != null
-                                      ? 'QRIS Simulator ${result.invoiceId}'
-                                      : 'Invoice Midtrans ${result.invoiceId}',
+                              proofFileName: result.qrCodeUrl != null
+                                  ? 'QRIS Simulator ${result.invoiceId}'
+                                  : 'Invoice Midtrans ${result.invoiceId}',
                               paymentReference: result.invoiceId,
-                              paymentUrl:
-                                  result.simulatorUrl ?? result.invoiceUrl,
+                              paymentUrl: result.qrCodeUrl ??
+                                  result.simulatorUrl ??
+                                  result.invoiceUrl,
                             );
-                            if (result.qrCodeUrl != null &&
-                                result.simulatorUrl != null) {
-                              final qrUri = Uri.tryParse(result.qrCodeUrl!);
-                              final simulatorUri =
-                                  Uri.tryParse(result.simulatorUrl!);
-                              if (qrUri != null) {
-                                await openPaymentUrl(qrUri);
+                            final isQris = selectedMethod.id == 'qris';
+                            if (isQris && result.qrCodeUrl != null) {
+                              await copyPaymentUrl(result.qrCodeUrl!);
+                              if (dialogContext.mounted) {
+                                ScaffoldMessenger.of(dialogContext)
+                                    .showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'URL QRIS sudah disalin. Tempel di QRIS Simulator lalu tekan Scan QR.',
+                                    ),
+                                  ),
+                                );
                               }
+                              final simulatorUri = Uri.tryParse(
+                                result.simulatorUrl ?? result.invoiceUrl,
+                              );
                               if (simulatorUri != null) {
-                                await openPaymentUrl(simulatorUri);
+                                final opened =
+                                    await openPaymentUrl(simulatorUri);
+                                if (!opened) {
+                                  final qrUri = Uri.tryParse(result.qrCodeUrl!);
+                                  if (qrUri != null) {
+                                    await openPaymentUrl(qrUri);
+                                  }
+                                }
                               }
                             } else {
                               final uri = Uri.tryParse(result.invoiceUrl);
                               if (uri != null) {
-                                await openPaymentUrl(uri);
+                                final opened = await openPaymentUrl(uri);
+                                if (!opened) {
+                                  throw const MidtransInvoiceException(
+                                    'Tidak bisa membuka halaman pembayaran. Pastikan browser tersedia di perangkat Android.',
+                                  );
+                                }
                               }
                             }
                             if (!dialogContext.mounted) return;
@@ -757,7 +817,9 @@ Future<_PaymentConfirmation?> _showTransactionDialog(
                     Text(
                       isAutomaticMidtrans
                           ? selectedMethod.id == 'qris'
-                              ? 'QRIS sandbox sekarang mencoba mode simulator langsung: app akan membuka QR image dan halaman simulator Midtrans. Setelah simulator menyatakan sukses, saldo atau premium aktif otomatis.'
+                              ? kIsWeb
+                                  ? 'QRIS sandbox di web membuka QR image dan simulator Midtrans. Setelah simulator menyatakan sukses, saldo atau premium aktif otomatis.'
+                                  : 'QRIS sandbox di Android menyalin URL QR lalu membuka QRIS Simulator. Tempel URL tersebut, tekan Scan QR, lalu selesaikan pembayaran sandbox.'
                               : 'Semua metode di sini diproses lewat Snap Midtrans. Buka invoice, selesaikan flow sandbox di halaman Midtrans, lalu saldo atau premium akan aktif tanpa upload bukti.'
                           : 'Metode manual tetap perlu upload bukti pembayaran agar transaksi demo bisa diproses.',
                       style:
@@ -1247,7 +1309,9 @@ class _MidtransSandboxCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Khusus QRIS, PromoHunter akan mencoba membuka QR image dan simulator QRIS Midtrans versi sandbox.',
+              kIsWeb
+                  ? 'Khusus QRIS di web, PromoHunter akan mencoba membuka QR image dan simulator QRIS Midtrans versi sandbox.'
+                  : 'Khusus QRIS di Android, URL QR disalin otomatis sebelum QRIS Simulator dibuka. Tempel URL itu ke kolom QR Code Image Url.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: const Color(0xFF475569),
                   ),
@@ -1366,9 +1430,10 @@ class _PaymentTransactionCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           '${transaction.type.label} - ${transaction.benefitLabel}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFF64748B),
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xFF64748B),
+                                  ),
                         ),
                       ],
                     ),
@@ -1395,7 +1460,8 @@ class _PaymentTransactionCard extends StatelessWidget {
                 value: CurrencyFormatter.format(transaction.price),
               ),
               const SizedBox(height: 8),
-              _TransactionRow(label: 'Metode', value: transaction.paymentMethod),
+              _TransactionRow(
+                  label: 'Metode', value: transaction.paymentMethod),
               if (transaction.paymentReference != null) ...[
                 const SizedBox(height: 8),
                 _TransactionRow(
@@ -1742,9 +1808,8 @@ class _RedeemedVoucherCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusLabel = voucher.isUsed ? 'Sudah Dipakai' : 'Belum Dipakai';
-    final statusColor = voucher.isUsed
-        ? const Color(0xFFE8F5E9)
-        : const Color(0xFFFFF8E1);
+    final statusColor =
+        voucher.isUsed ? const Color(0xFFE8F5E9) : const Color(0xFFFFF8E1);
     final statusTextColor =
         voucher.isUsed ? const Color(0xFF2E7D32) : const Color(0xFF8D6E00);
     return Card(

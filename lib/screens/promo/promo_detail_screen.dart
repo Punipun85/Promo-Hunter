@@ -10,7 +10,6 @@ import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../providers/reminder_provider.dart';
-import '../../providers/shopping_list_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_formatter.dart';
 import '../../widgets/promo_image.dart';
@@ -42,10 +41,10 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
     final experience = context.watch<DashboardExperienceProvider>();
     final favoriteProvider = context.watch<FavoriteProvider>();
     final reminderProvider = context.watch<ReminderProvider>();
-    final shoppingList = context.read<ShoppingListProvider>();
     final promoIndex =
         provider.promos.indexWhere((item) => item.id == widget.promo.id);
-    final activePromo = promoIndex >= 0 ? provider.promos[promoIndex] : widget.promo;
+    final activePromo =
+        promoIndex >= 0 ? provider.promos[promoIndex] : widget.promo;
     final decoratedPromo = activePromo.copyWith(
       isFavorite: favoriteProvider.isFavorite(activePromo.id),
     );
@@ -70,7 +69,8 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
                 Navigator.pushNamed(context, AppRoutes.login);
                 return;
               }
-              favoriteProvider.toggleFavorite(auth.currentUser!.id, activePromo);
+              favoriteProvider.toggleFavorite(
+                  auth.currentUser!.id, activePromo);
             },
             icon: Icon(
               decoratedPromo.isFavorite
@@ -108,191 +108,202 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
               },
             )
           : ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          PromoImage(
-            imageUrl: decoratedPromo.imageUrl,
-            width: double.infinity,
-            height: 260,
-            borderRadius: 28,
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _StatusBadge(
-                label: decoratedPromo.statusLabel,
-                backgroundColor: _statusBackground(decoratedPromo),
-                textColor: _statusForeground(decoratedPromo),
-              ),
-              _StatusBadge(
-                label: 'Diskon ${decoratedPromo.discountPercent.toStringAsFixed(0)}%',
-                backgroundColor: const Color(0xFFFFF0A8),
-                textColor: const Color(0xFF7C5A00),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            decoratedPromo.productName,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
+              padding: const EdgeInsets.all(20),
+              children: [
+                PromoImage(
+                  imageUrl: decoratedPromo.imageUrl,
+                  width: double.infinity,
+                  height: 260,
+                  borderRadius: 28,
                 ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${decoratedPromo.brand} - ${decoratedPromo.categoryName}',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: const Color(0xFF64748B),
-                ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text(
-                CurrencyFormatter.format(decoratedPromo.promoPrice),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w800,
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _StatusBadge(
+                      label: decoratedPromo.statusLabel,
+                      backgroundColor: _statusBackground(decoratedPromo),
+                      textColor: _statusForeground(decoratedPromo),
                     ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                CurrencyFormatter.format(decoratedPromo.normalPrice),
-                style: const TextStyle(
-                  decoration: TextDecoration.lineThrough,
+                    _StatusBadge(
+                      label:
+                          'Diskon ${decoratedPromo.discountPercent.toStringAsFixed(0)}%',
+                      backgroundColor: const Color(0xFFFFF0A8),
+                      textColor: const Color(0xFF7C5A00),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Kamu hemat ${CurrencyFormatter.format(decoratedPromo.savingsAmount)}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${CurrencyFormatter.format(decoratedPromo.unitPrice)} / ${decoratedPromo.unitType}',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Toko', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 6),
-                  Text(decoratedPromo.storeName),
-                  Text(decoratedPromo.storeAddress),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Masa berlaku',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${DateFormatter.short(decoratedPromo.startDate)} - ${DateFormatter.short(decoratedPromo.endDate)}',
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    decoratedPromo.isExpired
-                        ? 'Promo ini sudah berakhir.'
-                        : decoratedPromo.isEndingToday
-                            ? 'Promo berakhir hari ini.'
-                            : decoratedPromo.isEndingTomorrow
-                                ? 'Promo berakhir besok.'
-                                : 'Promo masih aktif.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Syarat & ketentuan',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(decoratedPromo.terms),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.tonalIcon(
-            onPressed: decoratedPromo.isExpired
-                ? null
-                : () async {
-                    if (!auth.isLoggedIn) {
-                      Navigator.pushNamed(context, AppRoutes.login);
-                      return;
-                    }
-                    await shoppingList.bootstrap(auth.currentUser!.id);
-                    await shoppingList.addPromo(decoratedPromo);
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Promo ditambahkan ke daftar belanja.'),
+                const SizedBox(height: 14),
+                Text(
+                  decoratedPromo.productName,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
-                    );
-                  },
-            icon: const Icon(Icons.shopping_cart_outlined),
-            label: Text(
-              decoratedPromo.isExpired
-                  ? 'Promo Sudah Expired'
-                  : 'Tambah ke Daftar Belanja',
-            ),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: decoratedPromo.isExpired
-                ? null
-                : () async {
-                    if (!auth.isLoggedIn) {
-                      Navigator.pushNamed(context, AppRoutes.login);
-                      return;
-                    }
-                    await reminderProvider.bootstrapForUser(auth.currentUser!.id);
-                    final message = await reminderProvider.addReminder(
-                      auth.currentUser!.id,
-                      decoratedPromo,
-                      const Duration(hours: 3),
-                    );
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          message ??
-                              'Reminder 3 jam sebelum promo berakhir berhasil dibuat.',
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${decoratedPromo.brand} - ${decoratedPromo.categoryName}',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: const Color(0xFF64748B),
+                      ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text(
+                      CurrencyFormatter.format(decoratedPromo.promoPrice),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      CurrencyFormatter.format(decoratedPromo.normalPrice),
+                      style: const TextStyle(
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Kamu hemat ${CurrencyFormatter.format(decoratedPromo.savingsAmount)}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${CurrencyFormatter.format(decoratedPromo.unitPrice)} / ${decoratedPromo.unitType}',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Toko',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 6),
+                        Text(decoratedPromo.storeName),
+                        Text(decoratedPromo.storeAddress),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Masa berlaku',
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                      ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${DateFormatter.short(decoratedPromo.startDate)} - ${DateFormatter.short(decoratedPromo.endDate)}',
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          decoratedPromo.isExpired
+                              ? 'Promo ini sudah berakhir.'
+                              : decoratedPromo.isEndingToday
+                                  ? 'Promo berakhir hari ini.'
+                                  : decoratedPromo.isEndingTomorrow
+                                      ? 'Promo berakhir besok.'
+                                      : 'Promo masih aktif.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Syarat & ketentuan',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(decoratedPromo.terms),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.tonalIcon(
+                  onPressed: decoratedPromo.isExpired
+                      ? null
+                      : () async {
+                          final matchingStore = provider.stores
+                              .where((store) =>
+                                  store.name == decoratedPromo.storeName)
+                              .firstOrNull;
+                          if (matchingStore != null) {
+                            Navigator.pushNamed(
+                              context,
+                              AppRoutes.storeDetail,
+                              arguments: matchingStore,
+                            );
+                            return;
+                          }
+                          final uri = Uri.parse(
+                            'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${decoratedPromo.storeName} ${decoratedPromo.storeAddress}')}',
+                          );
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        },
+                  icon: const Icon(Icons.storefront_outlined),
+                  label: Text(
+                    decoratedPromo.isExpired
+                        ? 'Promo Sudah Expired'
+                        : 'Lihat Promo',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: decoratedPromo.isExpired
+                      ? null
+                      : () async {
+                          if (!auth.isLoggedIn) {
+                            Navigator.pushNamed(context, AppRoutes.login);
+                            return;
+                          }
+                          await reminderProvider
+                              .bootstrapForUser(auth.currentUser!.id);
+                          final message = await reminderProvider.addReminder(
+                            auth.currentUser!.id,
+                            decoratedPromo,
+                            const Duration(hours: 3),
+                          );
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                message ??
+                                    'Reminder 3 jam sebelum promo berakhir berhasil dibuat.',
+                              ),
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.notifications_active_outlined),
+                  label: const Text('Ingatkan Saya'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => Share.share(_buildShareText(decoratedPromo)),
+                  icon: const Icon(Icons.share_outlined),
+                  label: const Text('Bagikan Promo'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.parse(
+                      'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${decoratedPromo.storeName} ${decoratedPromo.storeAddress}')}',
                     );
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
                   },
-            icon: const Icon(Icons.notifications_active_outlined),
-            label: const Text('Ingatkan Saya'),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () => Share.share(_buildShareText(decoratedPromo)),
-            icon: const Icon(Icons.share_outlined),
-            label: const Text('Bagikan Promo'),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () async {
-              final uri = Uri.parse(
-                'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${decoratedPromo.storeName} ${decoratedPromo.storeAddress}')}',
-              );
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            },
-            icon: const Icon(Icons.map_outlined),
-            label: const Text('Buka Lokasi Toko'),
-          ),
-        ],
-      ),
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('Buka Lokasi Toko'),
+                ),
+              ],
+            ),
     );
   }
 
@@ -415,7 +426,7 @@ class _LockedPromoDetail extends StatelessWidget {
               Text(
                 isMemberOnly
                     ? 'Promo ini hanya bisa dibuka oleh member premium. Upgrade akun untuk melihat harga, detail, dan link klaim.'
-                    : 'User gratis perlu $waitLabel untuk melihat harga dan detail promo ini.',
+                    : 'User gratis menunggu maksimal 3 jam setelah promo rilis. Saat ini kamu masih perlu $waitLabel untuk melihat harga dan detail promo ini.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 16),
@@ -435,7 +446,9 @@ class _LockedPromoDetail extends StatelessWidget {
                 onPressed: canUnlockWithCoins ? onUnlockWithCoins : null,
                 icon: const Icon(Icons.lock_open_outlined),
                 label: Text(
-                  isMemberOnly ? 'Tidak tersedia untuk coin' : 'Buka dengan 30 Coin',
+                  isMemberOnly
+                      ? 'Tidak tersedia untuk coin'
+                      : 'Buka dengan 30 Coin',
                 ),
               ),
               const SizedBox(height: 12),
@@ -482,5 +495,3 @@ class _LockedInfoRow extends StatelessWidget {
     );
   }
 }
-
-

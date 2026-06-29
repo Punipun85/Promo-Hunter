@@ -396,13 +396,8 @@ class PromoProvider extends ChangeNotifier {
   }
 
   Future<void> createPromo(PromoModel promo) async {
-    final maxId = promos.fold<int>(
-      0,
-      (previous, item) => item.id > previous ? item.id : previous,
-    );
-    final localPromo = promo.copyWith(id: promo.id <= 0 ? maxId + 1 : promo.id);
-    await _promoService.createPromo(localPromo);
-    promos = [...promos, localPromo];
+    final savedPromo = await _promoService.createPromo(promo);
+    promos = [...promos, savedPromo];
     notifyListeners();
   }
 

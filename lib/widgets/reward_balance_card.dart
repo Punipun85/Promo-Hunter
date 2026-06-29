@@ -28,7 +28,7 @@ class RewardBalanceCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF059669).withOpacity(0.25),
+              color: const Color(0xFF059669).withValues(alpha: 0.25),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),
@@ -43,7 +43,7 @@ class RewardBalanceCard extends StatelessWidget {
                 Text(
                   'Reward Balance',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.88),
+                    color: Colors.white.withValues(alpha: 0.88),
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -51,13 +51,13 @@ class RewardBalanceCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     Icons.card_giftcard_rounded,
                     size: 16,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
               ],
@@ -75,7 +75,7 @@ class RewardBalanceCard extends StatelessWidget {
             Text(
               'Gunakan untuk unlock promo eksklusif',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 12,
               ),
             ),

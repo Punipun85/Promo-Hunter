@@ -4,12 +4,14 @@ class ProfileModel {
     required this.name,
     required this.email,
     required this.role,
+    this.avatarPath,
   });
 
   final String id;
   final String name;
   final String email;
   final String role;
+  final String? avatarPath;
 
   bool get isAdmin => role == 'admin';
 
@@ -19,6 +21,23 @@ class ProfileModel {
       name: map['name'] as String? ?? '',
       email: map['email'] as String? ?? '',
       role: map['role'] as String? ?? 'user',
+      avatarPath: map['avatarPath'] as String?,
+    );
+  }
+
+  ProfileModel copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? role,
+    String? avatarPath,
+  }) {
+    return ProfileModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      avatarPath: avatarPath ?? this.avatarPath,
     );
   }
 }

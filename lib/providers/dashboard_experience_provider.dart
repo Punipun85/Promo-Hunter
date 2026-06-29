@@ -23,7 +23,7 @@ class DashboardExperienceProvider extends ChangeNotifier
   static const _dailySpinDateKey = 'dashboard_daily_spin_date';
   static const _redeemedVouchersKey = 'dashboard_redeemed_vouchers';
   static const _paymentTransactionsKey = 'dashboard_payment_transactions';
-  static const freeAccessDelay = Duration(hours: 6);
+  static const freeAccessDelay = Duration(hours: 3);
   static const miniGameDailyLimit = 3;
   static const miniGameRounds = 5;
   static const unlockCost = 30;
@@ -76,54 +76,62 @@ class DashboardExperienceProvider extends ChangeNotifier
   ];
   static const coinPackages = <CoinPackage>[
     CoinPackage(
-      id: 'trial',
-      name: 'Coba Dulu',
+      id: 'mini',
+      name: 'Mini Coin',
       coins: 30,
-      price: 3000,
-      description: 'Pas untuk membuka 1 promo early access.',
+      price: 4900,
+      description: 'Paket ringan untuk membuka 1 promo early access.',
     ),
     CoinPackage(
       id: 'starter',
       name: 'Starter Coin',
       coins: 60,
-      price: 5000,
+      price: 8900,
       description: 'Cukup untuk membuka 2 promo early access.',
     ),
     CoinPackage(
       id: 'daily',
       name: 'Daily Hunter',
-      coins: 100,
-      price: 9000,
-      description: 'Pilihan ringan untuk berburu promo harian.',
+      coins: 120,
+      price: 15900,
+      description:
+          'Pilihan pas untuk berburu promo harian selama beberapa hari.',
     ),
     CoinPackage(
       id: 'smart',
       name: 'Smart Saver',
-      coins: 150,
-      price: 12000,
+      coins: 200,
+      price: 24900,
       description: 'Paket hemat untuk pemburu promo mingguan.',
       isRecommended: true,
     ),
     CoinPackage(
-      id: 'family',
-      name: 'Family Saver',
-      coins: 250,
-      price: 19000,
-      description: 'Saldo pas untuk belanja mingguan keluarga.',
+      id: 'booster',
+      name: 'Booster Pack',
+      coins: 320,
+      price: 37900,
+      description: 'Cocok untuk pengguna aktif yang sering unlock promo.',
     ),
     CoinPackage(
       id: 'hunter',
       name: 'Promo Hunter',
-      coins: 350,
-      price: 25000,
-      description: 'Saldo besar untuk banyak unlock promo.',
+      coins: 500,
+      price: 54900,
+      description: 'Saldo besar untuk banyak unlock promo dan tukar voucher.',
+    ),
+    CoinPackage(
+      id: 'pro',
+      name: 'Pro Wallet',
+      coins: 800,
+      price: 79900,
+      description: 'Value tinggi untuk pemburu promo yang rutin topup.',
     ),
     CoinPackage(
       id: 'ultimate',
       name: 'Ultimate Hemat',
-      coins: 600,
-      price: 39000,
-      description: 'Value terbaik untuk pengguna aktif.',
+      coins: 1200,
+      price: 109000,
+      description: 'Value terbaik untuk pengguna paling aktif.',
     ),
   ];
   static const subscriptionPlans = <SubscriptionPlan>[
@@ -141,7 +149,7 @@ class DashboardExperienceProvider extends ChangeNotifier
       price: 29000,
       durationLabel: '30 hari',
       durationDays: 30,
-      description: 'Akses semua promo tanpa delay selama sebulan.',
+      description: 'Akses semua promo langsung saat rilis selama sebulan.',
       isRecommended: true,
     ),
     SubscriptionPlan(
@@ -158,7 +166,7 @@ class DashboardExperienceProvider extends ChangeNotifier
       price: 179000,
       durationLabel: '1 tahun',
       durationDays: 365,
-      description: 'Akses promo premium setahun penuh dengan harga terbaik.',
+      description: 'Akses promo instan setahun penuh dengan harga terbaik.',
     ),
   ];
   static const voucherCatalog = <VoucherReward>[
@@ -379,7 +387,7 @@ class DashboardExperienceProvider extends ChangeNotifier
 
   String get premiumStatusText {
     if (!isPremium) {
-      return 'Paket mulai Rp9.000. Premium membuka semua info promo baru tanpa delay dan tanpa coin.';
+      return 'Paket mulai Rp9.000. User gratis menunggu 3 jam setelah promo rilis, sementara premium membuka semua info promo baru secara instan tanpa coin.';
     }
     final expiry = premiumExpiresAt == null
         ? ''
@@ -560,18 +568,21 @@ class DashboardExperienceProvider extends ChangeNotifier
     notifyListeners();
     await NotificationService.instance.showPaymentCompleted(
       title: 'Pembayaran berhasil',
-      body: '${transaction.itemName} sudah aktif untuk ${transaction.userName}.',
+      body:
+          '${transaction.itemName} sudah aktif untuk ${transaction.userName}.',
     );
   }
 
   Future<bool> syncSettledMidtransPayments() async {
     var approvedAny = false;
-    final pendingMidtransTransactions = paymentTransactions.where(
-      (transaction) =>
-          transaction.status == PaymentStatus.pending &&
-          transaction.paymentReference != null &&
-          transaction.paymentMethod.toLowerCase().contains('midtrans'),
-    ).toList();
+    final pendingMidtransTransactions = paymentTransactions
+        .where(
+          (transaction) =>
+              transaction.status == PaymentStatus.pending &&
+              transaction.paymentReference != null &&
+              transaction.paymentMethod.toLowerCase().contains('midtrans'),
+        )
+        .toList();
 
     for (final transaction in pendingMidtransTransactions) {
       final status = await _midtransStatusService.getStatus(
@@ -987,10 +998,8 @@ class DashboardExperienceProvider extends ChangeNotifier
     _lockCountdownTimer = Timer.periodic(const Duration(minutes: 1), (_) async {
       if (!isReady) return;
       final prefs = _cachedPrefs ?? await SharedPreferences.getInstance();
-      final changed = await _refreshPremiumStatus(prefs);
-      if (isPremium || changed) {
-        notifyListeners();
-      }
+      await _refreshPremiumStatus(prefs);
+      notifyListeners();
     });
   }
 
