@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_routes.dart';
@@ -183,7 +184,7 @@ class StoreDetailScreen extends StatelessWidget {
                             child: OutlinedButton.icon(
                               onPressed: () => _openMaps(context),
                               icon: const Icon(Icons.map_outlined),
-                              label: const Text('Buka Google Maps'),
+                              label: const Text('Buka Peta'),
                             ),
                           ),
                         ],
@@ -213,7 +214,7 @@ class StoreDetailScreen extends StatelessWidget {
                           child: OutlinedButton.icon(
                             onPressed: () => _openMaps(context),
                             icon: const Icon(Icons.map_outlined),
-                            label: const Text('Buka Google Maps'),
+                            label: const Text('Buka Peta'),
                           ),
                         ),
                       ],
@@ -284,14 +285,6 @@ class _StoreMapPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final position = LatLng(store.latitude!, store.longitude!);
-    final marker = Marker(
-      markerId: MarkerId('store-${store.id}'),
-      position: position,
-      infoWindow: InfoWindow(
-        title: store.name,
-        snippet: store.address,
-      ),
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,20 +303,58 @@ class _StoreMapPreview extends StatelessWidget {
             child: Stack(
               children: [
                 IgnorePointer(
-                  child: GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: position,
-                      zoom: 15,
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: position,
+                      initialZoom: 15,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.none,
+                      ),
                     ),
-                    markers: {marker},
-                    myLocationButtonEnabled: false,
-                    mapToolbarEnabled: false,
-                    zoomControlsEnabled: false,
-                    rotateGesturesEnabled: false,
-                    tiltGesturesEnabled: false,
-                    scrollGesturesEnabled: false,
-                    zoomGesturesEnabled: false,
-                    liteModeEnabled: true,
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.promohunter.app',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: position,
+                            width: 52,
+                            height: 52,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 3,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x26000000),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.storefront_outlined,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const RichAttributionWidget(
+                        alignment: AttributionAlignment.bottomLeft,
+                        attributions: [
+                          TextSourceAttribution('OpenStreetMap contributors'),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 Positioned(
@@ -332,7 +363,7 @@ class _StoreMapPreview extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: () => MapsLauncher.openStore(context, store),
                     icon: const Icon(Icons.navigation_outlined),
-                    label: const Text('Buka Google Maps'),
+                    label: const Text('Buka Peta'),
                   ),
                 ),
               ],
