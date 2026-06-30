@@ -24,7 +24,8 @@ dependencies:
   google_fonts: ^6.3.1
   shared_preferences: ^2.5.3
   geolocator: ^14.0.2
-  google_maps_flutter: ^2.12.3
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
   upgrader: ^13.5.0
 
 dev_dependencies:
@@ -33,7 +34,6 @@ dev_dependencies:
   flutter_lints: ^4.0.0
 
 dependency_overrides:
-  google_maps_flutter_android: ^2.19.12
   image_picker_android: ^0.8.13+19
   shared_preferences_android: ^2.4.26
   url_launcher_android: ^6.3.32

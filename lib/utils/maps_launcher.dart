@@ -10,8 +10,22 @@ class MapsLauncher {
     final configuredUri = Uri.tryParse(store.googleMapsUrl);
     if (configuredUri != null &&
         configuredUri.hasScheme &&
-        store.googleMapsUrl.trim().isNotEmpty) {
+        store.googleMapsUrl.trim().isNotEmpty &&
+        !configuredUri.host.toLowerCase().contains('google.')) {
       return configuredUri;
+    }
+
+    if (store.latitude != null && store.longitude != null) {
+      final lat = store.latitude!;
+      final lon = store.longitude!;
+      return Uri.https(
+        'www.openstreetmap.org',
+        '/',
+        {
+          'mlat': lat.toString(),
+          'mlon': lon.toString(),
+        },
+      ).replace(fragment: 'map=17/$lat/$lon');
     }
 
     final query = [
@@ -21,12 +35,28 @@ class MapsLauncher {
     ].where((value) => value.trim().isNotEmpty).join(' ');
 
     return Uri.https(
-      'www.google.com',
-      '/maps/search/',
+      'www.openstreetmap.org',
+      '/search',
       {
-        'api': '1',
         'query': query.isEmpty ? store.name : query,
       },
+    );
+  }
+
+  static Uri searchUri({
+    required String name,
+    String? address,
+    String? city,
+  }) {
+    final query = [
+      name,
+      address ?? '',
+      city ?? '',
+    ].where((value) => value.trim().isNotEmpty).join(' ');
+    return Uri.https(
+      'www.openstreetmap.org',
+      '/search',
+      {'query': query.isEmpty ? name : query},
     );
   }
 
@@ -40,7 +70,24 @@ class MapsLauncher {
     );
     if (!launched && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal membuka Google Maps.')),
+        const SnackBar(content: Text('Gagal membuka peta.')),
+      );
+    }
+  }
+
+  static Future<void> openStoreSearch(
+    BuildContext context, {
+    required String name,
+    String? address,
+    String? city,
+  }) async {
+    final launched = await launchUrl(
+      searchUri(name: name, address: address, city: city),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal membuka peta.')),
       );
     }
   }

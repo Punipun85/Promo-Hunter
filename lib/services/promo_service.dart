@@ -328,7 +328,7 @@ class PromoService {
       'address': address,
       'city': 'Indonesia',
       'google_maps_url':
-          'https://maps.google.com/?q=${Uri.encodeComponent(rawName)}',
+          'https://www.openstreetmap.org/search?query=${Uri.encodeComponent(rawName)}',
       'opening_hours': matchedProfile?.hours ?? '08.00 - 22.00',
       'latitude': _defaultLatitudeFor(normalized),
       'longitude': _defaultLongitudeFor(normalized),
