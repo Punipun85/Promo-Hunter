@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_routes.dart';
 import '../../models/promo_model.dart';
@@ -12,6 +11,7 @@ import '../../providers/promo_provider.dart';
 import '../../providers/reminder_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_formatter.dart';
+import '../../utils/maps_launcher.dart';
 import '../../widgets/promo_image.dart';
 
 class PromoDetailScreen extends StatefulWidget {
@@ -241,12 +241,10 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
                             );
                             return;
                           }
-                          final uri = Uri.parse(
-                            'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${decoratedPromo.storeName} ${decoratedPromo.storeAddress}')}',
-                          );
-                          await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalApplication,
+                          await MapsLauncher.openStoreSearch(
+                            context,
+                            name: decoratedPromo.storeName,
+                            address: decoratedPromo.storeAddress,
                           );
                         },
                   icon: const Icon(Icons.storefront_outlined),
@@ -294,10 +292,11 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () async {
-                    final uri = Uri.parse(
-                      'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${decoratedPromo.storeName} ${decoratedPromo.storeAddress}')}',
+                    await MapsLauncher.openStoreSearch(
+                      context,
+                      name: decoratedPromo.storeName,
+                      address: decoratedPromo.storeAddress,
                     );
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
                   },
                   icon: const Icon(Icons.map_outlined),
                   label: const Text('Buka Lokasi Toko'),

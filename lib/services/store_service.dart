@@ -12,7 +12,8 @@ class StoreService {
       name: 'Indomaret Slamet Riyadi Solo',
       address: 'Jl. Slamet Riyadi No. 275, Sriwedari',
       city: 'Surakarta',
-      googleMapsUrl: 'https://maps.google.com',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.56655&mlon=110.80890#map=17/-7.56655/110.80890',
       openingHours: '07.00 - 22.00',
       latitude: -7.56655,
       longitude: 110.80890,
@@ -23,7 +24,8 @@ class StoreService {
       name: 'Alfamart Laweyan Solo',
       address: 'Jl. Dr. Rajiman No. 525, Laweyan',
       city: 'Surakarta',
-      googleMapsUrl: 'https://maps.google.com',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.56082&mlon=110.80163#map=17/-7.56082/110.80163',
       openingHours: '24 jam',
       latitude: -7.56082,
       longitude: 110.80163,
@@ -34,7 +36,8 @@ class StoreService {
       name: 'Super Indo Solo Grand Mall',
       address: 'Jl. Brigjen Slamet Riyadi No. 273, Penumping',
       city: 'Surakarta',
-      googleMapsUrl: 'https://maps.google.com',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.56573&mlon=110.80584#map=17/-7.56573/110.80584',
       openingHours: '08.00 - 21.00',
       latitude: -7.56573,
       longitude: 110.80584,
@@ -45,7 +48,8 @@ class StoreService {
       name: 'Hypermart Solo Square',
       address: 'Jl. Slamet Riyadi No. 451-455, Laweyan',
       city: 'Surakarta',
-      googleMapsUrl: 'https://maps.google.com/?q=Hypermart',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.55920&mlon=110.79480#map=17/-7.55920/110.79480',
       openingHours: '10.00 - 22.00',
       latitude: -7.55920,
       longitude: 110.79480,
@@ -56,7 +60,8 @@ class StoreService {
       name: 'Transmart Pabelan',
       address: 'Jl. Ahmad Yani, Pabelan, Kartasura',
       city: 'Sukoharjo',
-      googleMapsUrl: 'https://maps.google.com/?q=Transmart',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.55470&mlon=110.76850#map=17/-7.55470/110.76850',
       openingHours: '10.00 - 22.00',
       latitude: -7.55470,
       longitude: 110.76850,
@@ -67,7 +72,8 @@ class StoreService {
       name: 'Lotte Mart Solo Baru',
       address: 'Jl. Ir. Soekarno, Solo Baru',
       city: 'Sukoharjo',
-      googleMapsUrl: 'https://maps.google.com/?q=Lotte+Mart',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.59220&mlon=110.82440#map=17/-7.59220/110.82440',
       openingHours: '09.00 - 22.00',
       latitude: -7.59220,
       longitude: 110.82440,
@@ -78,7 +84,8 @@ class StoreService {
       name: 'Farmers Market Solo Paragon',
       address: 'Jl. Yosodipuro No. 133, Mangkubumen',
       city: 'Surakarta',
-      googleMapsUrl: 'https://maps.google.com/?q=Farmers+Market',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.55740&mlon=110.81970#map=17/-7.55740/110.81970',
       openingHours: '08.00 - 22.00',
       latitude: -7.55740,
       longitude: 110.81970,
@@ -89,7 +96,8 @@ class StoreService {
       name: 'Ranch Market Solo Baru',
       address: 'Jl. Ir. Soekarno, Madegondo',
       city: 'Sukoharjo',
-      googleMapsUrl: 'https://maps.google.com/?q=Ranch+Market',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.60080&mlon=110.82880#map=17/-7.60080/110.82880',
       openingHours: '08.00 - 22.00',
       latitude: -7.60080,
       longitude: 110.82880,
@@ -100,7 +108,8 @@ class StoreService {
       name: 'Grand Lucky Solo Baru',
       address: 'Kawasan Solo Baru, Grogol',
       city: 'Sukoharjo',
-      googleMapsUrl: 'https://maps.google.com/?q=Grand+Lucky+Superstore',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.59350&mlon=110.82310#map=17/-7.59350/110.82310',
       openingHours: '08.00 - 22.00',
       latitude: -7.59350,
       longitude: 110.82310,
@@ -111,7 +120,8 @@ class StoreService {
       name: 'Hero Supermarket Solo',
       address: 'Kawasan pusat belanja Solo',
       city: 'Surakarta',
-      googleMapsUrl: 'https://maps.google.com/?q=Hero+Supermarket',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.56910&mlon=110.82510#map=17/-7.56910/110.82510',
       openingHours: '08.00 - 22.00',
       latitude: -7.56910,
       longitude: 110.82510,

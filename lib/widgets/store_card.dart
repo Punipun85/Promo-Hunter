@@ -115,7 +115,7 @@ class StoreCard extends StatelessWidget {
                           await MapsLauncher.openStore(context, store);
                         },
                         icon: const Icon(Icons.map_outlined, size: 16),
-                        label: const Text('Maps'),
+                        label: const Text('Peta'),
                       ),
                     ),
                   ],
@@ -149,7 +149,7 @@ class StoreCard extends StatelessWidget {
                         await MapsLauncher.openStore(context, store);
                       },
                       icon: const Icon(Icons.map_outlined),
-                      label: const Text('Buka Google Maps'),
+                      label: const Text('Buka Peta'),
                     ),
                   ],
                 ),

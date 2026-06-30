@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:promohunter/models/profile_model.dart';
+import 'package:promohunter/models/store_model.dart';
 import 'package:promohunter/providers/auth_provider.dart';
 import 'package:promohunter/providers/calculator_provider.dart';
 import 'package:promohunter/providers/dashboard_experience_provider.dart';
@@ -24,6 +25,7 @@ import 'package:promohunter/screens/promo/promo_list_screen.dart';
 import 'package:promohunter/screens/profile/profile_screen.dart';
 import 'package:promohunter/screens/reminder/reminder_screen.dart';
 import 'package:promohunter/screens/shopping_list/shopping_list_screen.dart';
+import 'package:promohunter/screens/store/store_detail_screen.dart';
 import 'package:promohunter/screens/store/store_list_screen.dart';
 import 'package:promohunter/screens/wallet/wallet_screen.dart';
 import 'package:promohunter/services/category_service.dart';
@@ -144,6 +146,25 @@ void main() {
     await pumpNarrowScreen(tester, const StoreListScreen());
 
     expect(find.text('Daftar Toko'), findsOneWidget);
+  });
+
+  testWidgets('store detail renders on narrow mobile viewport', (tester) async {
+    const store = StoreModel(
+      id: 999,
+      name: 'OpenStreetMap Test Store',
+      address: 'Jl. Test No. 1, Surakarta',
+      city: 'Surakarta',
+      googleMapsUrl:
+          'https://www.openstreetmap.org/?mlat=-7.56655&mlon=110.80890#map=17/-7.56655/110.80890',
+      openingHours: '08.00 - 22.00',
+      latitude: -7.56655,
+      longitude: 110.80890,
+      activePromoCount: 2,
+    );
+
+    await pumpNarrowScreen(tester, const StoreDetailScreen(store: store));
+
+    expect(find.text('OpenStreetMap Test Store'), findsAtLeastNWidgets(1));
   });
 
   testWidgets('guest profile renders on narrow mobile viewport',
