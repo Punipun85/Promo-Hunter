@@ -24,6 +24,7 @@ import 'package:promohunter/screens/notification/notification_screen.dart';
 import 'package:promohunter/screens/promo/promo_list_screen.dart';
 import 'package:promohunter/screens/profile/profile_screen.dart';
 import 'package:promohunter/screens/reminder/reminder_screen.dart';
+import 'package:promohunter/screens/reward/daily_claim_screen.dart';
 import 'package:promohunter/screens/shopping_list/shopping_list_screen.dart';
 import 'package:promohunter/screens/store/store_detail_screen.dart';
 import 'package:promohunter/screens/store/store_list_screen.dart';
@@ -234,6 +235,25 @@ void main() {
     await pumpNarrowScreen(tester, const NotificationScreen());
 
     expect(find.text('Notifikasi'), findsOneWidget);
+  });
+
+  testWidgets('daily claim screen renders on narrow mobile viewport',
+      (tester) async {
+    final authProvider = AuthProvider(AuthService())
+      ..currentUser = const ProfileModel(
+        id: 'user-2',
+        name: 'Daily Claimer',
+        email: 'claimer@example.com',
+        role: 'user',
+      );
+
+    await pumpNarrowScreen(
+      tester,
+      const DailyClaimScreen(),
+      authProvider: authProvider,
+    );
+
+    expect(find.text('Daily Claim'), findsOneWidget);
   });
 
   testWidgets('price calculator renders on narrow mobile viewport',

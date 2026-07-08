@@ -7,9 +7,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/midtrans_payment_status_service.dart';
 import '../services/notification_service.dart';
+import '../services/supabase_service.dart';
 
 class DashboardExperienceProvider extends ChangeNotifier
     with WidgetsBindingObserver {
+  DashboardExperienceProvider([SupabaseService? supabaseService])
+      : _supabaseService = supabaseService ?? const SupabaseService();
+
   static const _premiumKey = 'dashboard_is_premium';
   static const _premiumExpiresAtKey = 'dashboard_premium_expires_at';
   static const _coinsKey = 'dashboard_coin_balance';
@@ -26,6 +30,8 @@ class DashboardExperienceProvider extends ChangeNotifier
   static const freeAccessDelay = Duration(hours: 3);
   static const miniGameDailyLimit = 3;
   static const miniGameRounds = 5;
+  static const dailyClaimCycleLength = 7;
+  static const dailyClaimCoins = 5;
   static const unlockCost = 30;
   static const memberOnlyPromoModulo = 4;
   static const _midtransStatusPollAttempts = 30;
@@ -222,7 +228,9 @@ class DashboardExperienceProvider extends ChangeNotifier
   Timer? _miniGameResetTimer;
   final MidtransPaymentStatusService _midtransStatusService =
       MidtransPaymentStatusService();
+  final SupabaseService _supabaseService;
   bool _isLifecycleObserverRegistered = false;
+  String? _activeUserId;
 
   Future<void> bootstrap() async {
     if (!_isLifecycleObserverRegistered) {
@@ -234,7 +242,8 @@ class DashboardExperienceProvider extends ChangeNotifier
     isPremium = prefs.getBool(_premiumKey) ?? false;
     premiumExpiresAt = _parseDate(prefs.getString(_premiumExpiresAtKey));
     await _refreshPremiumStatus(prefs);
-    coinBalance = prefs.getInt(_coinsKey) ?? 0;
+    _activeUserId = _currentUserId;
+    coinBalance = _loadCoinBalanceFromPrefs(prefs, _activeUserId);
     unlockedPromoIds = _parseUnlockedPromoIds(
       prefs.getStringList(_unlockedPromosKey) ?? const <String>[],
     );
@@ -253,7 +262,45 @@ class DashboardExperienceProvider extends ChangeNotifier
     isReady = true;
     _startLockCountdownTimer();
     notifyListeners();
+    if (_activeUserId != null) {
+      await _syncCoinBalanceForUser(
+        prefs,
+        _activeUserId!,
+        preferHigherLocalBalance: true,
+      );
+    }
     unawaited(syncSettledMidtransPayments());
+  }
+
+  Future<void> handleUserSessionChanged(String? userId) async {
+    final prefs = _cachedPrefs ?? await SharedPreferences.getInstance();
+    _cachedPrefs = prefs;
+
+    if (_activeUserId == userId) {
+      if (userId != null) {
+        await _syncCoinBalanceForUser(
+          prefs,
+          userId,
+          preferHigherLocalBalance: true,
+        );
+      }
+      return;
+    }
+
+    _activeUserId = userId;
+    if (userId == null) {
+      coinBalance = 0;
+      if (isReady) notifyListeners();
+      return;
+    }
+
+    coinBalance = _loadCoinBalanceFromPrefs(prefs, userId);
+    if (isReady) notifyListeners();
+    await _syncCoinBalanceForUser(
+      prefs,
+      userId,
+      preferHigherLocalBalance: true,
+    );
   }
 
   @override
@@ -269,18 +316,22 @@ class DashboardExperienceProvider extends ChangeNotifier
   }
 
   int get nextDailyDay {
-    final isCycleComplete = claimedDaysInCycle >= 7;
+    final isCycleComplete = claimedDaysInCycle >= dailyClaimCycleLength;
     if (isCycleComplete && !hasClaimedToday) {
       return 1;
     }
     if (hasClaimedToday) {
       return claimedDaysInCycle == 0 ? 1 : claimedDaysInCycle;
     }
-    return (claimedDaysInCycle + 1).clamp(1, 7);
+    return (claimedDaysInCycle + 1).clamp(1, dailyClaimCycleLength);
   }
 
   bool shouldShowEntryDialogs() {
     return isReady && !_hasShownEntryDialogsThisSession;
+  }
+
+  void clearEntryDialogsSession() {
+    _hasShownEntryDialogsThisSession = false;
   }
 
   Future<void> registerPromos(Iterable<int> promoIds) async {
@@ -403,7 +454,7 @@ class DashboardExperienceProvider extends ChangeNotifier
     _cachedPrefs = prefs;
     coinBalance -= unlockCost;
     unlockedPromoIds = {...unlockedPromoIds, promoId};
-    await prefs.setInt(_coinsKey, coinBalance);
+    await _persistCoinBalance(prefs);
     await prefs.setStringList(
       _unlockedPromosKey,
       unlockedPromoIds.map((id) => id.toString()).toList(),
@@ -455,7 +506,7 @@ class DashboardExperienceProvider extends ChangeNotifier
     final prefs = await SharedPreferences.getInstance();
     _cachedPrefs = prefs;
     coinBalance += package.coins;
-    await prefs.setInt(_coinsKey, coinBalance);
+    await _persistCoinBalance(prefs);
     notifyListeners();
   }
 
@@ -538,7 +589,7 @@ class DashboardExperienceProvider extends ChangeNotifier
 
     if (transaction.type == PaymentTransactionType.coinTopUp) {
       coinBalance += transaction.coins ?? 0;
-      await prefs.setInt(_coinsKey, coinBalance);
+      await _persistCoinBalance(prefs);
     } else {
       final now = DateTime.now();
       final baseTime =
@@ -711,7 +762,7 @@ class DashboardExperienceProvider extends ChangeNotifier
       _miniGameDateKey,
       lastMiniGamePlayedAt!.toIso8601String(),
     );
-    await prefs.setInt(_coinsKey, coinBalance);
+    await _persistCoinBalance(prefs);
     notifyListeners();
 
     return MiniGameResult(
@@ -745,7 +796,7 @@ class DashboardExperienceProvider extends ChangeNotifier
     final redemption = _createVoucherRedemption(voucher);
     redeemedVouchers = <RedeemedVoucher>[redemption, ...redeemedVouchers];
 
-    await prefs.setInt(_coinsKey, coinBalance);
+    await _persistCoinBalance(prefs);
     await prefs.setStringList(
       _redeemedVouchersKey,
       redeemedVouchers.map((item) => jsonEncode(item.toJson())).toList(),
@@ -790,7 +841,7 @@ class DashboardExperienceProvider extends ChangeNotifier
 
     if (coinsEarned > 0) {
       coinBalance += coinsEarned;
-      await prefs.setInt(_coinsKey, coinBalance);
+      await _persistCoinBalance(prefs);
     }
 
     if (reward.voucherId != null) {
@@ -842,17 +893,19 @@ class DashboardExperienceProvider extends ChangeNotifier
       final gap = currentDate.difference(previousDate).inDays;
       if (gap <= 1) {
         claimedDaysInCycle =
-            claimedDaysInCycle >= 7 ? 1 : claimedDaysInCycle + 1;
+            claimedDaysInCycle >= dailyClaimCycleLength
+                ? 1
+                : claimedDaysInCycle + 1;
       } else {
         claimedDaysInCycle = 1;
       }
     }
 
     lastClaimedAt = now;
-    final coinsEarned = claimedDaysInCycle == 7 ? 50 : 10;
+    const coinsEarned = dailyClaimCoins;
     coinBalance += coinsEarned;
     await prefs.setInt(_dailyCycleKey, claimedDaysInCycle);
-    await prefs.setInt(_coinsKey, coinBalance);
+    await _persistCoinBalance(prefs);
     await prefs.setString(_lastClaimKey, now.toIso8601String());
     notifyListeners();
     return DailyClaimResult(day: claimedDaysInCycle, coinsEarned: coinsEarned);
@@ -876,8 +929,92 @@ class DashboardExperienceProvider extends ChangeNotifier
   }
 
   SharedPreferences? _cachedPrefs;
+  String? get _currentUserId => _supabaseService.clientOrNull?.auth.currentUser?.id;
 
   String _promoFirstSeenKey(int promoId) => '$_promoFirstSeenPrefix$promoId';
+
+  String _coinBalanceKeyFor(String? userId) =>
+      userId == null || userId.isEmpty ? _coinsKey : '${_coinsKey}_$userId';
+
+  int _loadCoinBalanceFromPrefs(SharedPreferences prefs, String? userId) {
+    final scopedKey = _coinBalanceKeyFor(userId);
+    final scopedValue = prefs.getInt(scopedKey);
+    if (scopedValue != null) {
+      return scopedValue;
+    }
+    final legacyValue = prefs.getInt(_coinsKey);
+    if (legacyValue != null) {
+      unawaited(prefs.setInt(scopedKey, legacyValue));
+      return legacyValue;
+    }
+    return 0;
+  }
+
+  Future<void> _persistCoinBalance(SharedPreferences prefs) async {
+    final userId = _activeUserId ?? _currentUserId;
+    final scopedKey = _coinBalanceKeyFor(userId);
+    await prefs.setInt(scopedKey, coinBalance);
+    await prefs.setInt(_coinsKey, coinBalance);
+    if (userId != null) {
+      await _pushCoinBalanceToRemote(userId, coinBalance);
+    }
+  }
+
+  Future<void> _syncCoinBalanceForUser(
+    SharedPreferences prefs,
+    String userId, {
+    required bool preferHigherLocalBalance,
+  }) async {
+    final localBalance = _loadCoinBalanceFromPrefs(prefs, userId);
+    final remoteBalance = await _fetchRemoteCoinBalance(userId);
+    if (remoteBalance == null) {
+      coinBalance = localBalance;
+      if (isReady) notifyListeners();
+      return;
+    }
+
+    final resolvedBalance =
+        preferHigherLocalBalance && localBalance > remoteBalance
+            ? localBalance
+            : remoteBalance;
+    coinBalance = resolvedBalance;
+    await prefs.setInt(_coinBalanceKeyFor(userId), resolvedBalance);
+    await prefs.setInt(_coinsKey, resolvedBalance);
+    if (resolvedBalance != remoteBalance) {
+      await _pushCoinBalanceToRemote(userId, resolvedBalance);
+    }
+    if (isReady) notifyListeners();
+  }
+
+  Future<int?> _fetchRemoteCoinBalance(String userId) async {
+    final client = _supabaseService.clientOrNull;
+    if (client == null) return null;
+    try {
+      final response = await client
+          .from('profiles')
+          .select('coin_balance')
+          .eq('id', userId)
+          .maybeSingle();
+      final value = response?['coin_balance'];
+      if (value is num) return value.toInt();
+      return 0;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _pushCoinBalanceToRemote(String userId, int balance) async {
+    final client = _supabaseService.clientOrNull;
+    if (client == null) return;
+    try {
+      await client
+          .from('profiles')
+          .update({'coin_balance': balance})
+          .eq('id', userId);
+    } catch (_) {
+      // Keep local coin balance as fallback if remote sync is unavailable.
+    }
+  }
 
   Set<int> _parseUnlockedPromoIds(List<String> values) {
     return values.map((value) => int.tryParse(value)).whereType<int>().toSet();

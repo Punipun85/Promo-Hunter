@@ -23,7 +23,12 @@ import '../../widgets/coin_banner_card.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.onOpenProfile,
+  });
+
+  final VoidCallback? onOpenProfile;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -35,6 +40,30 @@ enum _EntrySheetAction {
   openWallet,
   openPromos,
   openPremium,
+}
+
+class _HomeLifecycleObserver with WidgetsBindingObserver {
+  _HomeLifecycleObserver({
+    required this.onResumed,
+    required this.onPaused,
+  });
+
+  final VoidCallback onResumed;
+  final VoidCallback onPaused;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      onResumed();
+      return;
+    }
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      onPaused();
+    }
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -64,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(_homeLifecycleObserver);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final promoIds =
           context.read<PromoProvider>().promos.map((promo) => promo.id);
@@ -75,10 +105,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(_homeLifecycleObserver);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
+
+  late final WidgetsBindingObserver _homeLifecycleObserver =
+      _HomeLifecycleObserver(
+    onResumed: () {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showEntryDialogsIfNeeded();
+        }
+      });
+    },
+    onPaused: () {
+      if (!mounted) return;
+      context.read<DashboardExperienceProvider>().clearEntryDialogsSession();
+    },
+  );
 
   Future<void> _loadNearbyStores() async {
     if (!mounted) return;
@@ -159,7 +206,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _showEntryDialogsIfNeeded() async {
     final auth = context.read<AuthProvider>();
     final experience = context.read<DashboardExperienceProvider>();
-    final promoProvider = context.read<PromoProvider>();
     if (!auth.isLoggedIn ||
         auth.isAdmin ||
         _isShowingEntryDialog ||
@@ -168,6 +214,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _isShowingEntryDialog = true;
+    final action = await _openDailyLoginSheet();
+
+    if (!mounted) return;
+
+    await _handleEntrySheetAction(action);
+
+    await experience.markEntryDialogsShown();
+    _isShowingEntryDialog = false;
+  }
+
+  Future<_EntrySheetAction?> _openDailyLoginSheet() {
+    final experience = context.read<DashboardExperienceProvider>();
+    final promoProvider = context.read<PromoProvider>();
     final claimReward = !experience.hasClaimedToday;
     final featuredPromo = _pickFeaturedPromo(promoProvider.promos);
     final recommendedPlan = DashboardExperienceProvider.subscriptionPlans
@@ -180,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
               : null,
         );
 
-    final action = await showModalBottomSheet<_EntrySheetAction>(
+    return showModalBottomSheet<_EntrySheetAction>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -194,8 +253,10 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
 
-    if (!mounted) return;
+  Future<void> _handleEntrySheetAction(_EntrySheetAction? action) async {
+    final experience = context.read<DashboardExperienceProvider>();
 
     switch (action) {
       case _EntrySheetAction.claimReward:
@@ -211,18 +272,17 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
       case _EntrySheetAction.openWallet:
       case _EntrySheetAction.openPremium:
+        if (!mounted) return;
         Navigator.pushNamed(context, AppRoutes.wallet);
         break;
       case _EntrySheetAction.openPromos:
+        if (!mounted) return;
         Navigator.pushNamed(context, AppRoutes.promoList);
         break;
       case _EntrySheetAction.dismiss:
       case null:
         break;
     }
-
-    await experience.markEntryDialogsShown();
-    _isShowingEntryDialog = false;
   }
 
   void _openPromo(PromoModel promo) {
@@ -281,8 +341,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 coinBalance: experience.coinBalance,
                 onPlayGamesPressed: () =>
                     Navigator.pushNamed(context, AppRoutes.miniGame),
-                onViewRewardsPressed: () =>
-                    Navigator.pushNamed(context, AppRoutes.wallet),
+                onViewRewardsPressed: () async {
+                  if (!auth.isLoggedIn) {
+                    Navigator.pushNamed(context, AppRoutes.login);
+                    return;
+                  }
+                  if (auth.isAdmin) {
+                    Navigator.pushNamed(context, AppRoutes.wallet);
+                    return;
+                  }
+                  Navigator.pushNamed(context, AppRoutes.dailyClaim);
+                },
               ),
             ),
           ),
@@ -743,7 +812,8 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+              onTap: widget.onOpenProfile ??
+                  () => Navigator.pushNamed(context, AppRoutes.profile),
               behavior: HitTestBehavior.opaque,
               child: Row(
                 children: [
@@ -1814,6 +1884,8 @@ class _EntryOnboardingSheetState extends State<_EntryOnboardingSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final pageHeight = screenHeight < 700 ? 300.0 : 320.0;
     final pages = <Widget>[
       _EntrySheetCard(
         accent: const Color(0xFFFFE6D8),
@@ -1821,10 +1893,10 @@ class _EntryOnboardingSheetState extends State<_EntryOnboardingSheet> {
         title: 'Hadiah login mingguan',
         badgeLabel: 'Bonus harian',
         subtitle: widget.claimReward
-            ? 'Hari ke-${widget.experience.nextDailyDay}/7 siap diambil sekarang.'
-            : 'Reward hari ini sudah diambil. Besok lanjut lagi ke hari ${widget.experience.nextDailyDay}/7.',
+            ? 'Hari ke-${widget.experience.nextDailyDay}/${DashboardExperienceProvider.dailyClaimCycleLength} siap diambil sekarang.'
+            : 'Reward hari ini sudah diambil. Besok lanjut lagi ke hari ${widget.experience.nextDailyDay}/${DashboardExperienceProvider.dailyClaimCycleLength}.',
         detail:
-            'Streak saat ini ${widget.experience.claimedDaysInCycle}/7. Hari ke-7 memberi bonus 50 coin.',
+            'Claim login harian memberi ${DashboardExperienceProvider.dailyClaimCoins} coin. Setelah hari ke-${DashboardExperienceProvider.dailyClaimCycleLength}, siklus kembali ke hari 1.',
         actionLabel: widget.claimReward ? 'Ambil reward' : 'Lihat wallet',
         onPressed: () => Navigator.pop(
           context,
@@ -1925,7 +1997,7 @@ class _EntryOnboardingSheetState extends State<_EntryOnboardingSheet> {
               ),
               const SizedBox(height: 16),
               SizedBox(
-                height: 255,
+                height: pageHeight,
                 child: PageView.builder(
                   controller: _pageController,
                   itemCount: pages.length,
@@ -2122,23 +2194,30 @@ class _EntrySheetCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: subtitleColor,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 6),
           Expanded(
-            child: Text(
-              detail,
-              style: TextStyle(
-                fontSize: 13,
-                color: detailColor,
-                height: 1.45,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: subtitleColor,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    detail,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: detailColor,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

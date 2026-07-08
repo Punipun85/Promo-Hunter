@@ -20,6 +20,7 @@ import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/promo/promo_detail_screen.dart';
 import '../screens/promo/promo_list_screen.dart';
+import '../screens/reward/daily_claim_screen.dart';
 import '../screens/reminder/reminder_screen.dart';
 import '../screens/shopping_list/shopping_list_screen.dart';
 import '../screens/splash/splash_screen.dart';
@@ -58,6 +59,7 @@ class AppRoutes {
   static const miniGame = '/mini-game';
   static const dailySpin = '/daily-spin';
   static const coinRush = '/coin-rush';
+  static const dailyClaim = '/daily-claim';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final rawName = settings.name ?? home;
@@ -147,6 +149,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const DailySpinScreen());
       case coinRush:
         return MaterialPageRoute(builder: (_) => const CoinRushScreen());
+      case dailyClaim:
+        return MaterialPageRoute(builder: (_) => const DailyClaimScreen());
       default:
         return MaterialPageRoute(builder: (_) => const HomeShellScreen());
     }

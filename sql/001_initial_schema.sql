@@ -3,6 +3,7 @@ create table if not exists profiles (
   name text not null,
   email text not null,
   role text not null default 'user' check (role in ('user', 'admin')),
+  coin_balance integer not null default 0,
   created_at timestamp default now()
 );
 
@@ -90,4 +91,3 @@ create table if not exists price_comparisons (
   cheaper_product text,
   created_at timestamp default now()
 );
-

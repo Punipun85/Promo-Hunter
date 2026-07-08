@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/dashboard_experience_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/reminder_provider.dart';
 import '../../providers/shopping_list_provider.dart';
@@ -41,6 +42,10 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       _bootstrappedUserId = userId;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
+        await context
+            .read<DashboardExperienceProvider>()
+            .handleUserSessionChanged(userId);
+        if (!mounted) return;
         final favoriteProvider = context.read<FavoriteProvider>();
         final reminderProvider = context.read<ReminderProvider>();
         final shoppingListProvider = context.read<ShoppingListProvider>();
@@ -54,6 +59,12 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     if (userId == null && _bootstrappedUserId != null) {
       _bootstrappedUserId = null;
       _refreshedUserId = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await context
+            .read<DashboardExperienceProvider>()
+            .handleUserSessionChanged(null);
+      });
       context.read<FavoriteProvider>().clear();
       context.read<ReminderProvider>().clear();
       context.read<ShoppingListProvider>().clear();
@@ -64,8 +75,11 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final isAdmin = auth.isAdmin;
+    final profileTabIndex = isAdmin ? 5 : 4;
     final pages = <Widget>[
-      const HomeScreen(),
+      HomeScreen(
+        onOpenProfile: () => setState(() => _index = profileTabIndex),
+      ),
       const PromoListScreen(),
       const FavoriteScreen(),
       const WalletScreen(),
