@@ -20,6 +20,7 @@ import 'package:promohunter/screens/auth/register_screen.dart';
 import 'package:promohunter/screens/calculator/price_calculator_screen.dart';
 import 'package:promohunter/screens/favorite/favorite_screen.dart';
 import 'package:promohunter/screens/home/home_screen.dart';
+import 'package:promohunter/screens/home/home_shell_screen.dart';
 import 'package:promohunter/screens/notification/notification_screen.dart';
 import 'package:promohunter/screens/promo/promo_list_screen.dart';
 import 'package:promohunter/screens/profile/profile_screen.dart';
@@ -35,6 +36,15 @@ import 'package:promohunter/services/promo_service.dart';
 import 'package:promohunter/services/reminder_service.dart';
 import 'package:promohunter/services/shopping_list_service.dart';
 import 'package:promohunter/services/store_service.dart';
+
+class _StaticAuthProvider extends AuthProvider {
+  _StaticAuthProvider(ProfileModel user) : super(AuthService()) {
+    currentUser = user;
+  }
+
+  @override
+  Future<void> refreshProfile() async {}
+}
 
 void main() {
   Widget testShell(
@@ -136,6 +146,54 @@ void main() {
     expect(find.text('PromoHunter'), findsOneWidget);
   });
 
+  testWidgets('admin shell hides user tabs in bottom navigation', (
+    tester,
+  ) async {
+    final authProvider = _StaticAuthProvider(const ProfileModel(
+      id: 'admin-shell-1',
+      name: 'Admin PromoHunter',
+      email: 'admin.shell@example.com',
+      role: 'admin',
+    ));
+
+    await pumpNarrowScreen(
+      tester,
+      const HomeShellScreen(),
+      authProvider: authProvider,
+    );
+
+    final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    final labels = navBar.destinations
+        .map((destination) => (destination as NavigationDestination).label)
+        .toList();
+
+    expect(labels, ['Admin', 'Profil']);
+  });
+
+  testWidgets('user shell keeps the full bottom navigation', (
+    tester,
+  ) async {
+    final authProvider = _StaticAuthProvider(const ProfileModel(
+      id: 'user-shell-1',
+      name: 'User PromoHunter',
+      email: 'user.shell@example.com',
+      role: 'user',
+    ));
+
+    await pumpNarrowScreen(
+      tester,
+      const HomeShellScreen(),
+      authProvider: authProvider,
+    );
+
+    final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    final labels = navBar.destinations
+        .map((destination) => (destination as NavigationDestination).label)
+        .toList();
+
+    expect(labels, ['Home', 'Promo', 'Favorit', 'Topup', 'Profil']);
+  });
+
   testWidgets('promo list renders on narrow mobile viewport', (tester) async {
     await pumpNarrowScreen(tester, const PromoListScreen());
 
@@ -227,6 +285,27 @@ void main() {
     );
 
     expect(find.text('Ringkasan Aktivitas'), findsOneWidget);
+    expect(find.text('Aksi Cepat'), findsOneWidget);
+  });
+
+  testWidgets('admin profile hides user-only sections', (tester) async {
+    final authProvider = _StaticAuthProvider(const ProfileModel(
+      id: 'admin-profile-1',
+      name: 'Admin PromoHunter',
+      email: 'admin.profile@example.com',
+      role: 'admin',
+    ));
+
+    await pumpNarrowScreen(
+      tester,
+      const ProfileScreen(),
+      authProvider: authProvider,
+    );
+
+    expect(find.text('Ringkasan Aktivitas'), findsNothing);
+    expect(find.text('Aksi Cepat'), findsNothing);
+    expect(find.text('Terakhir Dilihat'), findsNothing);
+    expect(find.text('Belum ada aktivitas'), findsNothing);
   });
 
   testWidgets('notification screen renders on narrow mobile viewport',
