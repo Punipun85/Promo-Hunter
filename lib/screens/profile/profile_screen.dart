@@ -64,21 +64,50 @@ class _SignedInProfileView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             sliver: SliverList(
               delegate: SliverChildListDelegate.fixed([
-                // ---------- Stats ----------
-                const _SectionLabel('Ringkasan Aktivitas'),
-                const SizedBox(height: 12),
-                _StatGrid(
-                  favoriteProvider: favoriteProvider,
-                  reminderProvider: reminderProvider,
-                  shoppingListProvider: shoppingListProvider,
-                  experience: experience,
-                ),
+                if (!auth.isAdmin) ...[
+                  // ---------- Stats ----------
+                  const _SectionLabel('Ringkasan Aktivitas'),
+                  const SizedBox(height: 12),
+                  _StatGrid(
+                    favoriteProvider: favoriteProvider,
+                    reminderProvider: reminderProvider,
+                    shoppingListProvider: shoppingListProvider,
+                    experience: experience,
+                  ),
 
-                const SizedBox(height: 24),
-                // ---------- Quick Actions ----------
-                const _SectionLabel('Aksi Cepat'),
-                const SizedBox(height: 12),
-                const _QuickActionsGrid(),
+                  const SizedBox(height: 24),
+                  // ---------- Quick Actions ----------
+                  const _SectionLabel('Aksi Cepat'),
+                  const SizedBox(height: 12),
+                  const _QuickActionsGrid(),
+
+                  const SizedBox(height: 24),
+                  // ---------- Recommendations ----------
+                  const _SectionLabel('Rekomendasi Untuk Kamu'),
+                  const SizedBox(height: 12),
+                  if (recommended.isEmpty)
+                    const _InlineEmpty(
+                      icon: Icons.auto_awesome_outlined,
+                      title: 'Rekomendasi belum tersedia',
+                      message:
+                          'Buka beberapa promo atau simpan favorit agar rekomendasi makin personal.',
+                    )
+                  else
+                    ...recommended.map(
+                      (promo) => PromoCard(
+                        promo: promo.copyWith(
+                          isFavorite: favoriteProvider.isFavorite(promo.id),
+                        ),
+                        isLocked: experience.isPromoLocked(promo.id),
+                        lockLabel: experience.promoLockLabel(promo.id),
+                        onTap: () => openPromoWithAccessGuard(context, promo),
+                        onFavoriteTap: () => favoriteProvider.toggleFavorite(
+                          user.id,
+                          promo,
+                        ),
+                      ),
+                    ),
+                ],
 
                 const SizedBox(height: 24),
                 // ---------- Account details ----------
@@ -93,59 +122,34 @@ class _SignedInProfileView extends StatelessWidget {
                   const _AdminToolsCard(),
                 ],
 
-                const SizedBox(height: 24),
-                // ---------- Recently viewed ----------
-                const _SectionLabel('Terakhir Dilihat'),
-                const SizedBox(height: 12),
-                if (recentlyViewed.isEmpty)
-                  const _InlineEmpty(
-                    icon: Icons.history_rounded,
-                    title: 'Belum ada aktivitas',
-                    message:
-                        'Promo yang baru kamu buka akan muncul di sini agar mudah ditemukan lagi.',
-                  )
-                else
-                  ...recentlyViewed.map(
-                    (promo) => PromoCard(
-                      promo: promo.copyWith(
-                        isFavorite: favoriteProvider.isFavorite(promo.id),
-                      ),
-                      isLocked: experience.isPromoLocked(promo.id),
-                      lockLabel: experience.promoLockLabel(promo.id),
-                      onTap: () => openPromoWithAccessGuard(context, promo),
-                      onFavoriteTap: () => favoriteProvider.toggleFavorite(
-                        user.id,
-                        promo,
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 24),
-                // ---------- Recommendations ----------
-                const _SectionLabel('Rekomendasi Untuk Kamu'),
-                const SizedBox(height: 12),
-                if (recommended.isEmpty)
-                  const _InlineEmpty(
-                    icon: Icons.auto_awesome_outlined,
-                    title: 'Rekomendasi belum tersedia',
-                    message:
-                        'Buka beberapa promo atau simpan favorit agar rekomendasi makin personal.',
-                  )
-                else
-                  ...recommended.map(
-                    (promo) => PromoCard(
-                      promo: promo.copyWith(
-                        isFavorite: favoriteProvider.isFavorite(promo.id),
-                      ),
-                      isLocked: experience.isPromoLocked(promo.id),
-                      lockLabel: experience.promoLockLabel(promo.id),
-                      onTap: () => openPromoWithAccessGuard(context, promo),
-                      onFavoriteTap: () => favoriteProvider.toggleFavorite(
-                        user.id,
-                        promo,
+                if (!auth.isAdmin) ...[
+                  const SizedBox(height: 24),
+                  // ---------- Recently viewed ----------
+                  const _SectionLabel('Terakhir Dilihat'),
+                  const SizedBox(height: 12),
+                  if (recentlyViewed.isEmpty)
+                    const _InlineEmpty(
+                      icon: Icons.history_rounded,
+                      title: 'Belum ada aktivitas',
+                      message:
+                          'Promo yang baru kamu buka akan muncul di sini agar mudah ditemukan lagi.',
+                    )
+                  else
+                    ...recentlyViewed.map(
+                      (promo) => PromoCard(
+                        promo: promo.copyWith(
+                          isFavorite: favoriteProvider.isFavorite(promo.id),
+                        ),
+                        isLocked: experience.isPromoLocked(promo.id),
+                        lockLabel: experience.promoLockLabel(promo.id),
+                        onTap: () => openPromoWithAccessGuard(context, promo),
+                        onFavoriteTap: () => favoriteProvider.toggleFavorite(
+                          user.id,
+                          promo,
+                        ),
                       ),
                     ),
-                  ),
+                ],
 
                 const SizedBox(height: 24),
                 // ---------- Logout ----------
