@@ -27,6 +27,9 @@ class StoreDetailScreen extends StatelessWidget {
     final experience = context.watch<DashboardExperienceProvider>();
     final favoriteProvider = context.watch<FavoriteProvider>();
     final promos = promoProvider.promosByStore(store.name);
+    final isOnlineStore = MapsLauncher.isOnlineStore(store);
+    final actionIcon = MapsLauncher.storeActionIcon(store);
+    final actionLabel = MapsLauncher.storeActionLabel(store);
     final bestDiscount = promos.isEmpty
         ? 0.0
         : promos
@@ -183,8 +186,8 @@ class StoreDetailScreen extends StatelessWidget {
                             width: double.infinity,
                             child: OutlinedButton.icon(
                               onPressed: () => _openMaps(context),
-                              icon: const Icon(Icons.map_outlined),
-                              label: const Text('Buka Peta'),
+                              icon: Icon(actionIcon),
+                              label: Text(actionLabel),
                             ),
                           ),
                         ],
@@ -213,15 +216,17 @@ class StoreDetailScreen extends StatelessWidget {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () => _openMaps(context),
-                            icon: const Icon(Icons.map_outlined),
-                            label: const Text('Buka Peta'),
+                            icon: Icon(actionIcon),
+                            label: Text(actionLabel),
                           ),
                         ),
                       ],
                     );
                   },
                 ),
-                if (store.latitude != null && store.longitude != null) ...[
+                if (!isOnlineStore &&
+                    store.latitude != null &&
+                    store.longitude != null) ...[
                   const SizedBox(height: 18),
                   _StoreMapPreview(store: store),
                 ],
@@ -362,8 +367,8 @@ class _StoreMapPreview extends StatelessWidget {
                   bottom: 14,
                   child: FilledButton.icon(
                     onPressed: () => MapsLauncher.openStore(context, store),
-                    icon: const Icon(Icons.navigation_outlined),
-                    label: const Text('Buka Peta'),
+                    icon: Icon(MapsLauncher.storeActionIcon(store)),
+                    label: Text(MapsLauncher.storeActionLabel(store)),
                   ),
                 ),
               ],

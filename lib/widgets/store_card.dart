@@ -20,6 +20,11 @@ class StoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final contentPadding = compact ? 14.0 : 16.0;
+    final actionIcon = MapsLauncher.storeActionIcon(store);
+    final actionLabel = MapsLauncher.storeActionLabel(
+      store,
+      compact: compact,
+    );
     final card = Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
@@ -114,8 +119,8 @@ class StoreCard extends StatelessWidget {
                         onPressed: () async {
                           await MapsLauncher.openStore(context, store);
                         },
-                        icon: const Icon(Icons.map_outlined, size: 16),
-                        label: const Text('Peta'),
+                        icon: Icon(actionIcon, size: 16),
+                        label: Text(actionLabel),
                       ),
                     ),
                   ],
@@ -148,8 +153,8 @@ class StoreCard extends StatelessWidget {
                       onPressed: () async {
                         await MapsLauncher.openStore(context, store);
                       },
-                      icon: const Icon(Icons.map_outlined),
-                      label: const Text('Buka Peta'),
+                      icon: Icon(actionIcon),
+                      label: Text(actionLabel),
                     ),
                   ],
                 ),

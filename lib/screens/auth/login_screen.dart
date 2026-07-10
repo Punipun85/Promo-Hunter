@@ -150,15 +150,6 @@ class _LoginScreenState extends State<LoginScreen> {
               action: 'Daftar',
               onTap: () => Navigator.pushNamed(context, AppRoutes.register),
             ),
-            const SizedBox(height: 4),
-            TextButton(
-              onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRoutes.home,
-                (_) => false,
-              ),
-              child: const Text('Lanjut sebagai tamu'),
-            ),
           ],
         ),
       ),

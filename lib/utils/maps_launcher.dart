@@ -6,6 +6,35 @@ import '../models/store_model.dart';
 class MapsLauncher {
   const MapsLauncher._();
 
+  static const Map<String, String> _officialWebsites = {
+    'traveloka': 'https://www.traveloka.com/',
+    'shopee': 'https://shopee.co.id/',
+    'tokopedia': 'https://www.tokopedia.com/',
+    'lazada': 'https://www.lazada.co.id/',
+    'blibli': 'https://www.blibli.com/',
+    'tiket': 'https://www.tiket.com/',
+    'agoda': 'https://www.agoda.com/',
+    'booking': 'https://www.booking.com/',
+    'klook': 'https://www.klook.com/id/',
+  };
+
+  static bool isOnlineStore(StoreModel store) {
+    return _officialWebsiteFor(store) != null;
+  }
+
+  static Uri storeActionUri(StoreModel store) {
+    return _officialWebsiteFor(store) ?? storeUri(store);
+  }
+
+  static IconData storeActionIcon(StoreModel store) {
+    return isOnlineStore(store) ? Icons.language_rounded : Icons.map_outlined;
+  }
+
+  static String storeActionLabel(StoreModel store, {bool compact = false}) {
+    if (isOnlineStore(store)) return compact ? 'Website' : 'Buka Website';
+    return compact ? 'Peta' : 'Buka Peta';
+  }
+
   static Uri storeUri(StoreModel store) {
     final configuredUri = Uri.tryParse(store.googleMapsUrl);
     if (configuredUri != null &&
@@ -110,12 +139,18 @@ class MapsLauncher {
     StoreModel store,
   ) async {
     final launched = await launchUrl(
-      storeUri(store),
+      storeActionUri(store),
       mode: LaunchMode.externalApplication,
     );
     if (!launched && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal membuka peta.')),
+        SnackBar(
+          content: Text(
+            isOnlineStore(store)
+                ? 'Gagal membuka website.'
+                : 'Gagal membuka peta.',
+          ),
+        ),
       );
     }
   }
@@ -135,5 +170,30 @@ class MapsLauncher {
         const SnackBar(content: Text('Gagal membuka peta.')),
       );
     }
+  }
+
+  static Uri? _officialWebsiteFor(StoreModel store) {
+    final normalized = [
+      store.name,
+      store.address,
+      store.city,
+      store.googleMapsUrl,
+    ].join(' ').toLowerCase();
+
+    for (final entry in _officialWebsites.entries) {
+      if (normalized.contains(entry.key)) {
+        return Uri.parse(entry.value);
+      }
+    }
+
+    final configuredUri = Uri.tryParse(store.googleMapsUrl);
+    if (configuredUri != null &&
+        configuredUri.hasScheme &&
+        !_isOpenStreetMapSearch(configuredUri) &&
+        !configuredUri.host.toLowerCase().contains('google.') &&
+        !configuredUri.host.toLowerCase().contains('openstreetmap.org')) {
+      return configuredUri;
+    }
+    return null;
   }
 }

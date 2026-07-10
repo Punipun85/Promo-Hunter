@@ -43,5 +43,31 @@ void main() {
       expect(uri.queryParameters['mlon'], '110.8089');
       expect(uri.fragment, 'map=17/-7.56655/110.8089');
     });
+
+    test('uses official website for online stores', () {
+      const shopee = StoreModel(
+        id: 3,
+        name: 'Shopee',
+        address: 'Marketplace online',
+        city: 'Online',
+        googleMapsUrl: '',
+        openingHours: '24 jam',
+      );
+      const traveloka = StoreModel(
+        id: 4,
+        name: 'Traveloka Promo',
+        address: 'Layanan booking online',
+        city: 'Online',
+        googleMapsUrl: '',
+        openingHours: '24 jam',
+      );
+
+      expect(MapsLauncher.isOnlineStore(shopee), isTrue);
+      expect(MapsLauncher.storeActionUri(shopee).toString(),
+          'https://shopee.co.id/');
+      expect(MapsLauncher.storeActionLabel(shopee), 'Buka Website');
+      expect(MapsLauncher.storeActionUri(traveloka).toString(),
+          'https://www.traveloka.com/');
+    });
   });
 }

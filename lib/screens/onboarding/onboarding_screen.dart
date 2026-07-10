@@ -95,7 +95,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         if (isLast) {
                           Navigator.pushReplacementNamed(
                             context,
-                            AppRoutes.login,
+                            AppRoutes.home,
                           );
                           return;
                         }
