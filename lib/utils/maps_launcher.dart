@@ -12,10 +12,15 @@ class MapsLauncher {
         configuredUri.hasScheme &&
         store.googleMapsUrl.trim().isNotEmpty &&
         !configuredUri.host.toLowerCase().contains('google.')) {
+      if (_isOpenStreetMapSearch(configuredUri)) {
+        return searchUri(name: store.name);
+      }
       return configuredUri;
     }
 
-    if (store.latitude != null && store.longitude != null) {
+    if (!_isGenericStoreLocation(store) &&
+        store.latitude != null &&
+        store.longitude != null) {
       final lat = store.latitude!;
       final lon = store.longitude!;
       return Uri.https(
@@ -28,19 +33,7 @@ class MapsLauncher {
       ).replace(fragment: 'map=17/$lat/$lon');
     }
 
-    final query = [
-      store.name,
-      store.address,
-      store.city,
-    ].where((value) => value.trim().isNotEmpty).join(' ');
-
-    return Uri.https(
-      'www.openstreetmap.org',
-      '/search',
-      {
-        'query': query.isEmpty ? store.name : query,
-      },
-    );
+    return searchUri(name: store.name);
   }
 
   static Uri searchUri({
@@ -48,16 +41,68 @@ class MapsLauncher {
     String? address,
     String? city,
   }) {
-    final query = [
-      name,
-      address ?? '',
-      city ?? '',
-    ].where((value) => value.trim().isNotEmpty).join(' ');
+    final query = _cleanStoreSearchName(name);
     return Uri.https(
       'www.openstreetmap.org',
       '/search',
-      {'query': query.isEmpty ? name : query},
+      {'query': query.isEmpty ? name.trim() : query},
     );
+  }
+
+  static bool _isGenericStoreLocation(StoreModel store) {
+    final address = store.address.trim().toLowerCase();
+    final mapsUrl = store.googleMapsUrl.trim().toLowerCase();
+    return address.contains('terdekat') ||
+        address.startsWith('gerai ') ||
+        address.startsWith('layanan online') ||
+        mapsUrl.contains('/search?query=');
+  }
+
+  static bool _isOpenStreetMapSearch(Uri uri) {
+    final host = uri.host.toLowerCase();
+    return host.contains('openstreetmap.org') && uri.path == '/search';
+  }
+
+  static String _cleanStoreSearchName(String value) {
+    var query = value.trim();
+    final lower = query.toLowerCase();
+    const chainNames = <String>[
+      'klik indomaret',
+      'indomaret',
+      'alfagift',
+      'alfamart',
+      'super indo',
+      'hypermart',
+      'transmart',
+      'lotte mart',
+      'farmers market',
+      'ranch market',
+      'grand lucky',
+      'hero supermarket',
+      'shopee',
+      'tokopedia',
+      'lazada',
+      'blibli',
+    ];
+    for (final chain in chainNames) {
+      if (lower.contains(chain)) {
+        return _titleCase(chain);
+      }
+    }
+    query = query
+        .replaceAll(RegExp(r'\b(terdekat|nearby)\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\bgerai\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return query;
+  }
+
+  static String _titleCase(String value) {
+    return value
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .map((part) => part[0].toUpperCase() + part.substring(1))
+        .join(' ');
   }
 
   static Future<void> openStore(

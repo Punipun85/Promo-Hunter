@@ -263,7 +263,7 @@ class PromoService {
     final normalized = rawName.toLowerCase();
     final chainProfiles = <String, ({String address, String hours})>{
       'indomaret': (
-        address: 'Gerai Indomaret terdekat',
+        address: 'Gerai Indomaret',
         hours: '07.00 - 22.00',
       ),
       'klik indomaret': (
@@ -271,7 +271,7 @@ class PromoService {
         hours: '24 jam',
       ),
       'alfamart': (
-        address: 'Gerai Alfamart terdekat',
+        address: 'Gerai Alfamart',
         hours: '24 jam',
       ),
       'alfagift': (
@@ -279,35 +279,35 @@ class PromoService {
         hours: '24 jam',
       ),
       'super indo': (
-        address: 'Gerai Super Indo terdekat',
+        address: 'Gerai Super Indo',
         hours: '08.00 - 22.00',
       ),
       'hypermart': (
-        address: 'Gerai Hypermart terdekat',
+        address: 'Gerai Hypermart',
         hours: '10.00 - 22.00',
       ),
       'transmart': (
-        address: 'Gerai Transmart terdekat',
+        address: 'Gerai Transmart',
         hours: '10.00 - 22.00',
       ),
       'lotte mart': (
-        address: 'Gerai Lotte Mart terdekat',
+        address: 'Gerai Lotte Mart',
         hours: '09.00 - 22.00',
       ),
       'farmers market': (
-        address: 'Gerai Farmers Market terdekat',
+        address: 'Gerai Farmers Market',
         hours: '08.00 - 22.00',
       ),
       'ranch market': (
-        address: 'Gerai Ranch Market terdekat',
+        address: 'Gerai Ranch Market',
         hours: '08.00 - 22.00',
       ),
       'grand lucky': (
-        address: 'Gerai Grand Lucky terdekat',
+        address: 'Gerai Grand Lucky',
         hours: '08.00 - 22.00',
       ),
       'hero supermarket': (
-        address: 'Gerai Hero Supermarket terdekat',
+        address: 'Gerai Hero Supermarket',
         hours: '08.00 - 22.00',
       ),
     };
@@ -322,7 +322,7 @@ class PromoService {
     final address = promo.storeAddress.trim().isNotEmpty &&
             promo.storeAddress != 'Sumber promo dari n8n'
         ? promo.storeAddress
-        : matchedProfile?.address ?? 'Gerai $rawName terdekat';
+        : matchedProfile?.address ?? 'Gerai $rawName';
 
     return {
       'address': address,

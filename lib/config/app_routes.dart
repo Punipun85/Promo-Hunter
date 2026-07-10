@@ -20,6 +20,7 @@ import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/promo/promo_detail_screen.dart';
 import '../screens/promo/promo_list_screen.dart';
+import '../screens/reward/daily_claim_screen.dart';
 import '../screens/reminder/reminder_screen.dart';
 import '../screens/shopping_list/shopping_list_screen.dart';
 import '../screens/splash/splash_screen.dart';
@@ -56,6 +57,7 @@ class AppRoutes {
   static const paymentResult = '/payment-result';
   static const paymentDetail = '/payment-detail';
   static const miniGame = '/mini-game';
+  static const dailyClaim = '/daily-claim';
   static const dailySpin = '/daily-spin';
   static const coinRush = '/coin-rush';
 
@@ -143,6 +145,8 @@ class AppRoutes {
         );
       case miniGame:
         return MaterialPageRoute(builder: (_) => const MiniGameScreen());
+      case dailyClaim:
+        return MaterialPageRoute(builder: (_) => const DailyClaimScreen());
       case dailySpin:
         return MaterialPageRoute(builder: (_) => const DailySpinScreen());
       case coinRush:
