@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_routes.dart';
 import '../../models/promo_model.dart';
@@ -228,25 +229,7 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
                 FilledButton.tonalIcon(
                   onPressed: decoratedPromo.isExpired
                       ? null
-                      : () async {
-                          final matchingStore = provider.stores
-                              .where((store) =>
-                                  store.name == decoratedPromo.storeName)
-                              .firstOrNull;
-                          if (matchingStore != null) {
-                            Navigator.pushNamed(
-                              context,
-                              AppRoutes.storeDetail,
-                              arguments: matchingStore,
-                            );
-                            return;
-                          }
-                          await MapsLauncher.openStoreSearch(
-                            context,
-                            name: decoratedPromo.storeName,
-                            address: decoratedPromo.storeAddress,
-                          );
-                        },
+                      : () async => _openPromoSourceUrl(context, decoratedPromo),
                   icon: const Icon(Icons.storefront_outlined),
                   label: Text(
                     decoratedPromo.isExpired
@@ -335,6 +318,37 @@ class _PromoDetailScreenState extends State<PromoDetailScreen> {
         '$expiryLabel\n'
         'Lokasi toko: ${promo.storeAddress}\n'
         'Dibagikan dari PromoHunter.';
+  }
+
+  Future<void> _openPromoSourceUrl(
+    BuildContext context,
+    PromoModel promo,
+  ) async {
+    final rawUrl = promo.sourceUrl.trim();
+    if (rawUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link promo belum tersedia.')),
+      );
+      return;
+    }
+
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null || !uri.hasScheme) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link promo tidak valid.')),
+      );
+      return;
+    }
+
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal membuka link promo.')),
+      );
+    }
   }
 }
 

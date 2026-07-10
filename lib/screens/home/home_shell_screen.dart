@@ -54,9 +54,12 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     if (userId == null && _bootstrappedUserId != null) {
       _bootstrappedUserId = null;
       _refreshedUserId = null;
-      context.read<FavoriteProvider>().clear();
-      context.read<ReminderProvider>().clear();
-      context.read<ShoppingListProvider>().clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<FavoriteProvider>().clear();
+        context.read<ReminderProvider>().clear();
+        context.read<ShoppingListProvider>().clear();
+      });
     }
   }
 
@@ -64,47 +67,8 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final isAdmin = auth.isAdmin;
-    final pages = <Widget>[
-      const HomeScreen(),
-      const PromoListScreen(),
-      const FavoriteScreen(),
-      const WalletScreen(),
-      if (isAdmin) const AdminDashboardScreen(),
-      const ProfileScreen(),
-    ];
-    final destinations = <NavigationDestination>[
-      const NavigationDestination(
-        icon: Icon(Icons.home_outlined),
-        selectedIcon: Icon(Icons.home),
-        label: 'Home',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.local_offer_outlined),
-        selectedIcon: Icon(Icons.local_offer),
-        label: 'Promo',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.favorite_border),
-        selectedIcon: Icon(Icons.favorite),
-        label: 'Favorit',
-      ),
-      const NavigationDestination(
-        icon: Icon(Icons.account_balance_wallet_outlined),
-        selectedIcon: Icon(Icons.account_balance_wallet),
-        label: 'Topup',
-      ),
-      if (isAdmin)
-        const NavigationDestination(
-          icon: Icon(Icons.admin_panel_settings_outlined),
-          selectedIcon: Icon(Icons.admin_panel_settings),
-          label: 'Admin',
-        ),
-      const NavigationDestination(
-        icon: Icon(Icons.person_outline),
-        selectedIcon: Icon(Icons.person),
-        label: 'Profil',
-      ),
-    ];
+    final pages = isAdmin ? _adminPages : _userPages;
+    final destinations = isAdmin ? _adminDestinations : _userDestinations;
 
     if (_index >= pages.length) {
       _index = pages.length - 1;
@@ -136,6 +100,62 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       ),
     );
   }
+
+  static const List<Widget> _userPages = <Widget>[
+    HomeScreen(),
+    PromoListScreen(),
+    FavoriteScreen(),
+    WalletScreen(),
+    ProfileScreen(),
+  ];
+
+  static const List<Widget> _adminPages = <Widget>[
+    AdminDashboardScreen(),
+    ProfileScreen(),
+  ];
+
+  static const List<NavigationDestination> _userDestinations =
+      <NavigationDestination>[
+    NavigationDestination(
+      icon: Icon(Icons.home_outlined),
+      selectedIcon: Icon(Icons.home),
+      label: 'Home',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.local_offer_outlined),
+      selectedIcon: Icon(Icons.local_offer),
+      label: 'Promo',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.favorite_border),
+      selectedIcon: Icon(Icons.favorite),
+      label: 'Favorit',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.account_balance_wallet_outlined),
+      selectedIcon: Icon(Icons.account_balance_wallet),
+      label: 'Topup',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.person_outline),
+      selectedIcon: Icon(Icons.person),
+      label: 'Profil',
+    ),
+  ];
+
+  static const List<NavigationDestination> _adminDestinations =
+      <NavigationDestination>[
+    NavigationDestination(
+      icon: Icon(Icons.admin_panel_settings_outlined),
+      selectedIcon: Icon(Icons.admin_panel_settings),
+      label: 'Admin',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.person_outline),
+      selectedIcon: Icon(Icons.person),
+      label: 'Profil',
+    ),
+  ];
 
   Future<bool> _showExitConfirmation(BuildContext context) async {
     final result = await showDialog<bool>(
