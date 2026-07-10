@@ -19,8 +19,8 @@ class Validators {
   static String? password(String? value) {
     final required = requiredField(value, label: 'Password');
     if (required != null) return required;
-    if (value!.length < 6) {
-      return 'Password minimal 6 karakter';
+    if (value!.length < 8) {
+      return 'Password minimal 8 karakter';
     }
     return null;
   }

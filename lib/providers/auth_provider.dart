@@ -44,6 +44,24 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> loginWithGoogle() async {
+    isLoading = true;
+    errorMessage = null;
+    registerNeedsVerification = false;
+    notifyListeners();
+    try {
+      currentUser = await _authService.loginWithGoogle();
+      currentUser = await _authService.refreshCurrentUserProfile();
+      return true;
+    } catch (error) {
+      errorMessage = error.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> register(String name, String email, String password) async {
     isLoading = true;
     errorMessage = null;

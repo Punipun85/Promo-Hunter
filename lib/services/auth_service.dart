@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -14,6 +15,7 @@ class AuthService {
   ProfileModel? _currentUser;
   bool _registerNeedsVerification = false;
   static const _avatarPathPrefix = 'profile_avatar_path_';
+  static const _oauthRedirectUrl = 'promohunter://login-callback';
 
   Future<ProfileModel> login({
     required String email,
@@ -57,6 +59,57 @@ class AuthService {
       name: email.contains('admin') ? 'Admin PromoHunter' : 'Demo User',
       email: email,
       role: email.contains('admin') ? 'admin' : 'user',
+    );
+    _currentUser = await _attachLocalAvatar(_currentUser!);
+    return _currentUser!;
+  }
+
+  Future<ProfileModel> loginWithGoogle() async {
+    _registerNeedsVerification = false;
+    final client = _supabaseService.clientOrNull;
+    if (client != null) {
+      try {
+        final launched = await client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: kIsWeb ? null : _oauthRedirectUrl,
+        );
+        if (!launched) {
+          throw Exception(
+              'Login Google dibatalkan atau browser tidak terbuka.');
+        }
+
+        final event = await client.auth.onAuthStateChange
+            .firstWhere(
+          (event) => event.session?.user != null,
+        )
+            .timeout(
+          const Duration(minutes: 2),
+          onTimeout: () {
+            throw Exception(
+              'Login Google belum selesai. Coba lagi dan pastikan kembali ke aplikasi setelah memilih akun.',
+            );
+          },
+        );
+        final user = event.session!.user;
+        final profile = await _profileForSupabaseUser(user);
+        _currentUser = await _attachLocalAvatar(profile);
+        return _currentUser!;
+      } on AuthException catch (error) {
+        throw Exception(_mapAuthErrorMessage(error.message));
+      } catch (error) {
+        if (error is Exception) rethrow;
+        throw Exception(
+          _mapGenericAuthError(error, fallback: 'Login Google gagal'),
+        );
+      }
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    _currentUser = const ProfileModel(
+      id: 'demo-google-user',
+      name: 'Google User',
+      email: 'google.user@example.com',
+      role: 'user',
     );
     _currentUser = await _attachLocalAvatar(_currentUser!);
     return _currentUser!;
@@ -172,6 +225,29 @@ class AuthService {
         );
     _currentUser = await _attachLocalAvatar(_currentUser!);
     return _currentUser;
+  }
+
+  Future<ProfileModel> _profileForSupabaseUser(User user) async {
+    final client = _supabaseService.clientOrNull;
+    final existing = await getUserProfile(user.id);
+    if (existing != null) return existing;
+
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    final name = (metadata['name'] as String?)?.trim().isNotEmpty == true
+        ? metadata['name'] as String
+        : (metadata['full_name'] as String?)?.trim().isNotEmpty == true
+            ? metadata['full_name'] as String
+            : 'User PromoHunter';
+    final profile = ProfileModel(
+      id: user.id,
+      name: name,
+      email: user.email ?? '',
+      role: 'user',
+    );
+    if (client != null) {
+      await _upsertProfile(client: client, profile: profile);
+    }
+    return profile;
   }
 
   Future<ProfileModel?> getUserProfile(String userId) async {

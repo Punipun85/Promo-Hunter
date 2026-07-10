@@ -24,6 +24,7 @@ class DashboardExperienceProvider extends ChangeNotifier
   static const _redeemedVouchersKey = 'dashboard_redeemed_vouchers';
   static const _paymentTransactionsKey = 'dashboard_payment_transactions';
   static const freeAccessDelay = Duration(hours: 3);
+  static const dailyClaimRewardCoins = 5;
   static const miniGameDailyLimit = 3;
   static const miniGameRounds = 5;
   static const unlockCost = 30;
@@ -217,7 +218,6 @@ class DashboardExperienceProvider extends ChangeNotifier
   DateTime? lastDailySpinAt;
   List<RedeemedVoucher> redeemedVouchers = <RedeemedVoucher>[];
   List<PaymentTransaction> paymentTransactions = <PaymentTransaction>[];
-  bool _hasShownEntryDialogsThisSession = false;
   Timer? _lockCountdownTimer;
   Timer? _miniGameResetTimer;
   final MidtransPaymentStatusService _midtransStatusService =
@@ -280,7 +280,7 @@ class DashboardExperienceProvider extends ChangeNotifier
   }
 
   bool shouldShowEntryDialogs() {
-    return isReady && !_hasShownEntryDialogsThisSession;
+    return isReady;
   }
 
   Future<void> registerPromos(Iterable<int> promoIds) async {
@@ -414,7 +414,6 @@ class DashboardExperienceProvider extends ChangeNotifier
 
   Future<void> markEntryDialogsShown() async {
     final prefs = await SharedPreferences.getInstance();
-    _hasShownEntryDialogsThisSession = true;
     lastPopupShownAt = DateTime.now();
     await prefs.setString(_lastPopupKey, lastPopupShownAt!.toIso8601String());
     notifyListeners();
@@ -423,7 +422,6 @@ class DashboardExperienceProvider extends ChangeNotifier
   Future<void> resetEntryDialogs() async {
     final prefs = await SharedPreferences.getInstance();
     _cachedPrefs = prefs;
-    _hasShownEntryDialogsThisSession = false;
     lastPopupShownAt = null;
     await prefs.remove(_lastPopupKey);
     notifyListeners();
@@ -849,7 +847,7 @@ class DashboardExperienceProvider extends ChangeNotifier
     }
 
     lastClaimedAt = now;
-    final coinsEarned = claimedDaysInCycle == 7 ? 50 : 10;
+    const coinsEarned = dailyClaimRewardCoins;
     coinBalance += coinsEarned;
     await prefs.setInt(_dailyCycleKey, claimedDaysInCycle);
     await prefs.setInt(_coinsKey, coinBalance);

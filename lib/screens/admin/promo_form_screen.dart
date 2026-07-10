@@ -286,7 +286,7 @@ class _PromoFormScreenState extends State<PromoFormScreen> {
                               storeName: storeName,
                               storeAddress: matchingStore?.address ??
                                   promo?.storeAddress ??
-                                  'Gerai $storeName terdekat',
+                                  'Gerai $storeName',
                               categoryName: _selectedCategory!.name,
                               startDate: _startDate,
                               endDate: _endDate,

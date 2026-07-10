@@ -282,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPlayGamesPressed: () =>
                     Navigator.pushNamed(context, AppRoutes.miniGame),
                 onViewRewardsPressed: () =>
-                    Navigator.pushNamed(context, AppRoutes.wallet),
+                    Navigator.pushNamed(context, AppRoutes.dailyClaim),
               ),
             ),
           ),
@@ -1824,7 +1824,7 @@ class _EntryOnboardingSheetState extends State<_EntryOnboardingSheet> {
             ? 'Hari ke-${widget.experience.nextDailyDay}/7 siap diambil sekarang.'
             : 'Reward hari ini sudah diambil. Besok lanjut lagi ke hari ${widget.experience.nextDailyDay}/7.',
         detail:
-            'Streak saat ini ${widget.experience.claimedDaysInCycle}/7. Hari ke-7 memberi bonus 50 coin.',
+            'Streak saat ini ${widget.experience.claimedDaysInCycle}/7. Setiap hari memberi 5 coin.',
         actionLabel: widget.claimReward ? 'Ambil reward' : 'Lihat wallet',
         onPressed: () => Navigator.pop(
           context,

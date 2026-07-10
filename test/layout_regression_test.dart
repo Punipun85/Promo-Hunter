@@ -21,9 +21,11 @@ import 'package:promohunter/screens/calculator/price_calculator_screen.dart';
 import 'package:promohunter/screens/favorite/favorite_screen.dart';
 import 'package:promohunter/screens/home/home_screen.dart';
 import 'package:promohunter/screens/notification/notification_screen.dart';
+import 'package:promohunter/screens/onboarding/onboarding_screen.dart';
 import 'package:promohunter/screens/promo/promo_list_screen.dart';
 import 'package:promohunter/screens/profile/profile_screen.dart';
 import 'package:promohunter/screens/reminder/reminder_screen.dart';
+import 'package:promohunter/screens/reward/daily_claim_screen.dart';
 import 'package:promohunter/screens/shopping_list/shopping_list_screen.dart';
 import 'package:promohunter/screens/store/store_detail_screen.dart';
 import 'package:promohunter/screens/store/store_list_screen.dart';
@@ -177,7 +179,20 @@ void main() {
   testWidgets('login screen renders on narrow mobile viewport', (tester) async {
     await pumpNarrowScreen(tester, const LoginScreen());
 
-    expect(find.text('Masuk ke PromoHunter'), findsOneWidget);
+    expect(find.text('PromoHunter'), findsOneWidget);
+  });
+
+  testWidgets('onboarding screen renders on narrow mobile viewport',
+      (tester) async {
+    await pumpNarrowScreen(tester, const OnboardingScreen());
+
+    expect(find.text('Bandingkan Harga Satuan'), findsOneWidget);
+  });
+
+  testWidgets('daily claim renders on narrow mobile viewport', (tester) async {
+    await pumpNarrowScreen(tester, const DailyClaimScreen());
+
+    expect(find.text('Daily Claim'), findsOneWidget);
   });
 
   testWidgets('favorite screen renders on narrow mobile viewport',
