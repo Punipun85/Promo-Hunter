@@ -414,8 +414,8 @@ class PromoProvider extends ChangeNotifier {
         await bootstrap();
         syncMessage = result.insertedCount == 0
             ? result.message ??
-                'n8n selesai sync ${source.label}, belum ada data baru.'
-            : 'n8n berhasil menyimpan ${result.insertedCount} promo dari ${source.label}.';
+                'Pipedream selesai sync ${source.label}, belum ada data baru.'
+            : 'Pipedream berhasil menyimpan ${result.insertedCount} promo dari ${source.label}.';
         return result.insertedCount;
       }
 
@@ -430,7 +430,7 @@ class PromoProvider extends ChangeNotifier {
       await bootstrap();
       syncMessage = insertedCount == 0
           ? result.message ??
-              'n8n berhasil mengecek ${source.label}, belum ada promo baru.'
+              'Pipedream berhasil mengecek ${source.label}, belum ada promo baru.'
           : '$insertedCount promo baru berhasil diimpor dari ${source.label}.';
       return insertedCount;
     } on N8nPromoImportException catch (error) {
@@ -441,7 +441,7 @@ class PromoProvider extends ChangeNotifier {
       rethrow;
     } catch (_) {
       syncMessage =
-          'Gagal sinkron promo dari ${source.label}. Pastikan workflow n8n aktif dan coba lagi.';
+          'Gagal sinkron promo dari ${source.label}. Pastikan workflow Pipedream aktif dan coba lagi.';
       rethrow;
     } finally {
       isSyncingN8n = false;

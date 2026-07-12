@@ -44,7 +44,7 @@ class N8nPromoImportService {
 
     if (response == null) {
       throw N8nPromoImportException(
-        'Webhook n8n belum bisa dihubungi. Detail: ${failures.join(' | ')}',
+        'Webhook Pipedream belum bisa dihubungi. Detail: ${failures.join(' | ')}',
       );
     }
 
@@ -73,7 +73,7 @@ class N8nPromoImportService {
       importedPromos: promos,
       rawCount: promos.length,
       sourceName: _findString(response.data, const ['source_name']) ??
-          'n8n Promo Scraper',
+          'Pipedream Promo Scraper',
       message: _findString(response.data, const ['message']),
       insertedCount: directInsertCount ?? 0,
       isDirectSupabaseInsert: isDirectInsert,
@@ -90,16 +90,72 @@ class N8nPromoImportService {
 
   Map<String, dynamic> _buildImportRequest(PromoImportSource source) {
     final now = DateTime.now();
-    final monthLabel = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final periodKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final periodText = _indonesianMonthYear(now);
+    final sourceType = source == PromoImportSource.notion
+        ? 'curated'
+        : 'offline_store';
     return {
       'source': 'promohunter_admin',
       'import_source': source.name,
       'import_source_label': source.label,
+      'source_type': sourceType,
+      'coverage_area': 'Solo Raya',
+      'city': 'Surakarta',
+      'area': 'Solo Raya',
+      'period_month': periodText,
+      'period_key': periodKey,
       'requested_at': now.toIso8601String(),
       'mode': source == PromoImportSource.notion
           ? 'notion_curated_promos_with_supabase_storage'
           : 'multi_source_web_scrape_with_supabase_insert',
-      'sync_strategy': 'n8n_download_images_upload_storage_insert_supabase',
+      'sync_strategy': 'pipedream_scrape_upload_storage_insert_supabase',
+      'scrape_strategy': const {
+        'selection': 'offline_local_first_then_national',
+        'default_source_type': 'offline_store',
+        'supported_source_types': [
+          'offline_store',
+          'online_marketplace',
+        ],
+        'offline_store': {
+          'scope': 'local',
+          'city': 'Surakarta',
+          'area': 'Solo Raya',
+          'use_nearest_store_when_location_available': true,
+        },
+        'online_marketplace': {
+          'scope': 'national',
+          'default_priority': [
+            'Klik Indomaret',
+            'Alfagift',
+            'Blibli',
+            'Shopee',
+            'Tokopedia',
+          ],
+          'avoid_direct_html_scrape_first': [
+            'Shopee',
+            'Tokopedia',
+          ],
+          'fallback_note':
+              'Shopee and Tokopedia often block simple HTML fetches; prefer official API/affiliate feeds or discovery fallback.',
+          'examples': [
+            'Klik Indomaret',
+            'Alfagift',
+            'Blibli',
+            'Shopee',
+            'Tokopedia',
+          ],
+        },
+      },
+      'location': const {
+        'country': 'Indonesia',
+        'province': 'Jawa Tengah',
+        'city': 'Surakarta',
+        'area': 'Solo Raya',
+        'coverage': 'local',
+        'latitude': -7.5666,
+        'longitude': 110.8167,
+      },
       'notion_target': const {
         'database': 'PromoHunter Promos',
         'status_ready': 'Ready',
@@ -119,7 +175,7 @@ class N8nPromoImportService {
         'image_upload': {
           'enabled': true,
           'required': true,
-          'folder': 'n8n-promos',
+          'folder': 'pipedream-promos',
           'save_public_url_to': 'promos.image_url',
           'source_image_field': 'original_image_url',
           'fallback_image_url':
@@ -135,7 +191,9 @@ class N8nPromoImportService {
         'prefer_response_under_seconds': 45,
       },
       'period': {
-        'month': monthLabel,
+        'month': periodText,
+        'key': periodKey,
+        'timezone': 'Asia/Jakarta',
         'include_current_month': true,
         'include_active_promos_only': true,
       },
@@ -152,17 +210,25 @@ class N8nPromoImportService {
         'Hero Supermarket',
         'Klik Indomaret',
         'Alfagift',
+        'Blibli',
+        'Shopee',
+        'Tokopedia',
       ],
       'search_queries': [
-        'promo supermarket Indonesia $monthLabel',
-        'promo minimarket Indonesia $monthLabel',
-        'katalog promo Indomaret $monthLabel',
-        'katalog promo Alfamart $monthLabel',
-        'promo Super Indo $monthLabel',
-        'promo Hypermart $monthLabel',
-        'promo Transmart $monthLabel',
-        'promo Lotte Mart $monthLabel',
-        'promo Farmers Market $monthLabel',
+        'promo supermarket Surakarta $periodText',
+        'promo minimarket Solo Raya $periodText',
+        'katalog promo Indomaret Surakarta $periodText',
+        'katalog promo Alfamart Surakarta $periodText',
+        'promo Super Indo Solo $periodText',
+        'promo Hypermart Solo $periodText',
+        'promo Transmart Solo $periodText',
+        'promo Lotte Mart Solo $periodText',
+        'promo Farmers Market Indonesia $periodText',
+        'promo Klik Indomaret kebutuhan harian $periodText',
+        'promo Alfagift kebutuhan harian $periodText',
+        'promo Blibli supermarket grocery $periodText',
+        'promo Shopee supermarket $periodText',
+        'promo Tokopedia groceries $periodText',
       ],
       'output_contract': {
         'format': 'json',
@@ -205,15 +271,15 @@ class N8nPromoImportService {
           'Jika sudah mendekati prefer_response_under_seconds, hentikan scraping dan response dengan hasil parsial.',
           'Ambil gambar produk dari halaman promo yang sama dengan source_url.',
           'Jika halaman promo memakai meta og:image atau image tag produk, gunakan gambar tersebut sebagai original_image_url.',
-          'Download original_image_url di n8n lalu upload ke Supabase Storage bucket promo-images.',
+          'Download original_image_url di Pipedream lalu upload ke Supabase Storage bucket promo-images.',
           'Simpan public URL dari Supabase Storage ke kolom promos.image_url.',
           'image_url harus berisi public URL Supabase Storage, bukan URL gambar eksternal dari website sumber.',
           'Jangan biarkan image_url kosong; jika gambar produk gagal diambil, download fallback_image_url lalu upload fallback itu ke Supabase Storage.',
           'Pastikan image_url yang disimpan adalah file gambar valid yang bisa dibuka publik dan content-type diawali image/.',
           'Jika original_image_url redirect loop, HTML, 403, 404, atau tidak bisa didecode, gunakan fallback image Storage.',
           'Insert atau upsert stores dan categories sebelum insert promos.',
-          'Gunakan Supabase service role hanya di n8n, jangan pernah kirim service role ke Flutter.',
-          'Set direct_insert true jika n8n sudah menulis data ke Supabase.',
+          'Gunakan Supabase service role hanya di Pipedream, jangan pernah kirim service role ke Flutter.',
+          'Set direct_insert true jika Pipedream sudah menulis data ke Supabase.',
           'Jika scraping lambat, insert hasil parsial yang valid lebih dulu.',
           'Jangan buat data palsu; kosongkan field opsional jika tidak tersedia.',
           'Normalisasi harga menjadi angka rupiah tanpa simbol.',
@@ -225,26 +291,44 @@ class N8nPromoImportService {
     };
   }
 
+  String _indonesianMonthYear(DateTime date) {
+    const monthNames = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    return '${monthNames[date.month - 1]} ${date.year}';
+  }
+
   String _friendlyDioMessage(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return 'n8n belum mengirim response. Workflow kemungkinan masih scraping terlalu lama atau belum memakai Respond to Webhook.';
+        return 'Pipedream belum mengirim response. Workflow kemungkinan masih scraping terlalu lama atau belum return HTTP response.';
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
         if (statusCode == 404) {
-          return 'Webhook n8n tidak ditemukan. Pastikan workflow aktif dan URL production webhook benar.';
+          return 'Webhook Pipedream tidak ditemukan. Pastikan workflow aktif dan URL endpoint benar.';
         }
-        return 'n8n mengembalikan error HTTP ${statusCode ?? '-'}.';
+        return 'Pipedream mengembalikan error HTTP ${statusCode ?? '-'}.';
       case DioExceptionType.connectionError:
-        return 'Tidak bisa terhubung ke n8n. Cek internet atau status n8n cloud.';
+        return 'Tidak bisa terhubung ke Pipedream. Cek internet atau status endpoint.';
       case DioExceptionType.cancel:
-        return 'Sync n8n dibatalkan.';
+        return 'Sync Pipedream dibatalkan.';
       case DioExceptionType.badCertificate:
-        return 'Koneksi ke n8n ditolak karena sertifikat SSL bermasalah.';
+        return 'Koneksi ke Pipedream ditolak karena sertifikat SSL bermasalah.';
       case DioExceptionType.unknown:
-        return 'Gagal memanggil n8n: ${error.message ?? 'error tidak diketahui'}.';
+        return 'Gagal memanggil Pipedream: ${error.message ?? 'error tidak diketahui'}.';
     }
   }
 
@@ -329,7 +413,7 @@ class N8nPromoImportService {
           'retailer',
         ]) ??
         _hostFromUrl(sourceUrl) ??
-        'n8n Promo Source';
+        'Pipedream Promo Source';
 
     return PromoModel(
       id: 0,
@@ -345,7 +429,7 @@ class N8nPromoImportService {
             map,
             const ['store_address', 'address', 'location'],
           ) ??
-          'Sumber promo dari n8n',
+          'Sumber promo dari Pipedream',
       categoryName: _firstString(map, const ['category', 'category_name']) ??
           'Promo Online',
       startDate: startDate,
@@ -356,7 +440,7 @@ class N8nPromoImportService {
             'evidence_text',
             'description',
           ]) ??
-          'Diimpor otomatis dari workflow n8n.',
+          'Diimpor otomatis dari workflow Pipedream.',
       sourceUrl: sourceUrl,
     );
   }

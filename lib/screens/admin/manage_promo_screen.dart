@@ -23,7 +23,7 @@ class ManagePromoScreen extends StatelessWidget {
           content: Text(
             imported == 0
                 ? promoProvider.syncMessage ??
-                    'n8n dicek, belum ada promo baru.'
+                    'Pipedream dicek, belum ada promo baru.'
                 : '$imported promo baru berhasil diimpor.',
           ),
         ),
@@ -31,7 +31,7 @@ class ManagePromoScreen extends StatelessWidget {
     } catch (_) {
       if (!context.mounted) return;
       final message = context.read<PromoProvider>().syncMessage ??
-          'Gagal sync dari n8n. Cek workflow dan koneksi.';
+          'Gagal sync dari Pipedream. Cek workflow dan koneksi.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
@@ -46,7 +46,7 @@ class ManagePromoScreen extends StatelessWidget {
         title: const Text('Kelola Promo'),
         actions: [
           IconButton(
-            tooltip: 'Sync promo dari n8n',
+            tooltip: 'Sync promo dari Pipedream',
             onPressed: provider.isSyncingN8n
                 ? null
                 : () => _syncPromos(context, fromNotion: false),
@@ -92,7 +92,7 @@ class ManagePromoScreen extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   provider.isSyncingN8n
-                                      ? 'Sedang mengambil promo dari n8n. Proses bisa memakan waktu 1-3 menit...'
+                                      ? 'Sedang mengambil promo dari Pipedream. Proses bisa memakan waktu 1-3 menit...'
                                       : provider.syncMessage ??
                                           'Ambil promo otomatis dari web scraping atau promo kurasi dari Notion. Gambar akan diupload ke Supabase Storage.',
                                 ),
@@ -134,7 +134,7 @@ class ManagePromoScreen extends StatelessWidget {
                           Expanded(
                             child: Text(
                               provider.isSyncingN8n
-                                  ? 'Sedang mengambil promo dari n8n. Proses bisa memakan waktu 1-3 menit...'
+                                  ? 'Sedang mengambil promo dari Pipedream. Proses bisa memakan waktu 1-3 menit...'
                                   : provider.syncMessage ??
                                       'Ambil promo otomatis dari web scraping atau promo kurasi dari Notion. Gambar akan diupload ke Supabase Storage.',
                             ),
@@ -173,7 +173,7 @@ class ManagePromoScreen extends StatelessWidget {
             const EmptyState(
               title: 'Belum ada promo',
               subtitle:
-                  'Tambahkan promo manual atau tekan Sync untuk mengambil dari n8n.',
+                  'Tambahkan promo manual atau tekan Sync untuk mengambil dari Pipedream.',
             )
           else
             ...List.generate(provider.promos.length, (index) {
